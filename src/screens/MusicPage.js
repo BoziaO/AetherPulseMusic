@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useLocation, useOutletContext } from "react-router-dom";
 import { fetchJson } from "../lib/api";
 import CoverArt from "../components/CoverArt";
 import {
@@ -83,6 +83,7 @@ function ChartRow({ item }) {
 }
 
 function QueueTable({ page }) {
+  const { play } = useOutletContext();
   return (
     <section className="bg-neutral-900/30 border border-white/5 p-6 rounded-3xl overflow-hidden">
       <SectionHeader title={page.queueTitle} action={page.queueAction} />
@@ -104,6 +105,7 @@ function QueueTable({ page }) {
             <div 
               key={`${page.key}-${item.title}-${index}`} 
               className="grid grid-cols-[auto_1fr_1fr_100px_80px] gap-4 px-4 py-4 items-center hover:bg-white/5 transition-colors group cursor-pointer"
+              onClick={() => play?.(item)}
             >
               <span className="text-sm font-bold text-neutral-600 group-hover:text-red-500 transition-colors w-6">
                 {String(index + 1).padStart(2, "0")}
@@ -132,56 +134,100 @@ function QueueTable({ page }) {
 }
 
 function MusicPage({ pageKey }) {
-  const { pageData, pageLoading, authSession } = useOutletContext();
+  const location = useLocation();
+  const { pageData, pageLoading, play, query, searchFilter, searchResults, searchLoading, authSession } = useOutletContext();
   const [playlists, setPlaylists] = useState([]);
   const [importing, setImporting] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     setSelectedPlaylist(null);
-    setFetchError(null);
     if (pageKey === "playlists") {
       fetchPlaylists();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageKey, authSession?.auth?.connected]);
 
+  useEffect(() => {
+    const playlistId = new URLSearchParams(location.search).get("playlist");
+    if (pageKey === "playlists" && playlistId) {
+      fetchPlaylistDetails(playlistId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageKey, location.search]);
+
   async function fetchPlaylists() {
     if (importing) return;
     setImporting(true);
     try {
-      const results = [];
-      // 1. Fetch from InnerTube (library)
-      try {
-        const libPlaylists = await fetchJson("/api/ytmusic/library/playlists");
-        if (Array.isArray(libPlaylists)) {
-          results.push(...libPlaylists);
-        }
-      } catch (e) {
-        console.warn("Could not fetch library playlists", e);
-      }
-      
-      // 2. Fetch from YouTube Data API (if connected)
+      const libPlaylists = await fetchJson("/api/ytmusic/library/playlists");
+      const merged = Array.isArray(libPlaylists) ? [...libPlaylists] : [];
+
       if (authSession?.auth?.connected) {
         try {
           const ytPlaylists = await fetchJson("/api/youtube/playlists");
-          if (Array.isArray(ytPlaylists)) {
-            // Deduplicate: if we already have it from library, skip
-            const seenIds = new Set(results.map(p => p.browseId?.replace('VL', '')));
-            const filteredYt = ytPlaylists.filter(p => !seenIds.has(p.id));
-            results.push(...filteredYt);
-          }
-        } catch (e) {
-          console.warn("Could not fetch YouTube Data API playlists", e);
+          const normalized = (Array.isArray(ytPlaylists) ? ytPlaylists : []).map((pl) => ({
+            title: pl.snippet?.title,
+            author: pl.snippet?.channelTitle || "YouTube",
+            thumbnail:
+              pl.snippet?.thumbnails?.maxres?.url ||
+              pl.snippet?.thumbnails?.high?.url ||
+              pl.snippet?.thumbnails?.medium?.url ||
+              pl.snippet?.thumbnails?.default?.url ||
+              null,
+            browseId: pl.id,
+            playlistId: pl.id,
+            trackCount: pl.contentDetails?.itemCount || 0,
+            source: "google",
+          }));
+          const seen = new Set(merged.map((item) => item.browseId || item.playlistId));
+          normalized.forEach((item) => {
+            const id = item.browseId || item.playlistId;
+            if (!seen.has(id)) merged.push(item);
+          });
+        } catch (error) {
+          console.warn("Could not fetch Google playlists", error);
         }
       }
-      setPlaylists(results);
+
+      setPlaylists(merged);
     } catch (err) {
       console.error("Błąd pobierania playlist:", err);
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleCreatePlaylist() {
+    const title = prompt("Nazwa nowej playlisty:");
+    if (!title) return;
+    const description = prompt("Opis (opcjonalnie):") || "";
+    const privacyStatus = (prompt("Prywatnosc: PRIVATE / UNLISTED / PUBLIC", "PRIVATE") || "PRIVATE").toUpperCase();
+
+    try {
+      await fetchJson("/api/ytmusic/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, privacyStatus }),
+      });
+      fetchPlaylists();
+    } catch (error) {
+      console.error("Create playlist error:", error);
+      alert("Nie udało się utworzyć playlisty. (Wymaga headers.json)");
+    }
+  }
+
+  async function handleDeletePlaylist(playlistId) {
+    if (!playlistId) return;
+    if (!window.confirm("Usunąć playlistę? Tej operacji nie można cofnąć.")) return;
+    try {
+      await fetchJson(`/api/ytmusic/playlist/${playlistId}`, { method: "DELETE" });
+      setSelectedPlaylist(null);
+      fetchPlaylists();
+    } catch (error) {
+      console.error("Delete playlist error:", error);
+      alert("Nie udało się usunąć playlisty. (Wymaga headers.json)");
     }
   }
 
@@ -191,7 +237,7 @@ function MusicPage({ pageKey }) {
       setLoadingPlaylist(true);
       // Ensure playlistId doesn't have VL prefix for some API calls if needed, 
       // but ytmusic.js usually handles browseId with or without it.
-      const data = await fetchJson(`/api/ytmusic/playlist/${playlistId}`);
+      const data = await fetchJson(`/api/ytmusic/playlist/${playlistId}?limit=500`);
       setSelectedPlaylist(data);
     } catch (err) {
       console.error("Błąd pobierania szczegółów playlisty:", err);
@@ -231,45 +277,49 @@ function MusicPage({ pageKey }) {
     },
   };
 
-  const googleConnected = authSession?.auth?.connected;
   // eslint-disable-next-line no-unused-vars
   const ytMusicHeaders = page.backendStatus?.imports?.ytMusicHeaders;
 
   const stats = pageKey === "playlists" 
     ? [
         { label: "Wszystkie Playlisty", value: playlists.length.toString() },
-        { label: "Biblioteka YTM", value: playlists.filter(p => !p.snippet).length.toString() },
-        { label: "Konto Google", value: playlists.filter(p => p.snippet).length.toString() },
+        { label: "Biblioteka YTM", value: playlists.length.toString() },
+        { label: "Google Auth", value: authSession?.auth?.connected ? "ON" : "OFF" },
       ]
     : page.stats;
 
-  // Combine local and imported playlists if on playlists page
+  const isSearching = query.trim().length >= 2;
+  const liveSearchItems = searchResults.map((item) => ({
+    id: item.browseId || item.videoId || item.title,
+    title: item.title,
+    subtitle:
+      item.artists?.map((artist) => artist.name).join(", ") ||
+      item.author ||
+      item.category ||
+      item.resultType ||
+      "YouTube Music",
+    cover: item.thumbnail,
+    meta: item.resultType || "wynik",
+    browseId: item.browseId,
+    videoId: item.videoId,
+    resultType: item.resultType,
+  }));
+
   const displayItems = pageKey === "playlists" && playlists.length > 0
     ? playlists.map(pl => {
-        // Format from YouTube Data API v3
-        if (pl.snippet) {
-          const playlistId = pl.id;
-          return {
-            id: playlistId,
-            title: pl.snippet.title,
-            subtitle: pl.snippet.channelTitle,
-            cover: pl.snippet.thumbnails?.maxres?.url || pl.snippet.thumbnails?.high?.url || pl.snippet.thumbnails?.medium?.url || pl.snippet.thumbnails?.default?.url,
-            meta: `${pl.contentDetails?.itemCount || 0} utworów`,
-            onClick: () => fetchPlaylistDetails(playlistId)
-          };
-        }
-        // Format from ytmusic.js (InnerTube)
         const browseId = pl.browseId;
         return {
           id: browseId,
           title: pl.title,
           subtitle: pl.author || "YouTube Music",
           cover: pl.thumbnail || (pl.thumbnails && (pl.thumbnails[0]?.url || pl.thumbnails.url)),
-          meta: "Biblioteka",
+          meta: `${pl.trackCount ? `${pl.trackCount} utworów` : "Biblioteka"}`,
           onClick: () => fetchPlaylistDetails(browseId)
         };
       })
-    : page.primarySection.items;
+    : isSearching
+      ? liveSearchItems
+      : page.primarySection.items;
 
   if (loadingPlaylist) {
     return (
@@ -304,27 +354,43 @@ function MusicPage({ pageKey }) {
             <p className="text-sm text-neutral-500">Autor: {selectedPlaylist.author} • {selectedPlaylist.trackCount} utworów</p>
             
             <div className="flex gap-4">
-              <button className="flex items-center gap-3 px-8 py-4 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20">
+              <button
+                type="button"
+                onClick={() => play?.(selectedPlaylist.tracks?.[0])}
+                className="flex items-center gap-3 px-8 py-4 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20"
+              >
                 <Play size={20} fill="white" />
                 Odtwórz wszystko
               </button>
-              <button 
-                onClick={() => {
-                  const videoId = prompt("Podaj YouTube Video ID do dodania:");
-                  if (videoId) {
-                    const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
-                    fetchJson(`/api/ytmusic/playlist/${cleanId}/tracks`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ videoIds: [videoId] })
-                    }).then(() => fetchPlaylistDetails(selectedPlaylist.playlistId));
-                  }
-                }}
-                className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 text-white font-bold transition-all hover:bg-white/20"
-              >
-                <Plus size={20} />
-                Dodaj utwór
-              </button>
+              {ytMusicHeaders ? (
+                <button 
+                  onClick={() => {
+                    const videoId = prompt("Podaj YouTube Video ID do dodania:");
+                    if (videoId) {
+                      const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
+                      fetchJson(`/api/ytmusic/playlist/${cleanId}/tracks`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ videoIds: [videoId] })
+                      }).then(() => fetchPlaylistDetails(selectedPlaylist.playlistId));
+                    }
+                  }}
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 text-white font-bold transition-all hover:bg-white/20"
+                >
+                  <Plus size={20} />
+                  Dodaj utwór
+                </button>
+              ) : null}
+              {ytMusicHeaders ? (
+                <button
+                  type="button"
+                  onClick={() => handleDeletePlaylist(selectedPlaylist.playlistId?.replace(/^VL/, "") || selectedPlaylist.playlistId)}
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 text-red-400 font-bold transition-all hover:bg-white/20"
+                >
+                  <Trash2 size={20} />
+                  Usuń playlistę
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -344,6 +410,7 @@ function MusicPage({ pageKey }) {
               <div 
                 key={`${track.videoId}-${index}`} 
                 className="grid grid-cols-[auto_1fr_1fr_100px_80px_auto] gap-4 px-4 py-4 items-center hover:bg-white/5 transition-colors group cursor-pointer"
+                onClick={() => play?.(track)}
               >
                 <span className="text-sm font-bold text-neutral-600 group-hover:text-red-500 transition-colors w-6">
                   {String(index + 1).padStart(2, "0")}
@@ -359,16 +426,20 @@ function MusicPage({ pageKey }) {
                 </span>
                 <span className="text-xs text-neutral-500 font-mono">{track.duration}</span>
                 <span className="text-xs text-neutral-400 truncate">{track.album?.name || "-"}</span>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
-                    handleRemoveTrack(cleanId, track.videoId, track.setVideoId);
-                  }}
-                  className="p-2 text-neutral-500 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {ytMusicHeaders ? (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
+                      handleRemoveTrack(cleanId, track.videoId, track.setVideoId);
+                    }}
+                    className="p-2 text-neutral-500 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-neutral-600">Edycja OFF</span>
+                )}
               </div>
             ))}
           </div>
@@ -395,14 +466,26 @@ function MusicPage({ pageKey }) {
 
           {pageKey === "playlists" && (
             <div className="pt-4">
-              <button
-                className={`flex items-center gap-3 px-6 py-3 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20 ${importing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={fetchPlaylists}
-                disabled={importing}
-              >
-                {importing ? "Importowanie..." : "Pobierz playlisty z YouTube"}
-                <RefreshCw className={importing ? "animate-spin" : ""} size={18} />
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  className={`flex items-center gap-3 px-6 py-3 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20 ${importing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={fetchPlaylists}
+                  disabled={importing}
+                >
+                  {importing ? "Ładowanie..." : "Odśwież playlisty"}
+                  <RefreshCw className={importing ? "animate-spin" : ""} size={18} />
+                </button>
+                {ytMusicHeaders ? (
+                  <button
+                    type="button"
+                    onClick={handleCreatePlaylist}
+                    className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 text-white font-bold transition-all hover:bg-white/20"
+                  >
+                    <Plus size={18} />
+                    Nowa playlista
+                  </button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
@@ -418,7 +501,9 @@ function MusicPage({ pageKey }) {
           
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-white">{page.spotlightTitle}</h2>
-            <p className="text-sm text-neutral-400">{page.spotlightText}</p>
+            <p className="text-sm text-neutral-400">
+              {isSearching ? `Wyniki na zywo dla: "${query}" (${searchFilter})` : page.spotlightText}
+            </p>
           </div>
 
           <ul className="space-y-3">
@@ -426,15 +511,9 @@ function MusicPage({ pageKey }) {
               <li key={item} className="text-sm text-neutral-300 flex items-center gap-2 before:w-1 before:h-1 before:bg-red-500 before:rounded-full">{item}</li>
             ))}
             <li className="text-sm font-medium border-t border-white/5 pt-3 mt-3">
-              {googleConnected ? (
-                <span className="text-emerald-500 flex items-center gap-2">
-                   <BadgeCheck size={16} /> Google OAuth Połączony
-                </span>
-              ) : (
-                <span className="text-neutral-500 flex items-center gap-2">
-                  ○ Google OAuth Niepołączony
-                </span>
-              )}
+              <span className={`flex items-center gap-2 ${ytMusicHeaders ? "text-emerald-500" : "text-neutral-500"}`}>
+                 <BadgeCheck size={16} /> {ytMusicHeaders ? "YT Music headers: ON" : "YT Music headers: OFF"}
+              </span>
             </li>
           </ul>
         </aside>
@@ -449,18 +528,37 @@ function MusicPage({ pageKey }) {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-neutral-900/30 border border-white/5 p-6 rounded-3xl">
           <SectionHeader 
-            title={pageKey === "playlists" && playlists.length > 0 ? "Zaimportowane Playlisty" : page.primarySection.title} 
-            action={pageKey === "playlists" ? (importing ? "Odświeżanie..." : "Odśwież") : page.primarySection.action} 
-            onAction={pageKey === "playlists" ? fetchPlaylists : undefined}
+            title={
+              isSearching
+                ? `Wyniki wyszukiwania (${searchFilter})`
+                : pageKey === "playlists" && playlists.length > 0
+                  ? "Zaimportowane Playlisty"
+                  : page.primarySection.title
+            } 
+            action={pageKey === "playlists" ? (ytMusicHeaders ? "Nowa" : (importing ? "Odświeżanie..." : "Odśwież")) : page.primarySection.action} 
+            onAction={pageKey === "playlists" ? (ytMusicHeaders ? handleCreatePlaylist : fetchPlaylists) : undefined}
           />
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            {isSearching && searchLoading ? (
+              <div className="col-span-full py-10 text-center text-neutral-500">Szukam wynikow...</div>
+            ) : null}
             {displayItems.map((item, idx) => (
-              <MediaCard key={`${page.key}-${item.title}-${idx}`} item={item} onClick={item.onClick} />
+              <MediaCard
+                key={`${page.key}-${item.title}-${idx}`}
+                item={item}
+                onClick={() => {
+                  if (item.onClick) return item.onClick();
+                  if ((item.resultType === "playlist" || item.resultType === "community_playlists" || item.resultType === "featured_playlists") && item.browseId) {
+                    return fetchPlaylistDetails(item.browseId);
+                  }
+                  if (item.videoId) return play?.(item);
+                }}
+              />
             ))}
             {pageKey === "playlists" && displayItems.length === 0 && !importing && (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-neutral-500 border-2 border-dashed border-white/5 rounded-2xl">
                 <Play size={48} className="mb-4 opacity-20" />
-                <p>Brak playlist. Kliknij przycisk powyżej, aby zaimportować z YouTube.</p>
+                <p>Brak playlist w bibliotece. Kliknij przycisk powyżej, aby pobrać z YouTube Music.</p>
               </div>
             )}
           </div>
@@ -480,7 +578,16 @@ function MusicPage({ pageKey }) {
         <SectionHeader title={page.secondarySection.title} action={page.secondarySection.action} />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
           {page.secondarySection.items.map((item) => (
-            <MediaCard key={`${page.key}-${item.title}-secondary`} item={item} />
+            <MediaCard
+              key={`${page.key}-${item.title}-secondary`}
+              item={item}
+              onClick={() => {
+                if ((item.resultType === "playlist" || item.resultType === "community_playlists" || item.resultType === "featured_playlists") && item.browseId) {
+                  return fetchPlaylistDetails(item.browseId);
+                }
+                if (item.videoId) return play?.(item);
+              }}
+            />
           ))}
         </div>
       </section>

@@ -109,6 +109,7 @@ function getThumbnails(obj) {
   const t =
     nav(obj, "thumbnail", "thumbnails") ||
     nav(obj, "thumbnails") ||
+    nav(obj, "thumbnailRenderer", "musicThumbnailRenderer", "thumbnail", "thumbnails") ||
     nav(
       obj,
       "thumbnail",
@@ -743,9 +744,27 @@ async function getWatchPlaylist(
   if (radio) body.params = "wAEB8gECKAE%3D";
   if (shuffle) body.params = "wAEB";
 
-  const data = await sendRequest("next", body);
+  const tracks = [];
 
-  const contents =
+  const parsePanelItems = (items) => {
+    for (const item of items || []) {
+      const r = nav(item, "playlistPanelVideoRenderer");
+      if (!r) continue;
+      tracks.push({
+        videoId: r.videoId,
+        title: getText(r.title),
+        artist: getText(nav(r, "shortBylineText")),
+        duration: getText(r.lengthText),
+        thumbnail: getBestThumbnail(r),
+        selected: r.selected || false,
+      });
+      if (tracks.length >= limit) return true;
+    }
+    return false;
+  };
+
+  let data = await sendRequest("next", body);
+  let items =
     nav(
       data,
       "contents",
@@ -755,24 +774,86 @@ async function getWatchPlaylist(
       "content",
       "playlistPanelRenderer",
       "contents",
-    ) || [];
+    ) ||
+    nav(
+      data,
+      "contents",
+      "singleColumnMusicWatchNextResultsRenderer",
+      "tabbedRenderer",
+      "watchNextTabbedResultsRenderer",
+      "tabs",
+      0,
+      "tabRenderer",
+      "content",
+      "musicQueueRenderer",
+      "content",
+      "playlistPanelRenderer",
+      "contents",
+    ) ||
+    [];
 
-  const tracks = [];
-  for (const item of contents) {
-    const r = nav(item, "playlistPanelVideoRenderer");
-    if (!r) continue;
-    tracks.push({
-      videoId: r.videoId,
-      title: getText(r.title),
-      artist: getText(nav(r, "shortBylineText")),
-      duration: getText(r.lengthText),
-      thumbnail: getBestThumbnail(r),
-      selected: r.selected || false,
-    });
-    if (tracks.length >= limit) break;
+  parsePanelItems(items);
+
+  // Continuation support (fix playlists capped ~50 items)
+  let continuation =
+    nav(
+      data,
+      "contents",
+      "singleColumnMusicWatchNextResultsRenderer",
+      "playlist",
+      "musicQueueRenderer",
+      "content",
+      "playlistPanelRenderer",
+      "continuations",
+      0,
+      "nextContinuationData",
+      "continuation",
+    ) ||
+    nav(
+      data,
+      "contents",
+      "singleColumnMusicWatchNextResultsRenderer",
+      "tabbedRenderer",
+      "watchNextTabbedResultsRenderer",
+      "tabs",
+      0,
+      "tabRenderer",
+      "content",
+      "musicQueueRenderer",
+      "content",
+      "playlistPanelRenderer",
+      "continuations",
+      0,
+      "nextContinuationData",
+      "continuation",
+    ) ||
+    null;
+
+  while (tracks.length < limit && continuation) {
+    const contData = await sendRequest("next", { continuation });
+    const contItems =
+      nav(
+        contData,
+        "continuationContents",
+        "playlistPanelContinuation",
+        "contents",
+      ) || [];
+
+    const done = parsePanelItems(contItems);
+    if (done) break;
+
+    continuation = nav(
+      contData,
+      "continuationContents",
+      "playlistPanelContinuation",
+      "continuations",
+      0,
+      "nextContinuationData",
+      "continuation",
+    );
   }
 
-  return tracks;
+  return tracks.slice(0, limit);
 }
 
 async function getMoodCategories() {
@@ -973,6 +1054,20 @@ async function getHome(limit = 3) {
         return {
           title: getText(nav(r, "title")),
           browseId: nav(r, "navigationEndpoint", "browseEndpoint", "browseId"),
+          playlistId:
+            nav(
+              r,
+              "thumbnailOverlay",
+              "musicItemThumbnailOverlayRenderer",
+              "content",
+              "musicPlayButtonRenderer",
+              "playNavigationEndpoint",
+              "watchPlaylistEndpoint",
+              "playlistId",
+            ) ||
+            nav(r, "menu", "menuRenderer", "items", 0, "menuNavigationItemRenderer", "navigationEndpoint", "watchPlaylistEndpoint", "playlistId") ||
+            (nav(r, "navigationEndpoint", "browseEndpoint", "browseId") || "").replace(/^VL/, "") ||
+            null,
           videoId: nav(r, "navigationEndpoint", "watchEndpoint", "videoId"),
           subtitle: getText(nav(r, "subtitle")),
           thumbnail: getBestThumbnail(r),
@@ -1193,7 +1288,6 @@ async function editSongLibraryStatus(feedbackTokens) {
 async function getPlaylist(playlistId, limit = 100) {
   const browseId = playlistId.startsWith("VL") ? playlistId : `VL${playlistId}`;
   const data = await sendRequest("browse", { browseId });
-  saveSnapshot("playlist", data);
 
   const header =
     nav(data, "header", "musicDetailHeaderRenderer") ||
@@ -1255,6 +1349,123 @@ async function getPlaylist(playlistId, limit = 100) {
     "nextContinuationData",
     "continuation",
   );
+
+  if (!title && !thumbnail && !contents.length) {
+    const plainPlaylistId = playlistId.replace(/^VL/, "");
+    const nextData = await sendRequest("next", {
+      playlistId: plainPlaylistId,
+      isAudioOnly: true,
+    });
+
+    const panel =
+      nav(
+        nextData,
+        "contents",
+        "singleColumnMusicWatchNextResultsRenderer",
+        "tabbedRenderer",
+        "watchNextTabbedResultsRenderer",
+        "tabs",
+        0,
+        "tabRenderer",
+        "content",
+        "musicQueueRenderer",
+        "content",
+        "playlistPanelRenderer",
+      ) ||
+      nav(
+        nextData,
+        "contents",
+        "singleColumnMusicWatchNextResultsRenderer",
+        "playlist",
+        "musicQueueRenderer",
+        "content",
+        "playlistPanelRenderer",
+      );
+
+    const panelContents = nav(panel, "contents") || [];
+    const parsedTracks = panelContents
+      .map((item) => {
+        const r = nav(item, "playlistPanelVideoRenderer");
+        if (!r) return null;
+
+        const runs = nav(r, "longBylineText", "runs") || [];
+        const artists = runs
+          .filter(
+            (run) =>
+              nav(
+                run,
+                "navigationEndpoint",
+                "browseEndpoint",
+                "browseEndpointContextSupportedConfigs",
+                "browseEndpointContextMusicConfig",
+                "pageType",
+              ) === "MUSIC_PAGE_TYPE_ARTIST",
+          )
+          .map((run) => ({
+            name: run.text,
+            id: nav(run, "navigationEndpoint", "browseEndpoint", "browseId"),
+          }));
+
+        const albumRun = runs.find(
+          (run) =>
+            nav(
+              run,
+              "navigationEndpoint",
+              "browseEndpoint",
+              "browseEndpointContextSupportedConfigs",
+              "browseEndpointContextMusicConfig",
+              "pageType",
+            ) === "MUSIC_PAGE_TYPE_ALBUM",
+        );
+
+        return {
+          videoId: r.videoId,
+          title: getText(r.title),
+          duration: getText(r.lengthText),
+          artists,
+          album: albumRun
+            ? {
+                name: albumRun.text,
+                id: nav(albumRun, "navigationEndpoint", "browseEndpoint", "browseId"),
+              }
+            : null,
+          thumbnail: getBestThumbnail(r),
+        };
+      })
+      .filter(Boolean)
+      .slice(0, limit);
+
+    const first = parsedTracks[0] || null;
+    let tracks = parsedTracks;
+
+    // If Innertube 'browse' fails, use watch/next playlist queue as a scalable fallback.
+    if (tracks.length < limit && first?.videoId) {
+      try {
+        const more = await getWatchPlaylist(first.videoId, plainPlaylistId, limit, false, false);
+        const mapped = more.map((t) => ({
+          videoId: t.videoId,
+          title: t.title,
+          duration: t.duration,
+          artists: t.artist ? [{ name: t.artist, id: null }] : [],
+          album: null,
+          thumbnail: t.thumbnail,
+        }));
+        if (mapped.length > tracks.length) tracks = mapped;
+      } catch {
+        // ignore
+      }
+    }
+
+    return {
+      playlistId: browseId,
+      title: getText(nav(panel, "title")) || "Playlista",
+      description: getText(nav(panel, "descriptionText")) || null,
+      author: getText(nav(panel, "longBylineText")) || null,
+      trackCount: tracks.length,
+      thumbnail: getBestThumbnail(panel) || first?.thumbnail || null,
+      tracks,
+    };
+  }
 
   const parseTrack = (item) => {
     const r = item.musicResponsiveListItemRenderer;
@@ -1341,13 +1552,19 @@ async function getPlaylist(playlistId, limit = 100) {
     };
   };
 
-  for (const item of contents) {
-    const t = parseTrack(item);
-    if (t) tracks.push(t);
-    if (tracks.length >= limit) break;
-  }
+  const consume = (arr) => {
+    for (const item of arr) {
+      const t = parseTrack(item);
+      if (t) tracks.push(t);
+      if (tracks.length >= limit) return true;
+    }
+    return false;
+  };
 
-  if (tracks.length < limit && continuation) {
+  consume(contents);
+
+  // Pull continuations until we hit limit (fix: playlists showing ~50 only)
+  while (tracks.length < limit && continuation) {
     const contData = await sendRequest("browse", { continuation });
     const contContents =
       nav(
@@ -1356,11 +1573,17 @@ async function getPlaylist(playlistId, limit = 100) {
         "musicPlaylistShelfContinuation",
         "contents",
       ) || [];
-    for (const item of contContents) {
-      const t = parseTrack(item);
-      if (t) tracks.push(t);
-      if (tracks.length >= limit) break;
-    }
+    const done = consume(contContents);
+    if (done) break;
+    continuation = nav(
+      contData,
+      "continuationContents",
+      "musicPlaylistShelfContinuation",
+      "continuations",
+      0,
+      "nextContinuationData",
+      "continuation",
+    );
   }
 
   return {

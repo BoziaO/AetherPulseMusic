@@ -4,12 +4,11 @@ const session = require('express-session');
 const { google } = require('googleapis');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const yt = require('./ytmusic');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
-
-// OAuth 2.0 config
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -27,17 +26,14 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-
-// Trust proxy for some environments (like Heroku)
 app.set('trust proxy', 1);
-
 app.use(session({
   secret: process.env.SESSION_SECRET || 'bozia-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' 
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
@@ -49,17 +45,16 @@ app.use((req, res, next) => {
     "connect-src 'self' http://localhost:3001 http://localhost:3002 https://*.googleapis.com; " +
     "script-src 'self' 'unsafe-inline'; " +
     "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https://*.googleusercontent.com https://*.ytimg.com;"
+    "img-src 'self' data: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com;"
   );
   next();
 });
 
-// Auth Routes
 app.get('/api/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    prompt: 'select_account'
+    prompt: 'select_account',
   });
   res.redirect(url);
 });
@@ -71,43 +66,40 @@ app.get('/api/auth/google/callback', async (req, res) => {
     oauth2Client.setCredentials(tokens);
     req.session.tokens = tokens;
 
-    // Fetch user profile
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
     req.session.user = data;
 
-    res.redirect('/');
+    res.redirect(process.env.FRONTEND_URL || '/');
   } catch (error) {
     console.error('Error during Google Auth callback:', error);
-    res.redirect('/?error=auth_failed');
+    res.redirect(`${process.env.FRONTEND_URL || '/'}?error=auth_failed`);
   }
 });
 
 app.get('/api/auth/session', (req, res) => {
   if (req.session.user) {
-    res.json({
+    return res.json({
       auth: {
         enabled: true,
         connected: true,
-        user: req.session.user
-      }
-    });
-  } else {
-    res.json({
-      auth: {
-        enabled: !!process.env.GOOGLE_CLIENT_ID,
-        connected: false
-      }
+        user: req.session.user,
+      },
     });
   }
+
+  res.json({
+    auth: {
+      enabled: !!process.env.GOOGLE_CLIENT_ID,
+      connected: false,
+    },
+  });
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy();
-  res.sendStatus(200);
+  req.session.destroy(() => res.sendStatus(200));
 });
 
-// YouTube API Routes
 app.get('/api/youtube/playlists', async (req, res) => {
   if (!req.session.tokens) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -120,9 +112,9 @@ app.get('/api/youtube/playlists', async (req, res) => {
     const response = await youtube.playlists.list({
       part: 'snippet,contentDetails',
       mine: true,
-      maxResults: 50
+      maxResults: 50,
     });
-    res.json(response.data.items);
+    res.json(response.data.items || []);
   } catch (error) {
     console.error('Error fetching YouTube playlists:', error);
     res.status(500).json({ error: 'Failed to fetch playlists' });
@@ -220,7 +212,7 @@ app.get('/api/ytmusic/library/artists', wrap(async (req) => {
 }));
 
 app.get('/api/ytmusic/playlist/:playlistId', wrap(async (req) => {
-  const { limit = 100 } = req.query;
+  const { limit = 500 } = req.query;
   return yt.getPlaylist(req.params.playlistId, parseInt(limit, 10));
 }));
 
@@ -244,19 +236,345 @@ app.delete('/api/ytmusic/playlist/:playlistId/tracks', wrap(async (req) => {
   return { success: ok };
 }));
 
-// Mock data for initial page load if needed by usePageData
-app.get('/api/page/:key', (req, res) => {
+// Playlist CRUD (requires headers.json auth headers)
+app.post('/api/ytmusic/playlists', wrap(async (req) => {
+  const { title, description = "", privacyStatus = "PRIVATE", videoIds = [] } = req.body || {};
+  if (!title) return { error: "title is required" };
+  const playlistId = await yt.createPlaylist(title, description, privacyStatus, videoIds);
+  if (!playlistId) return { error: "Failed to create playlist" };
+  return { playlistId };
+}));
+
+app.delete('/api/ytmusic/playlist/:playlistId', wrap(async (req) => {
+  const ok = await yt.deletePlaylist(req.params.playlistId);
+  return { success: ok };
+}));
+
+app.patch('/api/ytmusic/playlist/:playlistId', wrap(async (req) => {
+  const { title, description, privacyStatus } = req.body || {};
+  const ok = await yt.editPlaylist(req.params.playlistId, { title, description, privacyStatus });
+  return { success: ok };
+}));
+
+function hasYtMusicHeaders() {
+  const headerFile = path.join(__dirname, "..", "headers.json");
+  if (!fs.existsSync(headerFile)) return false;
+  try {
+    const raw = fs.readFileSync(headerFile, "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && Object.keys(parsed).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function pickThumbnailUrl(item) {
+  return (
+    item?.thumbnail ||
+    item?.cover ||
+    item?.art ||
+    (Array.isArray(item?.thumbnails) ? item.thumbnails[item.thumbnails.length - 1]?.url : null) ||
+    null
+  );
+}
+
+function toMediaItem(item) {
+  if (!item) return null;
+  return {
+    title: item.title,
+    subtitle: item.subtitle || item.author || item.artist || (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") || "",
+    meta: item.meta || item.resultType || "",
+    cover: pickThumbnailUrl(item),
+    videoId: item.videoId || null,
+    browseId: item.browseId || item.playlistId || null,
+    resultType: item.resultType || null,
+  };
+}
+
+function toQueueItem(track) {
+  if (!track) return null;
+  const artist =
+    track.artist ||
+    (Array.isArray(track.artists) ? track.artists.map((a) => a.name).join(", ") : "") ||
+    "";
+  return {
+    title: track.title,
+    artist,
+    detail: track.album?.name || track.subtitle || "",
+    duration: track.duration || null,
+    energy: 60,
+    videoId: track.videoId || null,
+    thumbnail: pickThumbnailUrl(track),
+  };
+}
+
+app.get('/api/page/:key', wrap(async (req) => {
   const { key } = req.params;
-  // Return some dummy data or handle based on musicData.js structure
-  res.json({
+  const ytMusicHeaders = hasYtMusicHeaders();
+
+  const base = {
     key,
-    backendStatus: {
-      imports: {
-        ytMusicHeaders: false
-      }
-    }
-  });
-});
+    backendStatus: { imports: { ytMusicHeaders } },
+  };
+
+  if (key === "home") {
+    const homeRows = await yt.getHome(4);
+    const charts = await yt.getCharts("ZZ");
+    const trendingSongs = (charts?.songs || []).filter(Boolean);
+    const queue = trendingSongs.slice(0, 20).map(toQueueItem).filter(Boolean);
+
+    const primaryRow = homeRows?.[0];
+    const secondaryRow = homeRows?.[1];
+    const hit = trendingSongs[0] || null;
+
+    return {
+      ...base,
+      eyebrow: "Witaj w BoziaMusic",
+      title: "Trending — utwory na czasie",
+      description: "Hit dnia i trendy z YouTube Music (Innertube).",
+      chips: ["Polecane", "Trendy", "Playlisty", "Albumy"],
+      spotlightTitle: "Hit dnia",
+      spotlightText: hit ? `${hit.title}` : "Najczęściej odtwarzany utwór dzisiaj.",
+      spotlightItems: trendingSongs.slice(0, 5).map((s, idx) => `${idx + 1}. ${s.title}`),
+      stats: [
+        { label: "Trending songs", value: String(trendingSongs.length || 0) },
+        { label: "Trending artists", value: String((charts?.artists || []).length || 0) },
+        { label: "Trending videos", value: String((charts?.videos || []).length || 0) },
+      ],
+      primarySection: {
+        title: "Trending (utwory)",
+        action: "Odśwież",
+        items: trendingSongs.slice(0, 18).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean),
+      },
+      secondarySection: {
+        title: primaryRow?.title || "Polecane playlisty",
+        action: "Odśwież",
+        items: (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
+      },
+      chartTitle: "Trendy (artyści)",
+      chartItems: (charts?.artists || []).slice(0, 6).map((a, idx) => ({
+        label: `#${idx + 1}`,
+        title: a.title,
+        subtitle: "Artist",
+        change: "+",
+        browseId: a.browseId || null,
+      })),
+      queueTitle: "Trending (utwory)",
+      queueAction: "Odtwórz",
+      queue,
+      nowPlaying: hit
+        ? { title: hit.title, artist: hit.artist || "", art: hit.thumbnail, duration: 240, progress: 10, videoId: hit.videoId || null }
+        : undefined,
+    };
+  }
+
+  if (key === "playlists") {
+    const lib = await yt.getLibraryPlaylists(24).catch(() => []);
+    return {
+      ...base,
+      eyebrow: "Biblioteka",
+      title: "Playlisty",
+      description: "Playlisty z YouTube Music. Kliknij, aby zobaczyć szczegóły i utwory.",
+      chips: ["Biblioteka", "Polecane", "Wyszukaj"],
+      stats: [
+        { label: "Playlisty", value: String((lib || []).length || 0) },
+        { label: "Edycja", value: ytMusicHeaders ? "ON" : "OFF" },
+      ],
+      primarySection: {
+        title: "Twoje playlisty",
+        action: "Odśwież",
+        items: (lib || []).map((p) =>
+          toMediaItem({
+            title: p.title,
+            author: p.author || "YouTube Music",
+            thumbnail: p.thumbnail,
+            browseId: p.browseId,
+            resultType: "playlist",
+            meta: "Biblioteka",
+          }),
+        ),
+      },
+      secondarySection: {
+        title: "Polecane playlisty",
+        action: "Odśwież",
+        items: [],
+      },
+      chartTitle: "Tip",
+      chartItems: [],
+      queueTitle: "Utwory w playliście",
+      queueAction: "Odtwórz wszystko",
+      queue: [],
+    };
+  }
+
+  if (key === "albums") {
+    const libAlbums = await yt.getLibraryAlbums(24).catch(() => []);
+    const charts = await yt.getCharts("ZZ");
+    return {
+      ...base,
+      eyebrow: "Biblioteka",
+      title: "Albumy",
+      description: "Twoje ulubione albumy oraz trendy.",
+      chips: ["Biblioteka", "Trendy"],
+      stats: [
+        { label: "Albumy (biblioteka)", value: String((libAlbums || []).length || 0) },
+        { label: "Trending songs", value: String((charts?.songs || []).length || 0) },
+      ],
+      primarySection: {
+        title: "Albumy z biblioteki",
+        action: "Odśwież",
+        items: (libAlbums || []).map((a) =>
+          toMediaItem({
+            title: a.title,
+            thumbnail: a.thumbnail,
+            browseId: a.browseId,
+            resultType: "album",
+            meta: "Biblioteka",
+          }),
+        ),
+      },
+      secondarySection: {
+        title: "Trending (wideo)",
+        action: "Odśwież",
+        items: (charts?.videos || []).slice(0, 12).map((v) => toMediaItem({ ...v, resultType: "video", meta: "Trending" })).filter(Boolean),
+      },
+      chartTitle: "Trending (utwory)",
+      chartItems: (charts?.songs || []).slice(0, 6).map((s, idx) => ({
+        label: `#${idx + 1}`,
+        title: s.title,
+        subtitle: "Song",
+        change: "+",
+        videoId: s.videoId || null,
+      })),
+      queueTitle: "Kolejka",
+      queueAction: "Odtwórz",
+      queue: (charts?.songs || []).slice(0, 12).map(toQueueItem).filter(Boolean),
+    };
+  }
+
+  if (key === "artists") {
+    const libArtists = await yt.getLibraryArtists(24).catch(() => []);
+    const charts = await yt.getCharts("ZZ");
+    return {
+      ...base,
+      eyebrow: "Biblioteka",
+      title: "Wykonawcy",
+      description: "Ulubieni wykonawcy oraz trendy.",
+      chips: ["Biblioteka", "Trendy"],
+      stats: [
+        { label: "Artyści (biblioteka)", value: String((libArtists || []).length || 0) },
+        { label: "Trending artists", value: String((charts?.artists || []).length || 0) },
+      ],
+      primarySection: {
+        title: "Artyści z biblioteki",
+        action: "Odśwież",
+        items: (libArtists || []).map((a) =>
+          toMediaItem({
+            title: a.title,
+            thumbnail: a.thumbnail,
+            browseId: a.browseId,
+            resultType: "artist",
+            meta: "Biblioteka",
+          }),
+        ),
+      },
+      secondarySection: {
+        title: "Trending (artyści)",
+        action: "Odśwież",
+        items: (charts?.artists || []).slice(0, 18).map((a) => toMediaItem({ ...a, resultType: "artist", meta: "Trending" })).filter(Boolean),
+      },
+      chartTitle: "Trending (utwory)",
+      chartItems: (charts?.songs || []).slice(0, 6).map((s, idx) => ({
+        label: `#${idx + 1}`,
+        title: s.title,
+        subtitle: "Song",
+        change: "+",
+        videoId: s.videoId || null,
+      })),
+      queueTitle: "Kolejka",
+      queueAction: "Odtwórz",
+      queue: (charts?.songs || []).slice(0, 12).map(toQueueItem).filter(Boolean),
+    };
+  }
+
+  if (key === "discover" || key === "chill" || key === "energy") {
+    const moods = await yt.getMoodCategories().catch(() => ({}));
+    const all = Object.values(moods || {}).flat();
+
+    const want = key === "chill" ? /chill|relax|calm/i : key === "energy" ? /energy|workout|party|dance/i : null;
+    const picked = want ? all.find((c) => want.test(c.title || "")) : all[0];
+    const playlists = picked?.params ? await yt.getMoodPlaylists(picked.params).catch(() => []) : [];
+    const charts = await yt.getCharts("ZZ");
+
+    return {
+      ...base,
+      eyebrow: key === "discover" ? "Odkrywaj" : key === "chill" ? "Relaks" : "Energia",
+      title: key === "discover" ? "Odkrywaj nowe brzmienia" : key === "chill" ? "Relaks — playlisty" : "Energia — playlisty",
+      description: picked?.title
+        ? `Sekcja: ${picked.title} (YouTube Music moods).`
+        : "Polecane playlisty z YouTube Music (moods & genres).",
+      chips: ["Moods", "Playlisty", "Trendy"],
+      stats: [
+        { label: "Kategorie moods", value: String(all.length || 0) },
+        { label: "Playlisty", value: String((playlists || []).length || 0) },
+        { label: "Trending songs", value: String((charts?.songs || []).length || 0) },
+      ],
+      primarySection: {
+        title: picked?.title || "Polecane playlisty",
+        action: "Odśwież",
+        items: (playlists || []).slice(0, 18).map((p) =>
+          toMediaItem({
+            title: p.title,
+            thumbnail: p.thumbnail,
+            browseId: p.playlistId,
+            resultType: "playlist",
+            meta: "Playlist",
+          }),
+        ),
+      },
+      secondarySection: {
+        title: "Trending (utwory)",
+        action: "Odśwież",
+        items: (charts?.songs || []).slice(0, 18).map((s) =>
+          toMediaItem({
+            title: s.title,
+            thumbnail: s.thumbnail,
+            videoId: s.videoId,
+            resultType: "song",
+            meta: "Trending",
+          }),
+        ).filter(Boolean),
+      },
+      chartTitle: "Trending (artyści)",
+      chartItems: (charts?.artists || []).slice(0, 6).map((a, idx) => ({
+        label: `#${idx + 1}`,
+        title: a.title,
+        subtitle: "Artist",
+        change: "+",
+        browseId: a.browseId || null,
+      })),
+      queueTitle: "Kolejka",
+      queueAction: "Odtwórz",
+      queue: (charts?.songs || []).slice(0, 12).map(toQueueItem).filter(Boolean),
+    };
+  }
+
+  return {
+    ...base,
+    eyebrow: "BoziaMusic",
+    title: "Strona",
+    description: "Brak danych dla tej strony.",
+    chips: [],
+    stats: [],
+    primarySection: { title: "Brak", action: "", items: [] },
+    secondarySection: { title: "Brak", action: "", items: [] },
+    chartTitle: "Brak",
+    chartItems: [],
+    queueTitle: "Brak",
+    queueAction: "",
+    queue: [],
+  };
+}));
 
 // Static files for production
 if (process.env.NODE_ENV === 'production') {

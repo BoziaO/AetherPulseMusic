@@ -41,6 +41,41 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom scrollbar (app-wide) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 79, 57, 0.65) rgba(255, 255, 255, 0.06);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(248, 79, 57, 0.65);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.7);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(248, 79, 57, 0.85);
+}
+
+/* Hide scrollbar for the sidebar specifically */
+.sidebar--no-scrollbar {
+  scrollbar-width: none;
+}
+.sidebar--no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 button,
 input {
   font: inherit;

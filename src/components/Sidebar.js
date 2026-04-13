@@ -24,7 +24,7 @@ const iconMap = {
 
 function Sidebar() {
   return (
-    <aside className="sidebar w-[260px] h-screen fixed left-0 top-0 overflow-y-auto bg-black border-r border-white/5 flex flex-col p-6 z-[110]">
+    <aside className="sidebar sidebar--no-scrollbar w-[260px] h-screen fixed left-0 top-0 overflow-y-auto bg-black border-r border-white/5 flex flex-col p-6 z-[110]">
       <div className="flex items-center gap-4 mb-10 group cursor-pointer">
         <div className="w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-xl shadow-lg shadow-red-500/20 group-hover:scale-105 transition-transform">
           <Zap size={24} fill="white" />

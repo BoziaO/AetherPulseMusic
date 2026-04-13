@@ -4,17 +4,18 @@ Moderny odtwarzacz muzyczny zintegrowany z YouTube Music, oferujący płynne do�
 
 ## 🚀 Główne Funkcje
 
-- **Google OAuth 2.0**: Bezpieczne logowanie za pomocą konta Google.
-- **Import Playlist z YouTube**: Bezpośredni dostęp do Twoich playlist z YouTube.
+- **YouTube Music (Innertube)**: Wyszukiwanie, playlisty, albumy i trendy bezpośrednio z YouTube Music.
+- **Google Auth**: Logowanie kontem Google i pobieranie własnych playlist z YouTube.
+- **Dopracowane Playlisty**: Widok listy oraz szczegółów playlist (okładka + tracklista).
 - **Nowoczesny Design**: Responsywny interfejs zbudowany w oparciu o Tailwind CSS z dedykowaną paletą barw (Dark Theme).
-- **Dynamiczne Dane**: Integracja z YouTube Data API (v3).
+- **Dynamiczne Dane**: Dane stron (home/discover/chill/energy/artists/albums) z endpointów `ytmusic`.
 - **Wydajność**: Frontend React 19 + Backend Express.
 
 ## 🛠️ Technologie
 
 - **Frontend**: React, Tailwind CSS, React Router, Lucide Icons (Icons.js).
-- **Backend**: Node.js, Express, Google APIs Client Library.
-- **Autoryzacja**: Passport-like session management (express-session), OAuth 2.0.
+- **Backend**: Node.js, Express, Google OAuth.
+- **API**: Zintegrowane endpointy inspirowane `BoziaYT4PI` (YouTube Music Innertube).
 
 ## 📦 Instalacja i Konfiguracja
 
@@ -34,10 +35,11 @@ Moderny odtwarzacz muzyczny zintegrowany z YouTube Music, oferujący płynne do�
    ```bash
    cp .env.example .env
    ```
-   Wymagane dane z [Google Cloud Console](https://console.cloud.google.com/):
+   Opcjonalnie:
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
-   - `GOOGLE_CALLBACK_URL` (domyślnie: `http://localhost:3001/api/auth/google/callback`)
+   - `GOOGLE_CALLBACK_URL`
+   - Jeśli chcesz edytować bibliotekę (dodawanie/usuwanie tracków z playlist) utwórz `headers.json` w root projektu z nagłówkami zalogowanej sesji YouTube Music.
 
 ## 🏃 Uruchamianie
 

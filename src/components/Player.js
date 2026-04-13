@@ -7,6 +7,7 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
+  ArrowRight,
 } from "./Icons";
 import CoverArt from "./CoverArt";
 
@@ -18,7 +19,7 @@ function formatTime(seconds) {
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
-function Player({ track }) {
+function Player({ track, onHide }) {
   const progress = track?.progress ?? 96;
   const duration = track?.duration ?? 251;
   const elapsedSeconds = Math.round((progress / 100) * duration);
@@ -71,6 +72,17 @@ function Player({ track }) {
       </div>
 
       <div className="flex items-center justify-end gap-4 w-[300px]">
+        {onHide ? (
+          <button
+            type="button"
+            onClick={onHide}
+            className="text-neutral-400 hover:text-white transition-colors"
+            aria-label="Schowaj player"
+            title="Schowaj player"
+          >
+            <ArrowRight size={18} />
+          </button>
+        ) : null}
         <button className="text-neutral-400 hover:text-white transition-colors">
           <LayoutGrid size={18} />
         </button>

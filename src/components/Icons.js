@@ -140,6 +140,17 @@ export function Play(props) {
   );
 }
 
+export function RefreshCw(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M21 2v6h-6" />
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M3 22v-6h6" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+    </IconBase>
+  );
+}
+
 export function Repeat2(props) {
   return (
     <IconBase {...props}>
@@ -234,6 +245,36 @@ export function Zap(props) {
   return (
     <IconBase {...props}>
       <path d="M13 2 4 14h6l-1 8 9-12h-6z" fill={props.fill || "none"} />
+    </IconBase>
+  );
+}
+
+export function Trash2(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </IconBase>
+  );
+}
+
+export function Plus(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </IconBase>
+  );
+}
+
+export function ArrowLeft(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m11 19-7-7 7-7" />
+      <path d="M19 12H5" />
     </IconBase>
   );
 }

@@ -32,3 +32,5 @@ coverage/
 
 # misc
 *.log
+headers.json
+server/ytmusic-snapshots/

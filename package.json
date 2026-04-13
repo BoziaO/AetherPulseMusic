@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^13.5.0",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
@@ -23,8 +24,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "client": "react-scripts start",
-    "dev": "concurrently \"npm run server:dev\" \"npm run client\"",
+    "client": "cross-env PORT=3002 react-scripts start",
+    "dev": "concurrently --kill-others \"npm run server:dev\" \"npm run client\"",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
     "start": "react-scripts start",

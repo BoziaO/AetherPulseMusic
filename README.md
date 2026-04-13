@@ -1,70 +1,73 @@
-# Getting Started with Create React App
+# 🎵 BoziaMusic
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Moderny odtwarzacz muzyczny zintegrowany z YouTube Music, oferujący płynne doświadczenie użytkownika, importowanie playlist oraz nowoczesny interfejs w stylu Dark Mode.
 
-## Available Scripts
+## 🚀 Główne Funkcje
 
-In the project directory, you can run:
+- **Google OAuth 2.0**: Bezpieczne logowanie za pomocą konta Google.
+- **Import Playlist z YouTube**: Bezpośredni dostęp do Twoich playlist z YouTube.
+- **Nowoczesny Design**: Responsywny interfejs zbudowany w oparciu o Tailwind CSS z dedykowaną paletą barw (Dark Theme).
+- **Dynamiczne Dane**: Integracja z YouTube Data API (v3).
+- **Wydajność**: Frontend React 19 + Backend Express.
 
-### `npm start`
+## 🛠️ Technologie
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Frontend**: React, Tailwind CSS, React Router, Lucide Icons (Icons.js).
+- **Backend**: Node.js, Express, Google APIs Client Library.
+- **Autoryzacja**: Passport-like session management (express-session), OAuth 2.0.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 📦 Instalacja i Konfiguracja
 
-### `npm test`
+1. **Sklonuj repozytorium**:
+   ```bash
+   git clone https://github.com/BoziaO/BoziaMusic.git
+   cd BoziaMusic
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. **Zainstaluj zależności**:
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+3. **Skonfiguruj zmienne środowiskowe**:
+   Skopiuj plik `.env.example` jako `.env` i uzupełnij swoje dane:
+   ```bash
+   cp .env.example .env
+   ```
+   Wymagane dane z [Google Cloud Console](https://console.cloud.google.com/):
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_CALLBACK_URL` (domyślnie: `http://localhost:3001/api/auth/google/callback`)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🏃 Uruchamianie
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Projekt korzysta z `concurrently`, co pozwala na uruchomienie frontendu i backendu jedną komendą:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npm run dev
+```
 
-### `npm run eject`
+- **Frontend**: http://localhost:3002
+- **Backend**: http://localhost:3001
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Osobne uruchamianie:
+- Tylko frontend: `npm run client`
+- Tylko backend: `npm run server`
+- Backend w trybie watch: `npm run server:dev`
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📁 Struktura Projektu
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- `/server` - Backend Express (obsługa API i OAuth).
+- `/src/components` - Komponenty interfejsu (Sidebar, Player, AppShell).
+- `/src/screens` - Widoki stron (MusicPage).
+- `/src/lib` - Narzędzia pomocnicze (API fetcher).
+- `/src/hooks` - Customowe hooki React (Auth, PageData).
+- `/src/data` - Dane statyczne i konfiguracja nawigacji.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 🎨 Design
 
-## Learn More
+Aplikacja wykorzystuje dedykowany system projektowy zdefiniowany w `tailwind.config.js` oraz `src/index.css`. Główne kolory to `#f84f39` (Bozia Red) oraz głęboka czerń `#0a0a0a`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+Autor: [BoziaO](https://github.com/BoziaO)
+Licencja: MIT

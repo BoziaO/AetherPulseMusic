@@ -24,67 +24,60 @@ function Player({ track }) {
   const elapsedSeconds = Math.round((progress / 100) * duration);
 
   return (
-    <footer className="player-bar">
-      <div className="player-bar__track">
-        <CoverArt art={track?.art} compact />
-        <div>
-          <p className="player-bar__title">{track?.title || "Bozia Mix"}</p>
-          <p className="player-bar__subtitle">
-            {track?.artist || "BoziaMusic Originals"}
-          </p>
+    <footer className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-lg border-t border-white/5 px-6 py-3 flex items-center justify-between z-[200]">
+      <div className="flex items-center gap-4 w-[300px]">
+        <div className="w-14 h-14 rounded-lg overflow-hidden shadow-lg border border-white/5">
+          <CoverArt art={track?.art} compact />
+        </div>
+        <div className="min-w-0">
+          <p className="font-bold text-white truncate text-sm">{track?.title || "Bozia Mix"}</p>
+          <p className="text-xs text-neutral-400 truncate">{track?.artist || "BoziaMusic Originals"}</p>
         </div>
       </div>
 
-      <div className="player-bar__controls">
-        <div className="player-bar__meters" aria-hidden="true">
-          {[10, 20, 18, 26, 12, 30, 16, 24].map((height, index) => (
-            <span
-              key={`${track?.title || "mix"}-${index}`}
-              className="player-bar__meter"
-              style={{ height }}
-            />
-          ))}
-        </div>
-
-        <div className="player-bar__buttons">
-          <button type="button" className="player-icon-button" aria-label="Poprzedni utwór">
-            <SkipBack size={18} />
+      <div className="flex flex-col items-center gap-2 flex-1 max-w-2xl px-8">
+        <div className="flex items-center gap-6">
+          <button className="text-neutral-400 hover:text-white transition-colors">
+            <Shuffle size={18} />
           </button>
-          <button
-            type="button"
-            className="player-icon-button player-icon-button--primary"
-            aria-label="Odtwórz"
-          >
-            <Play size={20} fill="currentColor" />
+          <button className="text-neutral-400 hover:text-white transition-colors">
+            <SkipBack size={22} fill="currentColor" />
           </button>
-          <button type="button" className="player-icon-button" aria-label="Następny utwór">
-            <SkipForward size={18} />
+          <button className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 transition-transform">
+            <Play size={22} fill="currentColor" />
+          </button>
+          <button className="text-neutral-400 hover:text-white transition-colors">
+            <SkipForward size={22} fill="currentColor" />
+          </button>
+          <button className="text-neutral-400 hover:text-white transition-colors">
+            <Repeat2 size={18} />
           </button>
         </div>
 
-        <div className="player-bar__timeline">
+        <div className="flex items-center gap-3 w-full text-[10px] font-bold text-neutral-500">
           <span>{formatTime(elapsedSeconds)}</span>
-          <div className="player-progress" aria-hidden="true">
-            <span style={{ width: `${progress}%` }} />
+          <div className="flex-1 h-1 bg-neutral-800 rounded-full relative group cursor-pointer">
+            <div 
+              className="absolute inset-y-0 left-0 bg-red-500 rounded-full group-hover:bg-red-400 transition-colors" 
+              style={{ width: `${progress}%` }} 
+            />
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" 
+              style={{ left: `${progress}%` }} 
+            />
           </div>
           <span>{formatTime(duration)}</span>
         </div>
       </div>
 
-      <div className="player-bar__actions">
-        <button type="button" className="player-icon-button" aria-label="Losowo">
-          <Shuffle size={18} />
-        </button>
-        <button type="button" className="player-icon-button" aria-label="Powtarzaj">
-          <Repeat2 size={18} />
-        </button>
-        <button type="button" className="player-icon-button" aria-label="Układ">
+      <div className="flex items-center justify-end gap-4 w-[300px]">
+        <button className="text-neutral-400 hover:text-white transition-colors">
           <LayoutGrid size={18} />
         </button>
-        <div className="player-volume" aria-hidden="true">
-          <Volume2 size={18} />
-          <div className="player-volume__track">
-            <span style={{ width: `${track?.volume ?? 64}%` }} />
+        <div className="flex items-center gap-3 w-32">
+          <Volume2 size={18} className="text-neutral-400" />
+          <div className="flex-1 h-1 bg-neutral-800 rounded-full overflow-hidden">
+            <div className="h-full bg-neutral-400 w-2/3" />
           </div>
         </div>
       </div>

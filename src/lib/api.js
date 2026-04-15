@@ -9,12 +9,22 @@ export function buildApiUrl(path) {
 export async function fetchJson(path, options = {}) {
   const url = buildApiUrl(path);
   
-  // Inclue credentials for session handling
-  options.credentials = options.credentials || 'include';
-  
-  const response = await fetch(url, options).catch(err => {
+  // Include credentials for session handling and add a timeout
+  const controller = new AbortController();
+  const timeoutMs = options.timeout || 10000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  options.signal = controller.signal;
+  options.credentials = options.credentials || "include";
+
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error(`Żądanie przerwane (timeout ${timeoutMs}ms)`);
     throw new Error(`Błąd połączenia z API (${url}): ${err.message}. Upewnij się, że serwer backendu działa (spróbuj 'npm run dev').`);
-  });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   
   const contentType = response.headers.get("content-type");
   if (!response.ok) {

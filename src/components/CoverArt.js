@@ -25,8 +25,8 @@ function CoverArt({ art, compact = false }) {
           loading="lazy"
         />
       ) : null}
-      <span className="cover-art__stamp">{normalized?.stamp || "Bozia"}</span>
-      <span className="cover-art__mono">{normalized?.mono || "BM"}</span>
+      <span className="cover-art__stamp">{normalized?.stamp}</span>
+      <span className="cover-art__mono">{normalized?.mono}</span>
       <span className="cover-art__shine" />
     </div>
   );

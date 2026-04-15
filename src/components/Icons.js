@@ -278,3 +278,49 @@ export function ArrowLeft(props) {
     </IconBase>
   );
 }
+
+export function Pause(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="6" y="4" width="4" height="16" rx="1" fill={props.fill || "none"} />
+      <rect x="14" y="4" width="4" height="16" rx="1" fill={props.fill || "none"} />
+    </IconBase>
+  );
+}
+
+export function VolumeX(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+      <line x1="23" x2="17" y1="9" y2="15" />
+      <line x1="17" x2="23" y1="9" y2="15" />
+    </IconBase>
+  );
+}
+
+export function Heart(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill={props.fill || "none"} />
+    </IconBase>
+  );
+}
+
+export function Music(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </IconBase>
+  );
+}
+
+export function X(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </IconBase>
+  );
+}

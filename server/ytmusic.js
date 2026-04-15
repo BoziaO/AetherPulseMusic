@@ -1092,65 +1092,65 @@ function loadAuthHeaders() {
   }
 }
 
-async function getLibraryPlaylists(limit = 25) {
+async function getLibraryPlaylists(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_liked_playlists" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibrarySongs(limit = 25) {
+async function getLibrarySongs(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_liked_videos" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibraryAlbums(limit = 25) {
+async function getLibraryAlbums(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_liked_albums" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibraryArtists(limit = 25) {
+async function getLibraryArtists(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_library_corpus_artists" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibrarySubscriptions(limit = 25) {
+async function getLibrarySubscriptions(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_library_corpus_track_artists" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibraryPodcasts(limit = 25) {
+async function getLibraryPodcasts(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_library_non_music_audio_list" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
 
-async function getLibraryChannels(limit = 25) {
+async function getLibraryChannels(limit = 25, authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_library_non_music_audio_channels" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, limit);
 }
@@ -1212,11 +1212,11 @@ function parseLibraryItems(data, limit) {
     .filter(Boolean);
 }
 
-async function getHistory() {
+async function getHistory(authHeaders = {}) {
   const data = await sendRequest(
     "browse",
     { browseId: "FEmusic_history" },
-    loadAuthHeaders(),
+    { ...loadAuthHeaders(), ...authHeaders },
   );
   return parseLibraryItems(data, 200);
 }
@@ -1233,7 +1233,7 @@ async function removeHistoryItems(feedbackTokens) {
   return nav(data, "feedbackResponses", 0, "isProcessed") === true;
 }
 
-async function rateSong(videoId, rating) {
+async function rateSong(videoId, rating, authHeaders = {}) {
   const ENDPOINT_MAP = {
     LIKE: "like/like",
     DISLIKE: "like/dislike",
@@ -1241,12 +1241,12 @@ async function rateSong(videoId, rating) {
   };
   const endpoint = ENDPOINT_MAP[rating];
   if (!endpoint) throw new Error(`Invalid rating: ${rating}`);
-  await sendRequest(endpoint, { target: { videoId } }, loadAuthHeaders());
+  await sendRequest(endpoint, { target: { videoId } }, { ...loadAuthHeaders(), ...authHeaders });
   return true;
 }
 
-async function ratePlaylist(playlistId, rating) {
-  return rateSong(playlistId, rating);
+async function ratePlaylist(playlistId, rating, authHeaders = {}) {
+  return rateSong(playlistId, rating, authHeaders);
 }
 
 async function subscribeArtists(channelIds) {

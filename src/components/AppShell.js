@@ -1,14 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Search, Sparkles } from "./Icons";
+import { Bell, Search, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
+const FILTER_LABELS = { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" };
 
 function AppShell() {
   const navigate = useNavigate();
@@ -18,14 +19,270 @@ function AppShell() {
   const pageRequest = usePageData(currentPage.key);
 
   const resolvedUser = authSession.data?.auth?.user || userProfile;
+
+  // Track / player state
   const [nowPlaying, setNowPlaying] = useState(null);
-  const [query, setQuery] = useState("");
   const [playerVisible, setPlayerVisible] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [volume, setVolume] = useState(80);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState("none"); // 'none', 'one', 'all'
+  const [shuffledQueue, setShuffledQueue] = useState([]);
+
+  // Search state
+  const [query, setQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState("songs");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
 
+  // YouTube IFrame API refs
+  const ytPlayerRef = useRef(null);
+  const ytReadyRef = useRef(false);
+  const intervalRef = useRef(null);
+
+  // Favorites state
+  const [favorites, setFavorites] = useState(new Set());
+
+  // Load YouTube IFrame API once on mount
+  useEffect(() => {
+    function initYTPlayer() {
+      if (ytReadyRef.current) return;
+      ytReadyRef.current = true;
+      try {
+        ytPlayerRef.current = new window.YT.Player("yt-hidden-player", {
+          height: "1",
+          width: "1",
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            fs: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+          },
+          events: {
+            onStateChange: (event) => {
+              const YTState = window.YT?.PlayerState;
+              if (!YTState) return;
+              if (event.data === YTState.PLAYING) {
+                setIsPlaying(true);
+                try {
+                  const dur = ytPlayerRef.current.getDuration();
+                  if (dur > 0) setAudioDuration(dur);
+                } catch (_) {}
+                startInterval();
+              } else if (event.data === YTState.PAUSED) {
+                setIsPlaying(false);
+                stopInterval();
+              } else if (event.data === YTState.ENDED) {
+                setIsPlaying(false);
+                setCurrentTime(0);
+                stopInterval();
+                // Handle repeat
+                if (repeatMode === 'one') {
+                  try {
+                    ytPlayerRef.current?.seekTo?.(0, true);
+                    ytPlayerRef.current?.playVideo?.();
+                  } catch (_) {}
+                } else if (repeatMode === 'all' || shuffledQueue.length > 0) {
+                  nextTrack();
+                }
+              }
+            },
+            onError: (e) => {
+              console.warn("YT Player error code:", e.data);
+            },
+          },
+        });
+      } catch (err) {
+        console.warn("Failed to init YT player:", err);
+      }
+    }
+
+    if (window.YT?.Player) {
+      initYTPlayer();
+    } else {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prev) prev();
+        initYTPlayer();
+      };
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const script = document.createElement("script");
+        script.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(script);
+      }
+    }
+
+    return () => {
+      stopInterval();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function startInterval() {
+    stopInterval();
+    intervalRef.current = setInterval(() => {
+      try {
+        if (ytPlayerRef.current?.getCurrentTime) {
+          const t = ytPlayerRef.current.getCurrentTime();
+          setCurrentTime(t);
+          const dur = ytPlayerRef.current.getDuration();
+          if (dur > 0) setAudioDuration(dur);
+        }
+      } catch (_) {}
+    }, 500);
+  }
+
+  function stopInterval() {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }
+
+  const play = useCallback((item) => {
+    if (!item) return;
+    const title = item.title || item.name || "";
+    const artist =
+      item.artist ||
+      item.subtitle ||
+      (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") ||
+      "";
+    const art = item.thumbnail || item.cover || item.art;
+    const duration = typeof item.durationSeconds === "number" ? item.durationSeconds : 0;
+
+    setNowPlaying({ title, artist, art, duration, videoId: item.videoId || null });
+    setCurrentTime(0);
+    setAudioDuration(duration || 0);
+    setPlayerVisible(true);
+
+    if (item.videoId) {
+      try {
+        if (ytPlayerRef.current?.loadVideoById) {
+          ytPlayerRef.current.loadVideoById(item.videoId);
+        }
+      } catch (err) {
+        console.warn("Could not load video:", err);
+      }
+    }
+  }, []);
+
+  function togglePlay() {
+    try {
+      if (!ytPlayerRef.current) return;
+      if (isPlaying) {
+        ytPlayerRef.current.pauseVideo();
+      } else {
+        ytPlayerRef.current.playVideo();
+      }
+    } catch (_) {}
+  }
+
+  // Previous / Next behavior: prefer queue navigation, fallback to seek +/-10s
+  const prevTrack = React.useCallback(() => {
+    const queue = isShuffled ? shuffledQueue : (pageRequest.data?.queue || []);
+    if (queue.length && nowPlaying?.videoId) {
+      const idx = queue.findIndex((i) => i.videoId === nowPlaying.videoId);
+      if (idx > 0) {
+        play(queue[idx - 1]);
+        return;
+      }
+    }
+    try {
+      const t = ytPlayerRef.current?.getCurrentTime?.() || 0;
+      handleSeek(Math.max(0, Math.round(t - 10)));
+    } catch (_) {}
+  }, [pageRequest.data, nowPlaying, play, isShuffled, shuffledQueue]);
+
+  const nextTrack = React.useCallback(() => {
+    const queue = isShuffled ? shuffledQueue : (pageRequest.data?.queue || []);
+    if (queue.length && nowPlaying?.videoId) {
+      const idx = queue.findIndex((i) => i.videoId === nowPlaying.videoId);
+      if (idx >= 0 && idx < queue.length - 1) {
+        play(queue[idx + 1]);
+        return;
+      } else if (repeatMode === 'all' && idx === queue.length - 1) {
+        play(queue[0]);
+        return;
+      }
+    }
+    try {
+      const t = ytPlayerRef.current?.getCurrentTime?.() || 0;
+      const dur = ytPlayerRef.current?.getDuration?.() || audioDuration || 0;
+      handleSeek(Math.min(dur, Math.round(t + 10)));
+    } catch (_) {}
+  }, [pageRequest.data, nowPlaying, play, audioDuration, isShuffled, shuffledQueue, repeatMode]);
+
+  function handleSeek(seconds) {
+    setCurrentTime(seconds);
+    try {
+      ytPlayerRef.current?.seekTo?.(seconds, true);
+    } catch (_) {}
+  }
+
+  function handleVolumeChange(newVol) {
+    setVolume(newVol);
+    try {
+      ytPlayerRef.current?.setVolume?.(newVol);
+    } catch (_) {}
+  }
+
+  // Shuffle utility
+  function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  // Update queue when page data changes
+  useEffect(() => {
+    const queue = pageRequest.data?.queue || [];
+    if (queue.length > 0) {
+      setShuffledQueue(isShuffled ? shuffleArray(queue) : queue);
+    }
+  }, [pageRequest.data?.queue, isShuffled]);
+
+  // Toggle shuffle
+  const toggleShuffle = useCallback(() => {
+    setIsShuffled(!isShuffled);
+  }, [isShuffled]);
+
+  // Toggle repeat
+  const toggleRepeat = useCallback(() => {
+    setRepeatMode((prev) => {
+      if (prev === 'none') return 'all';
+      if (prev === 'all') return 'one';
+      return 'none';
+    });
+  }, []);
+
+  // Reset search on page navigation
+  useEffect(() => {
+    setQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  }, [location.pathname]);
+
+  // Click outside to close search dropdown
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Server-side nowPlaying init (first load)
   useEffect(() => {
     const serverNowPlaying = pageRequest.data?.nowPlaying;
     if (serverNowPlaying && !nowPlaying) {
@@ -35,29 +292,7 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageRequest.data?.nowPlaying]);
 
-  const play = useMemo(() => {
-    return (item) => {
-      if (!item) return;
-      const title = item.title || item.name;
-      const artist =
-        item.artist ||
-        item.subtitle ||
-        (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") ||
-        "";
-      const art = item.thumbnail || item.cover || item.art;
-      const duration = typeof item.durationSeconds === "number" ? item.durationSeconds : 240;
-      setNowPlaying({
-        title,
-        artist,
-        art,
-        duration,
-        progress: 5,
-        videoId: item.videoId || null,
-      });
-      setPlayerVisible(true);
-    };
-  }, []);
-
+  // Debounced search
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -79,7 +314,7 @@ function AppShell() {
       } finally {
         setSearchLoading(false);
       }
-    }, 250);
+    }, 300);
 
     return () => window.clearTimeout(timer);
   }, [query, searchFilter]);
@@ -96,189 +331,185 @@ function AppShell() {
 
   function handleSearchResultClick(item) {
     setSearchOpen(false);
+    setQuery("");
     if (!item) return;
 
     if (item.resultType === "playlist" && item.browseId) {
       navigate(`/playlists?playlist=${encodeURIComponent(item.browseId)}`);
       return;
     }
-
-    if (item.resultType === "album" && item.browseId) {
-      navigate("/albums");
-      return;
-    }
-
-    if (item.resultType === "artist" && item.browseId) {
-      navigate("/artists");
-      return;
-    }
-
     if (item.videoId) {
       play(item);
     }
   }
 
+  const showSearch = searchOpen && query.trim().length >= 2;
+
   return (
-    <div className="app-shell flex bg-black min-h-screen">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.05),transparent_40%)] pointer-events-none" />
-      
+    <div className="flex bg-black min-h-screen font-sans text-neutral-200">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col ml-[260px] min-w-0">
-        <header className="topbar sticky top-0 z-[100] bg-black/80 backdrop-blur-xl border-b border-white/5 py-4 px-8 flex items-center justify-between gap-8">
-          <div className="flex items-center gap-4 lg:hidden">
-            <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-              <Sparkles size={18} className="text-white" />
+      <main className="flex-1 ml-[280px] p-10 pb-40 overflow-x-hidden">
+        {/* Top Header */}
+        <header className="flex items-center justify-between mb-12 sticky top-0 z-[100] bg-black/50 backdrop-blur-md py-4 -mt-4 px-4 rounded-b-[32px]">
+          <div className="flex-1 max-w-2xl relative" ref={searchRef}>
+            <div className="relative group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500 group-focus-within:text-red-500 transition-colors" size={20} />
+              <input
+                type="text"
+                placeholder={currentPage.searchPlaceholder || "Szukaj..."}
+                className="w-full bg-neutral-900/80 border border-white/5 rounded-2xl py-4 pl-14 pr-12 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/40 transition-all text-sm font-medium placeholder:text-neutral-600 shadow-xl"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+              />
+              {query && (
+                <button 
+                  onClick={() => setQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-full text-neutral-500 hover:text-white transition-all"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
-            <h1 className="text-xl font-bold text-white">BoziaMusic</h1>
-          </div>
 
-          <div className="hidden md:flex flex-1 max-w-3xl items-center gap-3">
-            <div className="relative flex-1">
-              <label className="w-full flex items-center gap-3 px-5 py-2.5 bg-neutral-900 border border-white/5 rounded-full text-neutral-400 focus-within:bg-neutral-800 focus-within:border-white/10 transition-all cursor-text">
-                <Search size={18} />
-                <input
-                  type="text"
-                  className="bg-transparent border-none outline-none text-white text-sm w-full placeholder:text-neutral-600"
-                  placeholder={currentPage.searchPlaceholder}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setSearchOpen(true)}
-                />
-              </label>
+            {showSearch && (
+              <div className="absolute top-full left-0 right-0 mt-4 bg-neutral-900 border border-white/10 rounded-[32px] shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]">
+                <div className="p-4 border-b border-white/5 flex gap-2">
+                  {SEARCH_FILTERS.map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setSearchFilter(f)}
+                      className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
+                        searchFilter === f ? "bg-red-500 text-white" : "bg-white/5 text-neutral-500 hover:text-white"
+                      }`}
+                    >
+                      {FILTER_LABELS[f]}
+                    </button>
+                  ))}
+                </div>
 
-              {searchOpen && query.trim().length >= 2 ? (
-                <div className="absolute top-[calc(100%+12px)] left-0 right-0 bg-neutral-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden z-[150]">
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-                    <p className="text-xs uppercase tracking-widest text-neutral-500">Wyniki na zywo</p>
-                    <p className="text-xs text-neutral-500">{searchLoading ? "Szukam..." : `${searchResults.length} wynikow`}</p>
-                  </div>
-                  <div className="max-h-[420px] overflow-y-auto">
-                    {searchResults.map((item, index) => (
+                <div className="max-h-[480px] overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                  {searchLoading ? (
+                    <div className="p-12 flex flex-col items-center justify-center gap-4">
+                      <div className="w-8 h-8 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin"></div>
+                      <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Przeszukiwanie bazy...</p>
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((item, idx) => (
                       <button
-                        key={`${item.resultType || "item"}-${item.videoId || item.browseId || index}`}
-                        type="button"
+                        key={idx}
+                        className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
                         onClick={() => handleSearchResultClick(item)}
-                        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/5 transition-colors"
                       >
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 shrink-0">
-                          {item.thumbnail ? (
-                            <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-600">BM</div>
-                          )}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-neutral-800 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+                          <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-white truncate">{item.title}</p>
-                          <p className="text-xs text-neutral-400 truncate">
-                            {item.resultType || "wynik"}
-                            {item.artists?.length ? ` • ${item.artists.map((artist) => artist.name).join(", ")}` : ""}
-                            {!item.artists?.length && item.category ? ` • ${item.category}` : ""}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-white truncate group-hover:text-red-400 transition-colors">{item.title}</p>
+                          <p className="text-xs text-neutral-500 truncate mt-1">
+                            {item.artists?.map((a) => a.name).join(", ") || item.author || "YouTube Music"}
                           </p>
                         </div>
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-700 bg-white/5 px-2 py-1 rounded-md group-hover:text-red-500 group-hover:bg-red-500/10 transition-all">
+                          {item.resultType}
+                        </span>
                       </button>
-                    ))}
-                    {!searchLoading && searchResults.length === 0 ? (
-                      <div className="px-5 py-8 text-sm text-neutral-500">Brak wynikow dla tego filtra.</div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {SEARCH_FILTERS.map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setSearchFilter(filter)}
-                  className={`px-3 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-colors ${
-                    searchFilter === filter
-                      ? "bg-red-600 text-white"
-                      : "bg-neutral-900 text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-white transition-colors">
-              <Bell size={20} />
-            </button>
-            
-            <div className="h-8 w-px bg-white/10 mx-2" />
-
-            {authSession.data?.auth?.connected ? (
-              <div className="flex items-center gap-3 bg-neutral-900/50 border border-white/5 pl-1.5 pr-4 py-1.5 rounded-full">
-                <div className="w-8 h-8 rounded-full bg-neutral-800 overflow-hidden border border-white/10 flex items-center justify-center text-xs font-bold text-white">
-                  {resolvedUser.picture ? (
-                    <img src={resolvedUser.picture} alt={resolvedUser.name} className="w-full h-full object-cover" />
+                    ))
                   ) : (
-                    resolvedUser.initials || "U"
+                    <div className="p-12 text-center">
+                      <p className="text-neutral-500 font-medium">Brak wyników dla tej kategorii.</p>
+                    </div>
                   )}
                 </div>
-                <div className="hidden sm:block text-left">
-                  <p className="text-xs font-bold text-white leading-tight">{resolvedUser.name}</p>
-                  <p className="text-[10px] text-neutral-500 leading-tight">Google</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-colors"
-                >
-                  Wyloguj
-                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-6 ml-8">
+            <button className="relative p-2 text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90 group">
+              <Bell size={24} />
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-black group-hover:animate-ping"></span>
+            </button>
+            <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
+            {authSession.data?.auth?.connected ? (
+              <div className="flex items-center gap-4">
+                 <button 
+                   onClick={handleLogout}
+                   className="text-xs font-black uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-colors"
+                 >
+                   Wyloguj
+                 </button>
+                 <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                    <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />
+                 </div>
               </div>
             ) : (
               <a
                 href={loginUrl}
-                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${
-                  authSession.data?.auth?.enabled
-                    ? "bg-white text-black hover:scale-105 active:scale-95"
-                    : "bg-neutral-800 text-neutral-500 pointer-events-none"
-                }`}
+                className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-neutral-200 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-white/5"
               >
-                {authSession.data?.auth?.enabled ? "Zaloguj Google" : "Google OFF"}
+                <Sparkles size={16} fill="black" />
+                Zaloguj
               </a>
             )}
           </div>
         </header>
 
-        <main className="flex-1 p-8">
-          <div className="pb-32 max-w-[1600px] mx-auto">
-            <Outlet
-              context={{
-                pageData: pageRequest.data,
-                pageLoading: pageRequest.loading,
-                pageError: pageRequest.error,
-                play,
-                query,
-                searchFilter,
-                searchResults,
-                searchLoading,
-                authSession: authSession.data,
-              }}
-            />
-          </div>
-        </main>
+        <Outlet
+          context={{
+            pageData: pageRequest.data,
+            pageLoading: pageRequest.loading,
+            play,
+            query,
+            searchFilter,
+            searchResults,
+            searchLoading,
+            authSession,
+            favorites,
+            toggleFavorite: (id) => {
+               const next = new Set(favorites);
+               if (next.has(id)) next.delete(id);
+               else next.add(id);
+               setFavorites(next);
+            }
+          }}
+        />
+      </main>
 
-        {nowPlaying && playerVisible ? (
-          <Player track={nowPlaying} onHide={() => setPlayerVisible(false)} />
-        ) : null}
+      {/* Hidden YouTube Player */}
+      <div id="yt-hidden-player" className="hidden"></div>
 
-        {nowPlaying && !playerVisible ? (
-          <button
-            type="button"
-            onClick={() => setPlayerVisible(true)}
-            className="fixed bottom-6 right-6 px-5 py-3 rounded-full bg-red-600 text-white font-bold shadow-2xl shadow-red-600/20 hover:bg-red-700 z-[210]"
-          >
-            Pokaż player
-          </button>
-        ) : null}
-      </div>
+      {playerVisible && nowPlaying && (
+        <Player
+          track={nowPlaying}
+          isPlaying={isPlaying}
+          onTogglePlay={togglePlay}
+          onSeek={handleSeek}
+          currentTime={currentTime}
+          audioDuration={audioDuration}
+          volume={volume}
+          onVolumeChange={handleVolumeChange}
+          onPrev={prevTrack}
+          onNext={nextTrack}
+          isShuffled={isShuffled}
+          repeatMode={repeatMode}
+          onToggleShuffle={toggleShuffle}
+          onToggleRepeat={toggleRepeat}
+          isFavorite={favorites.has(nowPlaying.videoId)}
+          onToggleFavorite={() => {
+             const id = nowPlaying.videoId;
+             const next = new Set(favorites);
+             if (next.has(id)) next.delete(id);
+             else next.add(id);
+             setFavorites(next);
+          }}
+          onHide={() => setPlayerVisible(false)}
+        />
+      )}
     </div>
   );
 }

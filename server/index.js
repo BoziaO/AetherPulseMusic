@@ -28,7 +28,18 @@ app.use(cors({
 app.use(express.json());
 app.set('trust proxy', 1);
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'bozia-secret',
+  secret: (() => {
+    // In production, require a real SESSION_SECRET for security
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.SESSION_SECRET) {
+        console.error('SESSION_SECRET must be set in production');
+        process.exit(1);
+      }
+      return process.env.SESSION_SECRET;
+    }
+    // Safe default for development only
+    return process.env.SESSION_SECRET || 'bozia-dev-secret';
+  })(),
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -193,22 +204,26 @@ app.get('/api/ytmusic/charts', wrap(async (req) => {
 
 app.get('/api/ytmusic/library/playlists', wrap(async (req) => {
   const { limit = 25 } = req.query;
-  return yt.getLibraryPlaylists(parseInt(limit, 10));
+  const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
+  return yt.getLibraryPlaylists(parseInt(limit, 10), authHeaders);
 }));
 
 app.get('/api/ytmusic/library/songs', wrap(async (req) => {
   const { limit = 25 } = req.query;
-  return yt.getLibrarySongs(parseInt(limit, 10));
+  const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
+  return yt.getLibrarySongs(parseInt(limit, 10), authHeaders);
 }));
 
 app.get('/api/ytmusic/library/albums', wrap(async (req) => {
   const { limit = 25 } = req.query;
-  return yt.getLibraryAlbums(parseInt(limit, 10));
+  const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
+  return yt.getLibraryAlbums(parseInt(limit, 10), authHeaders);
 }));
 
 app.get('/api/ytmusic/library/artists', wrap(async (req) => {
   const { limit = 25 } = req.query;
-  return yt.getLibraryArtists(parseInt(limit, 10));
+  const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
+  return yt.getLibraryArtists(parseInt(limit, 10), authHeaders);
 }));
 
 app.get('/api/ytmusic/playlist/:playlistId', wrap(async (req) => {
@@ -311,6 +326,7 @@ function toQueueItem(track) {
 app.get('/api/page/:key', wrap(async (req) => {
   const { key } = req.params;
   const ytMusicHeaders = hasYtMusicHeaders();
+  const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
 
   const base = {
     key,
@@ -351,6 +367,11 @@ app.get('/api/page/:key', wrap(async (req) => {
         action: "Odśwież",
         items: (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
       },
+      tertiarySection: {
+        title: "Popularne utwory",
+        action: "Zobacz wszystkie",
+        items: trendingSongs.slice(18, 36).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Popularne" })).filter(Boolean),
+      },
       chartTitle: "Trendy (artyści)",
       chartItems: (charts?.artists || []).slice(0, 6).map((a, idx) => ({
         label: `#${idx + 1}`,
@@ -369,28 +390,42 @@ app.get('/api/page/:key', wrap(async (req) => {
   }
 
   if (key === "playlists") {
-    const lib = await yt.getLibraryPlaylists(24).catch(() => []);
+    const lib = await yt.getLibraryPlaylists(24, authHeaders).catch(() => []);
+    const localPlaylists = loadLocalPlaylists();
+    const merged = [
+      ...localPlaylists.map(p => ({
+        title: p.title,
+        author: "Lokalna",
+        thumbnail: null,
+        browseId: `local-${p.id}`,
+        playlistId: `local-${p.id}`,
+        trackCount: p.tracks.length,
+        source: "local",
+      })),
+      ...lib.map(p => ({ ...p, source: "youtube" })),
+    ];
     return {
       ...base,
       eyebrow: "Biblioteka",
       title: "Playlisty",
-      description: "Playlisty z YouTube Music. Kliknij, aby zobaczyć szczegóły i utwory.",
-      chips: ["Biblioteka", "Polecane", "Wyszukaj"],
+      description: "Playlisty z YouTube Music i lokalne. Kliknij, aby zobaczyć szczegóły i utwory.",
+      chips: ["Biblioteka", "Lokalne", "Polecane", "Wyszukaj"],
       stats: [
-        { label: "Playlisty", value: String((lib || []).length || 0) },
+        { label: "Playlisty YT", value: String((lib || []).length || 0) },
+        { label: "Lokalne", value: String(localPlaylists.length || 0) },
         { label: "Edycja", value: ytMusicHeaders ? "ON" : "OFF" },
       ],
       primarySection: {
-        title: "Twoje playlisty",
+        title: "Wszystkie playlisty",
         action: "Odśwież",
-        items: (lib || []).map((p) =>
+        items: merged.map((p) =>
           toMediaItem({
             title: p.title,
             author: p.author || "YouTube Music",
             thumbnail: p.thumbnail,
             browseId: p.browseId,
             resultType: "playlist",
-            meta: "Biblioteka",
+            meta: p.source === "local" ? "Lokalna" : "Biblioteka",
           }),
         ),
       },
@@ -408,7 +443,7 @@ app.get('/api/page/:key', wrap(async (req) => {
   }
 
   if (key === "albums") {
-    const libAlbums = await yt.getLibraryAlbums(24).catch(() => []);
+    const libAlbums = await yt.getLibraryAlbums(24, authHeaders).catch(() => []);
     const charts = await yt.getCharts("ZZ");
     return {
       ...base,
@@ -453,7 +488,7 @@ app.get('/api/page/:key', wrap(async (req) => {
   }
 
   if (key === "artists") {
-    const libArtists = await yt.getLibraryArtists(24).catch(() => []);
+    const libArtists = await yt.getLibraryArtists(24, authHeaders).catch(() => []);
     const charts = await yt.getCharts("ZZ");
     return {
       ...base,
@@ -575,6 +610,85 @@ app.get('/api/page/:key', wrap(async (req) => {
     queue: [],
   };
 }));
+
+// Local Playlists JSON file handling
+const LOCAL_PLAYLISTS_FILE = path.join(__dirname, '..', 'localPlaylists.json');
+
+function loadLocalPlaylists() {
+  if (!fs.existsSync(LOCAL_PLAYLISTS_FILE)) {
+    return [];
+  }
+  try {
+    return JSON.parse(fs.readFileSync(LOCAL_PLAYLISTS_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalPlaylists(playlists) {
+  fs.writeFileSync(LOCAL_PLAYLISTS_FILE, JSON.stringify(playlists, null, 2));
+}
+
+// Local Playlists Routes
+app.get('/api/local/playlists', (req, res) => {
+  const playlists = loadLocalPlaylists();
+  res.json(playlists);
+});
+
+app.post('/api/local/playlists', (req, res) => {
+  const { title, description = "" } = req.body;
+  if (!title) return res.status(400).json({ error: "title is required" });
+  const playlists = loadLocalPlaylists();
+  const newPlaylist = {
+    id: Date.now().toString(),
+    title,
+    description,
+    tracks: [],
+    createdAt: new Date().toISOString(),
+  };
+  playlists.push(newPlaylist);
+  saveLocalPlaylists(playlists);
+  res.json(newPlaylist);
+});
+
+app.get('/api/local/playlists/:id', (req, res) => {
+  const playlists = loadLocalPlaylists();
+  const playlist = playlists.find(p => p.id === req.params.id);
+  if (!playlist) return res.status(404).json({ error: "Playlist not found" });
+  res.json(playlist);
+});
+
+app.post('/api/local/playlists/:id/tracks', (req, res) => {
+  const { videoId, title, artist, thumbnail, duration } = req.body;
+  if (!videoId || !title) return res.status(400).json({ error: "videoId and title required" });
+  const playlists = loadLocalPlaylists();
+  const playlist = playlists.find(p => p.id === req.params.id);
+  if (!playlist) return res.status(404).json({ error: "Playlist not found" });
+  const track = { videoId, title, artist: artist || "", thumbnail, duration: duration || "" };
+  playlist.tracks.push(track);
+  saveLocalPlaylists(playlists);
+  res.json({ success: true });
+});
+
+app.delete('/api/local/playlists/:id/tracks', (req, res) => {
+  const { videoId } = req.body;
+  if (!videoId) return res.status(400).json({ error: "videoId required" });
+  const playlists = loadLocalPlaylists();
+  const playlist = playlists.find(p => p.id === req.params.id);
+  if (!playlist) return res.status(404).json({ error: "Playlist not found" });
+  playlist.tracks = playlist.tracks.filter(t => t.videoId !== videoId);
+  saveLocalPlaylists(playlists);
+  res.json({ success: true });
+});
+
+app.delete('/api/local/playlists/:id', (req, res) => {
+  const playlists = loadLocalPlaylists();
+  const index = playlists.findIndex(p => p.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: "Playlist not found" });
+  playlists.splice(index, 1);
+  saveLocalPlaylists(playlists);
+  res.json({ success: true });
+});
 
 // Static files for production
 if (process.env.NODE_ENV === 'production') {

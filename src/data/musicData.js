@@ -66,6 +66,18 @@ export const pageContent = {
         { title: "Midnight City", subtitle: "M83", cover: "https://picsum.photos/seed/3/200/200", meta: "Single" },
       ],
     },
+    tertiarySection: {
+      title: "Popularne piosenki",
+      action: "Zobacz wszystkie",
+      items: [
+        { title: "Blinding Lights", subtitle: "The Weeknd", cover: "https://picsum.photos/seed/4/200/200", meta: "Single • 3:20", videoId: "4NRXx6U8ABQ" },
+        { title: "Watermelon Sugar", subtitle: "Harry Styles", cover: "https://picsum.photos/seed/5/200/200", meta: "Single • 2:54", videoId: "E07s5ZYygMg" },
+        { title: "Levitating", subtitle: "Dua Lipa", cover: "https://picsum.photos/seed/6/200/200", meta: "Single • 3:23", videoId: "TUVcZfQe-Kw" },
+        { title: "Good 4 U", subtitle: "Olivia Rodrigo", cover: "https://picsum.photos/seed/7/200/200", meta: "Single • 2:58", videoId: "gNi_6U5Pm_o" },
+        { title: "Stay", subtitle: "The Kid Laroi & Justin Bieber", cover: "https://picsum.photos/seed/8/200/200", meta: "Single • 2:21", videoId: "kTJczUoc26U" },
+        { title: "Peaches", subtitle: "Justin Bieber ft. Daniel Caesar & Giveon", cover: "https://picsum.photos/seed/9/200/200", meta: "Single • 3:18", videoId: "tQ0yjYUFKAE" },
+      ],
+    },
     chartTitle: "Top Wykonawcy",
     chartItems: [
       { label: "#1", title: "Artist X", subtitle: "Pop", change: "+2" },

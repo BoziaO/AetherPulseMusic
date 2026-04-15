@@ -4,142 +4,36 @@ import { fetchJson } from "../lib/api";
 import CoverArt from "../components/CoverArt";
 import {
   ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  Flame,
   Play,
   Plus,
   RefreshCw,
-  Sparkles,
   Trash2,
-  TrendingUp,
 } from "../components/Icons";
 import { pageContent } from "../data/musicData";
 
-function SectionHeader({ title, action, onAction }) {
-  return (
-    <div className="flex items-center justify-between mb-6">
-      <h2 className="text-2xl font-bold text-white font-display">{title}</h2>
-      <button 
-        type="button" 
-        className="flex items-center gap-2 text-sm font-bold text-neutral-400 hover:text-white transition-colors" 
-        onClick={onAction}
-      >
-        {action}
-        <ArrowRight size={16} />
-      </button>
-    </div>
-  );
-}
-
-function MetricCard({ stat, index }) {
-  const icons = [Sparkles, TrendingUp, BadgeCheck];
-  const Icon = icons[index % icons.length];
-
-  return (
-    <article className="metric-card bg-neutral-900/50 border border-white/5 p-6 rounded-2xl hover:bg-neutral-800 transition-all duration-300 group">
-      <span className="metric-card__icon w-10 h-10 flex items-center justify-center bg-white/5 rounded-lg text-neutral-400 group-hover:text-red-500 transition-colors">
-        <Icon size={20} />
-      </span>
-      <strong className="block text-3xl font-bold mt-4 text-white">{stat.value}</strong>
-      <p className="text-neutral-400 text-sm mt-1">{stat.label}</p>
-    </article>
-  );
-}
-
-function MediaCard({ item, onClick }) {
-  return (
-    <article className="media-card group cursor-pointer" onClick={onClick || (() => console.log("Play:", item.title))}>
-      <div className="media-card__cover relative overflow-hidden rounded-xl bg-neutral-900">
-        <CoverArt art={item.cover} />
-        <button 
-          type="button" 
-          className="media-card__play absolute bottom-3 right-3 w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-full shadow-xl opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300" 
-          aria-label={`Odtwórz ${item.title}`}
-        >
-          <Play size={20} fill="currentColor" />
-        </button>
-      </div>
-      <div className="media-card__body mt-3">
-        <h3 className="font-bold text-white truncate">{item.title}</h3>
-        <p className="text-sm text-neutral-400 truncate">{item.subtitle}</p>
-        <span className="text-xs text-neutral-500 mt-1 block">{item.meta}</span>
-      </div>
-    </article>
-  );
-}
-
-function ChartRow({ item }) {
-  return (
-    <div className="chart-row group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer">
-      <span className="chart-row__label font-bold text-neutral-500 min-w-[24px]">{item.label}</span>
-      <div className="chart-row__copy flex-1 min-w-0">
-        <strong className="block text-white truncate">{item.title}</strong>
-        <p className="text-sm text-neutral-400 truncate">{item.subtitle}</p>
-      </div>
-      <span className="chart-row__change font-bold text-emerald-500 text-sm whitespace-nowrap">{item.change}</span>
-    </div>
-  );
-}
-
-function QueueTable({ page }) {
-  const { play } = useOutletContext();
-  return (
-    <section className="bg-neutral-900/30 border border-white/5 p-6 rounded-3xl overflow-hidden">
-      <SectionHeader title={page.queueTitle} action={page.queueAction} />
-
-      <div className="w-full">
-        <div className="grid grid-cols-[auto_1fr_1fr_100px_80px] gap-4 px-4 py-3 text-[10px] uppercase tracking-widest font-black text-neutral-500 border-b border-white/5">
-          <span>#</span>
-          <span>Tytuł</span>
-          <span>Szczegóły</span>
-          <div className="flex items-center gap-1">
-            <RefreshCw size={12} />
-            <span>Czas</span>
-          </div>
-          <span>Energia</span>
-        </div>
-
-        <div className="divide-y divide-white/5">
-          {page.queue.map((item, index) => (
-            <div 
-              key={`${page.key}-${item.title}-${index}`} 
-              className="grid grid-cols-[auto_1fr_1fr_100px_80px] gap-4 px-4 py-4 items-center hover:bg-white/5 transition-colors group cursor-pointer"
-              onClick={() => play?.(item)}
-            >
-              <span className="text-sm font-bold text-neutral-600 group-hover:text-red-500 transition-colors w-6">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <div className="min-w-0">
-                <p className="font-bold text-white truncate text-sm">{item.title}</p>
-                <p className="text-xs text-neutral-500 truncate">{item.artist}</p>
-              </div>
-              <span className="text-xs text-neutral-400 truncate">{item.detail}</span>
-              <span className="text-xs text-neutral-500 font-mono">{item.duration}</span>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1 bg-neutral-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500" 
-                    style={{ width: `${item.energy}%` }} 
-                  />
-                </div>
-                <span className="text-[10px] font-black text-emerald-500 w-8">{item.energy}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+// New modular components
+import SectionHeader from "../components/music/SectionHeader";
+import MetricCard from "../components/music/MetricCard";
+import MediaCard from "../components/music/MediaCard";
+import ChartRow from "../components/music/ChartRow";
+import QueueTable from "../components/music/QueueTable";
+import CreatePlaylistModal from "../components/CreatePlaylistModal";
 
 function MusicPage({ pageKey }) {
   const location = useLocation();
-  const { pageData, pageLoading, play, query, searchFilter, searchResults, searchLoading, authSession } = useOutletContext();
+  const { 
+    pageData, 
+    play, 
+    query, 
+    searchResults, 
+    authSession 
+  } = useOutletContext();
+  
   const [playlists, setPlaylists] = useState([]);
   const [importing, setImporting] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     setSelectedPlaylist(null);
@@ -163,6 +57,23 @@ function MusicPage({ pageKey }) {
     try {
       const libPlaylists = await fetchJson("/api/ytmusic/library/playlists");
       const merged = Array.isArray(libPlaylists) ? [...libPlaylists] : [];
+
+      // Fetch local playlists
+      try {
+        const localPlaylists = await fetchJson("/api/local/playlists");
+        const normalizedLocal = (Array.isArray(localPlaylists) ? localPlaylists : []).map((pl) => ({
+          title: pl.title,
+          author: "Lokalna",
+          thumbnail: null,
+          browseId: `local-${pl.id}`,
+          playlistId: `local-${pl.id}`,
+          trackCount: pl.tracks.length,
+          source: "local",
+        }));
+        merged.push(...normalizedLocal);
+      } catch (error) {
+        console.warn("Could not fetch local playlists", error);
+      }
 
       if (authSession?.auth?.connected) {
         try {
@@ -199,25 +110,6 @@ function MusicPage({ pageKey }) {
     }
   }
 
-  async function handleCreatePlaylist() {
-    const title = prompt("Nazwa nowej playlisty:");
-    if (!title) return;
-    const description = prompt("Opis (opcjonalnie):") || "";
-    const privacyStatus = (prompt("Prywatnosc: PRIVATE / UNLISTED / PUBLIC", "PRIVATE") || "PRIVATE").toUpperCase();
-
-    try {
-      await fetchJson("/api/ytmusic/playlists", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, privacyStatus }),
-      });
-      fetchPlaylists();
-    } catch (error) {
-      console.error("Create playlist error:", error);
-      alert("Nie udało się utworzyć playlisty. (Wymaga headers.json)");
-    }
-  }
-
   async function handleDeletePlaylist(playlistId) {
     if (!playlistId) return;
     if (!window.confirm("Usunąć playlistę? Tej operacji nie można cofnąć.")) return;
@@ -235,9 +127,32 @@ function MusicPage({ pageKey }) {
     if (!playlistId) return;
     try {
       setLoadingPlaylist(true);
-      // Ensure playlistId doesn't have VL prefix for some API calls if needed, 
-      // but ytmusic.js usually handles browseId with or without it.
-      const data = await fetchJson(`/api/ytmusic/playlist/${playlistId}?limit=500`);
+      let data;
+      if (playlistId.startsWith("local-")) {
+        const localId = playlistId.replace("local-", "");
+        data = await fetchJson(`/api/local/playlists/${localId}`);
+        // Transform to match YouTube format
+        data = {
+          playlistId,
+          title: data.title,
+          author: "Lokalna",
+          description: data.description,
+          trackCount: data.tracks.length,
+          thumbnail: null,
+          tracks: data.tracks.map((t, idx) => ({
+            videoId: t.videoId,
+            title: t.title,
+            author: t.artist,
+            duration: t.duration,
+            thumbnail: t.thumbnail,
+            artists: [{ name: t.artist }],
+            album: null,
+            setVideoId: `set-${t.videoId}-${idx}`,
+          })),
+        };
+      } else {
+        data = await fetchJson(`/api/ytmusic/playlist/${playlistId}?limit=500`);
+      }
       setSelectedPlaylist(data);
     } catch (err) {
       console.error("Błąd pobierania szczegółów playlisty:", err);
@@ -247,15 +162,25 @@ function MusicPage({ pageKey }) {
     }
   }
 
+  const isLocalPlaylist = selectedPlaylist?.playlistId?.startsWith("local-");
+
   async function handleRemoveTrack(playlistId, videoId, setVideoId) {
     if (!window.confirm("Czy na pewno chcesz usunąć ten utwór z playlisty?")) return;
     try {
-      await fetchJson(`/api/ytmusic/playlist/${playlistId}/tracks`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videos: [{ videoId, setVideoId }] })
-      });
-      // Refresh playlist
+      if (isLocalPlaylist) {
+        const localId = playlistId.replace("local-", "");
+        await fetchJson(`/api/local/playlists/${localId}/tracks`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoId })
+        });
+      } else {
+        await fetchJson(`/api/ytmusic/playlist/${playlistId}/tracks`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videos: [{ videoId, setVideoId }] })
+        });
+      }
       fetchPlaylistDetails(playlistId);
     } catch (err) {
       console.error("Błąd usuwania utworu:", err);
@@ -277,16 +202,7 @@ function MusicPage({ pageKey }) {
     },
   };
 
-  // eslint-disable-next-line no-unused-vars
   const ytMusicHeaders = page.backendStatus?.imports?.ytMusicHeaders;
-
-  const stats = pageKey === "playlists" 
-    ? [
-        { label: "Wszystkie Playlisty", value: playlists.length.toString() },
-        { label: "Biblioteka YTM", value: playlists.length.toString() },
-        { label: "Google Auth", value: authSession?.auth?.connected ? "ON" : "OFF" },
-      ]
-    : page.stats;
 
   const isSearching = query.trim().length >= 2;
   const liveSearchItems = searchResults.map((item) => ({
@@ -295,8 +211,6 @@ function MusicPage({ pageKey }) {
     subtitle:
       item.artists?.map((artist) => artist.name).join(", ") ||
       item.author ||
-      item.category ||
-      item.resultType ||
       "YouTube Music",
     cover: item.thumbnail,
     meta: item.resultType || "wynik",
@@ -307,13 +221,13 @@ function MusicPage({ pageKey }) {
 
   const displayItems = pageKey === "playlists" && playlists.length > 0
     ? playlists.map(pl => {
-        const browseId = pl.browseId;
+        const browseId = pl.browseId || pl.playlistId;
         return {
           id: browseId,
           title: pl.title,
           subtitle: pl.author || "YouTube Music",
           cover: pl.thumbnail || (pl.thumbnails && (pl.thumbnails[0]?.url || pl.thumbnails.url)),
-          meta: `${pl.trackCount ? `${pl.trackCount} utworów` : "Biblioteka"}`,
+          meta: `${pl.trackCount ? `${pl.trackCount} utworów` : "Playlista"}`,
           onClick: () => fetchPlaylistDetails(browseId)
         };
       })
@@ -325,7 +239,7 @@ function MusicPage({ pageKey }) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <RefreshCw className="animate-spin text-red-500" size={48} />
-        <p className="text-neutral-400 animate-pulse">Ładowanie zawartości playlisty...</p>
+        <p className="text-neutral-400 animate-pulse font-medium">Ładowanie zawartości...</p>
       </div>
     );
   }
@@ -334,114 +248,159 @@ function MusicPage({ pageKey }) {
     const playlistCover = selectedPlaylist.thumbnail || (selectedPlaylist.thumbnails && (selectedPlaylist.thumbnails[0]?.url || selectedPlaylist.thumbnails.url));
     
     return (
-      <div className="page space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <section className="page-hero flex flex-col md:flex-row gap-8 items-start">
-          <div className="w-full md:w-64 h-64 flex-shrink-0 rounded-3xl overflow-hidden shadow-2xl bg-neutral-900">
+      <div className="page space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+        <section className="page-hero flex flex-col md:flex-row gap-10 items-end">
+          <div className="w-full md:w-72 h-72 flex-shrink-0 rounded-[40px] overflow-hidden shadow-2xl bg-neutral-900 border border-white/5 group">
              <CoverArt art={playlistCover} />
           </div>
           <div className="flex-1 space-y-6">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setSelectedPlaylist(null)}
-                className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors text-white"
+                className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-white hover:scale-105 active:scale-95"
               >
                 <ArrowLeft size={24} />
               </button>
-              <p className="text-xs font-bold uppercase tracking-widest text-red-500">Playlista</p>
+              <span className="px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-full">Playlista</span>
             </div>
-            <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight font-display">{selectedPlaylist.title}</h1>
-            <p className="text-lg text-neutral-400 max-w-2xl leading-relaxed">{selectedPlaylist.description || "Brak opisu."}</p>
-            <p className="text-sm text-neutral-500">Autor: {selectedPlaylist.author} • {selectedPlaylist.trackCount} utworów</p>
+            <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight font-display tracking-tight">{selectedPlaylist.title}</h1>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-400 font-medium">
+               <span>Autor: <span className="text-white">{selectedPlaylist.author}</span></span>
+               <span className="w-1 h-1 bg-neutral-700 rounded-full"></span>
+               <span>{selectedPlaylist.trackCount} utworów</span>
+               {selectedPlaylist.duration && (
+                 <>
+                   <span className="w-1 h-1 bg-neutral-700 rounded-full"></span>
+                   <span>{selectedPlaylist.duration}</span>
+                 </>
+               )}
+            </div>
             
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4 pt-4">
               <button
                 type="button"
                 onClick={() => play?.(selectedPlaylist.tracks?.[0])}
-                className="flex items-center gap-3 px-8 py-4 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20"
+                className="flex items-center gap-3 px-10 py-4 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-2xl shadow-red-600/30"
               >
                 <Play size={20} fill="white" />
-                Odtwórz wszystko
+                Odtwórz
               </button>
-              {ytMusicHeaders ? (
-                <button 
+              {(ytMusicHeaders || isLocalPlaylist) && (
+                <button
                   onClick={() => {
-                    const videoId = prompt("Podaj YouTube Video ID do dodania:");
+                    const videoId = prompt("Podaj YouTube Video ID:");
                     if (videoId) {
-                      const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
-                      fetchJson(`/api/ytmusic/playlist/${cleanId}/tracks`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ videoIds: [videoId] })
-                      }).then(() => fetchPlaylistDetails(selectedPlaylist.playlistId));
+                      if (isLocalPlaylist) {
+                        const localId = selectedPlaylist.playlistId.replace("local-", "");
+                        fetchJson(`/api/local/playlists/${localId}/tracks`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ videoId, title: "Unknown", artist: "Unknown" })
+                        }).then(() => fetchPlaylistDetails(selectedPlaylist.playlistId));
+                      } else {
+                        const cleanId = selectedPlaylist.playlistId?.replace(/^VL/, '');
+                        fetchJson(`/api/ytmusic/playlist/${cleanId}/tracks`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ videoIds: [videoId] })
+                        }).then(() => fetchPlaylistDetails(selectedPlaylist.playlistId));
+                      }
                     }
                   }}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 text-white font-bold transition-all hover:bg-white/20"
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
                 >
                   <Plus size={20} />
-                  Dodaj utwór
+                  Dodaj
                 </button>
-              ) : null}
-              {ytMusicHeaders ? (
+              )}
+              {(ytMusicHeaders || isLocalPlaylist) && (
                 <button
                   type="button"
-                  onClick={() => handleDeletePlaylist(selectedPlaylist.playlistId?.replace(/^VL/, "") || selectedPlaylist.playlistId)}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 text-red-400 font-bold transition-all hover:bg-white/20"
+                  onClick={() => {
+                    if (isLocalPlaylist) {
+                      const localId = selectedPlaylist.playlistId.replace("local-", "");
+                      fetchJson(`/api/local/playlists/${localId}`, { method: "DELETE" })
+                        .then(() => {
+                          setSelectedPlaylist(null);
+                          // Refresh playlists
+                          window.location.reload();
+                        });
+                    } else {
+                      handleDeletePlaylist(selectedPlaylist.playlistId?.replace(/^VL/, "") || selectedPlaylist.playlistId);
+                    }
+                  }}
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-red-400 font-bold transition-all hover:bg-red-400/10 border border-white/5"
                 >
                   <Trash2 size={20} />
-                  Usuń playlistę
+                  Usuń
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
         </section>
 
-        <section className="bg-neutral-900/30 border border-white/5 p-6 rounded-3xl overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_1fr_100px_80px_auto] gap-4 px-4 py-3 text-[10px] uppercase tracking-widest font-black text-neutral-500 border-b border-white/5">
-            <span>#</span>
-            <span>Tytuł</span>
-            <span>Artysta</span>
-            <span>Czas</span>
-            <span>Album</span>
-            <span>Akcje</span>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {(selectedPlaylist.tracks || []).map((track, index) => (
-              <div 
-                key={`${track.videoId}-${index}`} 
-                className="grid grid-cols-[auto_1fr_1fr_100px_80px_auto] gap-4 px-4 py-4 items-center hover:bg-white/5 transition-colors group cursor-pointer"
-                onClick={() => play?.(track)}
-              >
-                <span className="text-sm font-bold text-neutral-600 group-hover:text-red-500 transition-colors w-6">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-neutral-800 flex-shrink-0 overflow-hidden">
-                    <img src={track.thumbnail} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <p className="font-bold text-white truncate text-sm">{track.title}</p>
-                </div>
-                <span className="text-xs text-neutral-400 truncate">
-                  {(track.artists || []).map(a => a.name).join(", ")}
-                </span>
-                <span className="text-xs text-neutral-500 font-mono">{track.duration}</span>
-                <span className="text-xs text-neutral-400 truncate">{track.album?.name || "-"}</span>
-                {ytMusicHeaders ? (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const cleanId = selectedPlaylist.playlistId?.replace('VL', '');
-                      handleRemoveTrack(cleanId, track.videoId, track.setVideoId);
-                    }}
-                    className="p-2 text-neutral-500 hover:text-red-500 transition-colors"
+        <section className="bg-neutral-900/30 rounded-[40px] border border-white/5 overflow-hidden">
+          <div className="p-8">
+            <table className="w-full text-left border-separate border-spacing-y-2">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-widest font-black text-neutral-500">
+                  <th className="px-4 py-2 w-12 text-center">#</th>
+                  <th className="px-4 py-2">Tytuł</th>
+                  <th className="px-4 py-2 hidden md:table-cell">Album</th>
+                  <th className="px-4 py-2 text-right pr-6">Czas</th>
+                  {(ytMusicHeaders || isLocalPlaylist) && <th className="px-4 py-2 w-12"></th>}
+                </tr>
+              </thead>
+              <tbody className="before:block before:h-4">
+                {(selectedPlaylist.tracks || []).map((track, idx) => (
+                  <tr 
+                    key={track.videoId + idx} 
+                    className="group hover:bg-white/5 transition-all cursor-pointer"
+                    onClick={() => play?.(track)}
                   >
-                    <Trash2 size={16} />
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-neutral-600">Edycja OFF</span>
-                )}
-              </div>
-            ))}
+                    <td className="px-4 py-4 rounded-l-2xl text-center text-sm font-bold text-neutral-600 group-hover:text-red-500">
+                      {idx + 1}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-800 border border-white/5">
+                          <img 
+                            src={track.thumbnail || (track.thumbnails?.[0]?.url)} 
+                            alt={track.title} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-white truncate group-hover:text-red-400 transition-colors">{track.title}</p>
+                          <p className="text-xs text-neutral-500 truncate mt-1">
+                            {Array.isArray(track.artists) ? track.artists.map(a => a.name).join(', ') : track.author}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-neutral-400 hidden md:table-cell">
+                      {track.album?.name || "—"}
+                    </td>
+                    <td className="px-4 py-4 text-right pr-6 text-sm font-mono text-neutral-500 group-hover:text-neutral-300">
+                      {track.duration}
+                    </td>
+                    {(ytMusicHeaders || isLocalPlaylist) && (
+                      <td className="px-4 py-4 rounded-r-2xl">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveTrack(selectedPlaylist.playlistId, track.videoId, track.setVideoId);
+                          }}
+                          className="p-2 text-neutral-600 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
@@ -449,152 +408,151 @@ function MusicPage({ pageKey }) {
   }
 
   return (
-    <div className="page space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <section className="page-hero grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2 space-y-6">
-          <p className="text-xs font-bold uppercase tracking-widest text-red-500">{page.eyebrow}</p>
-          <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight font-display">{page.title}</h1>
-          <p className="text-lg text-neutral-400 max-w-2xl leading-relaxed">{page.description}</p>
+    <div className="page space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
+      <header className="page-header relative">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+        <p className="text-sm font-black uppercase tracking-[0.3em] text-red-500 mb-4">{page.eyebrow}</p>
+        <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 font-display tracking-tight leading-none">
+          {isSearching ? "Wyniki wyszukiwania" : page.title}
+        </h1>
+        <p className="text-xl text-neutral-400 max-w-3xl leading-relaxed font-medium">
+          {isSearching ? `Znaleziono wyniki dla frazy "${query}"` : page.description}
+        </p>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            {page.chips.map((chip) => (
-              <span key={chip} className="px-4 py-1.5 bg-neutral-900 border border-white/5 rounded-full text-sm font-medium text-neutral-300">
-                {chip}
-              </span>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-3 mt-10">
+          {page.chips?.map((chip) => (
+            <button
+              key={chip}
+              className="px-6 py-2.5 rounded-full bg-neutral-900 border border-white/5 text-sm font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-white/10 transition-all active:scale-95"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      </header>
 
-          {pageKey === "playlists" && (
-            <div className="pt-4">
-              <div className="flex flex-wrap gap-3">
-                <button
-                  className={`flex items-center gap-3 px-6 py-3 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-xl shadow-red-600/20 ${importing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={fetchPlaylists}
-                  disabled={importing}
-                >
-                  {importing ? "Ładowanie..." : "Odśwież playlisty"}
-                  <RefreshCw className={importing ? "animate-spin" : ""} size={18} />
-                </button>
-                {ytMusicHeaders ? (
-                  <button
-                    type="button"
-                    onClick={handleCreatePlaylist}
-                    className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 text-white font-bold transition-all hover:bg-white/20"
-                  >
-                    <Plus size={18} />
-                    Nowa playlista
-                  </button>
-                ) : null}
-              </div>
+      {page.stats && !isSearching && (
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {page.stats.map((stat, idx) => (
+            <MetricCard key={stat.label} stat={stat} index={idx} />
+          ))}
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12 items-start">
+        <div className="space-y-16">
+          <section>
+            <SectionHeader 
+              title={page.primarySection?.title || "Dla Ciebie"} 
+              action={isSearching ? "Filtruj" : page.primarySection?.action} 
+              onAction={pageKey === "playlists" && page.primarySection?.action === "Nowa playlista" ? () => setShowCreateModal(true) : undefined}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+              {displayItems.map((item) => (
+                <MediaCard 
+                  key={item.id} 
+                  item={item} 
+                  onClick={item.onClick || (() => {
+                    if (item.videoId) play?.(item);
+                    else if (item.browseId) fetchPlaylistDetails(item.browseId);
+                  })} 
+                />
+              ))}
             </div>
+            {displayItems.length === 0 && (
+              <div className="text-center py-20 bg-neutral-900/50 rounded-[40px] border border-dashed border-white/10">
+                <p className="text-neutral-500 font-medium italic">Nie znaleziono żadnych elementów.</p>
+              </div>
+            )}
+          </section>
+
+          {page.secondarySection?.items?.length > 0 && !isSearching && (
+            <section>
+              <SectionHeader title={page.secondarySection.title} action={page.secondarySection.action} />
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+                {page.secondarySection.items.map((item, idx) => (
+                  <MediaCard 
+                    key={idx} 
+                    item={item} 
+                    onClick={() => {
+                      if (item.videoId) play?.(item);
+                      else if (item.browseId) fetchPlaylistDetails(item.browseId);
+                    }} 
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {page.tertiarySection?.items?.length > 0 && !isSearching && (
+            <section>
+              <SectionHeader title={page.tertiarySection.title} action={page.tertiarySection.action} />
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+                {page.tertiarySection.items.map((item, idx) => (
+                  <MediaCard
+                    key={idx}
+                    item={item}
+                    onClick={() => {
+                      if (item.videoId) play?.(item);
+                      else if (item.browseId) fetchPlaylistDetails(item.browseId);
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {page.queue?.length > 0 && !isSearching && (
+            <QueueTable page={page} onPlay={play} />
           )}
         </div>
 
-        <aside className="bg-neutral-900/40 border border-white/5 p-6 rounded-3xl space-y-6 self-stretch flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-xs font-bold uppercase tracking-tighter">
-              <Flame size={14} />
-              Live status
-            </span>
-            <p className="text-xs text-neutral-500">{pageLoading ? "Ładowanie..." : "System OK"}</p>
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white">{page.spotlightTitle}</h2>
-            <p className="text-sm text-neutral-400">
-              {isSearching ? `Wyniki na zywo dla: "${query}" (${searchFilter})` : page.spotlightText}
-            </p>
-          </div>
-
-          <ul className="space-y-3">
-            {page.spotlightItems.map((item) => (
-              <li key={item} className="text-sm text-neutral-300 flex items-center gap-2 before:w-1 before:h-1 before:bg-red-500 before:rounded-full">{item}</li>
-            ))}
-            <li className="text-sm font-medium border-t border-white/5 pt-3 mt-3">
-              <span className={`flex items-center gap-2 ${ytMusicHeaders ? "text-emerald-500" : "text-neutral-500"}`}>
-                 <BadgeCheck size={16} /> {ytMusicHeaders ? "YT Music headers: ON" : "YT Music headers: OFF"}
-              </span>
-            </li>
-          </ul>
-        </aside>
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((stat, index) => (
-          <MetricCard key={`${page.key}-${stat.label}`} stat={stat} index={index} />
-        ))}
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-neutral-900/30 border border-white/5 p-6 rounded-3xl">
-          <SectionHeader 
-            title={
-              isSearching
-                ? `Wyniki wyszukiwania (${searchFilter})`
-                : pageKey === "playlists" && playlists.length > 0
-                  ? "Zaimportowane Playlisty"
-                  : page.primarySection.title
-            } 
-            action={pageKey === "playlists" ? (ytMusicHeaders ? "Nowa" : (importing ? "Odświeżanie..." : "Odśwież")) : page.primarySection.action} 
-            onAction={pageKey === "playlists" ? (ytMusicHeaders ? handleCreatePlaylist : fetchPlaylists) : undefined}
-          />
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-            {isSearching && searchLoading ? (
-              <div className="col-span-full py-10 text-center text-neutral-500">Szukam wynikow...</div>
-            ) : null}
-            {displayItems.map((item, idx) => (
-              <MediaCard
-                key={`${page.key}-${item.title}-${idx}`}
-                item={item}
-                onClick={() => {
-                  if (item.onClick) return item.onClick();
-                  if ((item.resultType === "playlist" || item.resultType === "community_playlists" || item.resultType === "featured_playlists") && item.browseId) {
-                    return fetchPlaylistDetails(item.browseId);
-                  }
-                  if (item.videoId) return play?.(item);
-                }}
-              />
-            ))}
-            {pageKey === "playlists" && displayItems.length === 0 && !importing && (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-neutral-500 border-2 border-dashed border-white/5 rounded-2xl">
-                <Play size={48} className="mb-4 opacity-20" />
-                <p>Brak playlist w bibliotece. Kliknij przycisk powyżej, aby pobrać z YouTube Music.</p>
+        <aside className="space-y-12 sticky top-24">
+          {page.chartItems?.length > 0 && !isSearching && (
+            <section className="bg-neutral-900/50 border border-white/5 p-8 rounded-[40px] backdrop-blur-sm">
+              <h2 className="text-2xl font-bold text-white mb-8 font-display">{page.chartTitle}</h2>
+              <div className="space-y-2">
+                {page.chartItems.map((item, idx) => (
+                  <ChartRow key={idx} item={item} />
+                ))}
               </div>
-            )}
-          </div>
-        </div>
+            </section>
+          )}
 
-        <aside className="bg-neutral-900/30 border border-white/5 p-6 rounded-3xl h-fit">
-          <SectionHeader title={page.chartTitle} action="Pełny ranking" />
-          <div className="space-y-1">
-            {page.chartItems.map((item) => (
-              <ChartRow key={`${page.key}-${item.label}`} item={item} />
-            ))}
-          </div>
+          {!isSearching && (
+             <div className="bg-gradient-to-br from-red-600 to-red-900 p-8 rounded-[40px] shadow-2xl shadow-red-600/20 group cursor-pointer overflow-hidden relative">
+                <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                <h3 className="text-2xl font-black text-white mb-2 italic uppercase">Premium</h3>
+                <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">Wszystkie funkcje BoziaMusic bez ograniczeń. Ciesz się muzyką w najwyższej jakości.</p>
+                <button className="w-full py-4 bg-white text-red-600 font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-neutral-100 transition-colors shadow-xl">Sprawdź więcej</button>
+             </div>
+          )}
         </aside>
-      </section>
+      </div>
 
-      <section className="bg-neutral-900/30 border border-white/5 p-6 rounded-3xl">
-        <SectionHeader title={page.secondarySection.title} action={page.secondarySection.action} />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-          {page.secondarySection.items.map((item) => (
-            <MediaCard
-              key={`${page.key}-${item.title}-secondary`}
-              item={item}
-              onClick={() => {
-                if ((item.resultType === "playlist" || item.resultType === "community_playlists" || item.resultType === "featured_playlists") && item.browseId) {
-                  return fetchPlaylistDetails(item.browseId);
-                }
-                if (item.videoId) return play?.(item);
-              }}
-            />
-          ))}
-        </div>
-      </section>
-
-      <QueueTable page={page} />
+      {showCreateModal && (
+        <CreatePlaylistModal
+          type="local"
+          onConfirm={async (data) => {
+            try {
+              await fetchJson("/api/local/playlists", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+              });
+              setShowCreateModal(false);
+              fetchPlaylists(); // Refresh the list
+            } catch (error) {
+              console.error("Create playlist error:", error);
+              alert("Nie udało się utworzyć playlisty.");
+            }
+          }}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      )}
     </div>
   );
 }
 
 export default MusicPage;
+

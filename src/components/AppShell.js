@@ -7,6 +7,7 @@ import { buildApiUrl, fetchJson } from "../lib/api";
 import { Bell, Search, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
+import { useToast } from "./Toast";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
 const FILTER_LABELS = { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" };
@@ -17,6 +18,7 @@ function AppShell() {
   const currentPage = getPageByPath(location.pathname);
   const authSession = useAuthSession();
   const pageRequest = usePageData(currentPage.key);
+  const showToast = useToast();
 
   const resolvedUser = authSession.data?.auth?.user || userProfile;
 
@@ -46,6 +48,19 @@ function AppShell() {
 
   // Favorites state
   const [favorites, setFavorites] = useState(new Set());
+
+  // Use refs for values needed inside YT callbacks to avoid stale closures
+  const repeatModeRef = useRef(repeatMode);
+  const shuffledQueueRef = useRef(shuffledQueue);
+  const nowPlayingRef = useRef(nowPlaying);
+  const pageQueueRef = useRef([]);
+  const isShuffledRef = useRef(isShuffled);
+
+  useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+  useEffect(() => { shuffledQueueRef.current = shuffledQueue; }, [shuffledQueue]);
+  useEffect(() => { nowPlayingRef.current = nowPlaying; }, [nowPlaying]);
+  useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
+  useEffect(() => { pageQueueRef.current = pageRequest.data?.queue || []; }, [pageRequest.data]);
 
   // Load YouTube IFrame API once on mount
   useEffect(() => {
@@ -82,19 +97,41 @@ function AppShell() {
                 setIsPlaying(false);
                 setCurrentTime(0);
                 stopInterval();
-                // Handle repeat
-                if (repeatMode === 'one') {
+                // Use refs to avoid stale closure
+                const rMode = repeatModeRef.current;
+                if (rMode === "one") {
                   try {
                     ytPlayerRef.current?.seekTo?.(0, true);
                     ytPlayerRef.current?.playVideo?.();
                   } catch (_) {}
-                } else if (repeatMode === 'all' || shuffledQueue.length > 0) {
-                  nextTrack();
+                } else {
+                  // next track from queue
+                  const queue = isShuffledRef.current
+                    ? shuffledQueueRef.current
+                    : pageQueueRef.current;
+                  const current = nowPlayingRef.current;
+                  if (queue.length && current?.videoId) {
+                    const idx = queue.findIndex((i) => i.videoId === current.videoId);
+                    if (idx >= 0 && idx < queue.length - 1) {
+                      playRef.current(queue[idx + 1]);
+                    } else if (rMode === "all" && queue.length > 0) {
+                      playRef.current(queue[0]);
+                    }
+                  }
                 }
               }
             },
             onError: (e) => {
               console.warn("YT Player error code:", e.data);
+              const errorMessages = {
+                2: "Nieprawidłowy videoId.",
+                5: "Błąd HTML5 playera.",
+                100: "Film nie istnieje lub jest prywatny.",
+                101: "Film nie może być odtwarzany.",
+                150: "Film nie może być odtwarzany.",
+              };
+              const msg = errorMessages[e.data] || `Błąd odtwarzacza (kod ${e.data}).`;
+              showToast(msg, "error");
             },
           },
         });
@@ -168,9 +205,16 @@ function AppShell() {
         }
       } catch (err) {
         console.warn("Could not load video:", err);
+        showToast("Nie udało się załadować utworu.", "error");
       }
+    } else {
+      showToast(`Odtwarzam: ${title}`, "info");
     }
-  }, []);
+  }, [showToast]);
+
+  // Store play in ref for use inside YT callbacks
+  const playRef = useRef(play);
+  useEffect(() => { playRef.current = play; }, [play]);
 
   function togglePlay() {
     try {
@@ -184,7 +228,7 @@ function AppShell() {
   }
 
   // Previous / Next behavior: prefer queue navigation, fallback to seek +/-10s
-  const prevTrack = React.useCallback(() => {
+  const prevTrack = useCallback(() => {
     const queue = isShuffled ? shuffledQueue : (pageRequest.data?.queue || []);
     if (queue.length && nowPlaying?.videoId) {
       const idx = queue.findIndex((i) => i.videoId === nowPlaying.videoId);
@@ -199,14 +243,14 @@ function AppShell() {
     } catch (_) {}
   }, [pageRequest.data, nowPlaying, play, isShuffled, shuffledQueue]);
 
-  const nextTrack = React.useCallback(() => {
+  const nextTrack = useCallback(() => {
     const queue = isShuffled ? shuffledQueue : (pageRequest.data?.queue || []);
     if (queue.length && nowPlaying?.videoId) {
       const idx = queue.findIndex((i) => i.videoId === nowPlaying.videoId);
       if (idx >= 0 && idx < queue.length - 1) {
         play(queue[idx + 1]);
         return;
-      } else if (repeatMode === 'all' && idx === queue.length - 1) {
+      } else if (repeatMode === "all" && idx === queue.length - 1) {
         play(queue[0]);
         return;
       }
@@ -242,7 +286,7 @@ function AppShell() {
     return shuffled;
   }
 
-  // Update queue when page data changes
+  // Update queue when page data or shuffle changes
   useEffect(() => {
     const queue = pageRequest.data?.queue || [];
     if (queue.length > 0) {
@@ -252,17 +296,28 @@ function AppShell() {
 
   // Toggle shuffle
   const toggleShuffle = useCallback(() => {
-    setIsShuffled(!isShuffled);
-  }, [isShuffled]);
+    setIsShuffled((prev) => {
+      const next = !prev;
+      showToast(next ? "Losowe odtwarzanie włączone" : "Losowe odtwarzanie wyłączone", "info");
+      return next;
+    });
+  }, [showToast]);
 
   // Toggle repeat
   const toggleRepeat = useCallback(() => {
     setRepeatMode((prev) => {
-      if (prev === 'none') return 'all';
-      if (prev === 'all') return 'one';
-      return 'none';
+      if (prev === "none") {
+        showToast("Powtarzaj wszystko", "info");
+        return "all";
+      }
+      if (prev === "all") {
+        showToast("Powtarzaj jeden utwór", "info");
+        return "one";
+      }
+      showToast("Powtarzanie wyłączone", "info");
+      return "none";
     });
-  }, []);
+  }, [showToast]);
 
   // Reset search on page navigation
   useEffect(() => {
@@ -324,6 +379,9 @@ function AppShell() {
   async function handleLogout() {
     try {
       await fetchJson("/api/auth/logout", { method: "POST" });
+      showToast("Wylogowano pomyślnie.", "success");
+    } catch {
+      showToast("Błąd wylogowania.", "error");
     } finally {
       authSession.refresh();
     }
@@ -367,7 +425,7 @@ function AppShell() {
                 onFocus={() => setSearchOpen(true)}
               />
               {query && (
-                <button 
+                <button
                   onClick={() => setQuery("")}
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-full text-neutral-500 hover:text-white transition-all"
                 >
@@ -406,7 +464,7 @@ function AppShell() {
                         onClick={() => handleSearchResultClick(item)}
                       >
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-neutral-800 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-                          <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                          {item.thumbnail && <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-white truncate group-hover:text-red-400 transition-colors">{item.title}</p>
@@ -437,15 +495,15 @@ function AppShell() {
             <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
             {authSession.data?.auth?.connected ? (
               <div className="flex items-center gap-4">
-                 <button 
-                   onClick={handleLogout}
-                   className="text-xs font-black uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-colors"
-                 >
-                   Wyloguj
-                 </button>
-                 <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl hover:scale-105 transition-transform cursor-pointer">
-                    <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />
-                 </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs font-black uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-colors"
+                >
+                  Wyloguj
+                </button>
+                <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                  {resolvedUser.picture && <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />}
+                </div>
               </div>
             ) : (
               <a
@@ -459,6 +517,12 @@ function AppShell() {
           </div>
         </header>
 
+        {pageRequest.error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-medium">
+            ⚠️ Błąd ładowania danych: {pageRequest.error}. Upewnij się, że backend działa (<code>npm run dev</code>).
+          </div>
+        )}
+
         <Outlet
           context={{
             pageData: pageRequest.data,
@@ -471,11 +535,11 @@ function AppShell() {
             authSession,
             favorites,
             toggleFavorite: (id) => {
-               const next = new Set(favorites);
-               if (next.has(id)) next.delete(id);
-               else next.add(id);
-               setFavorites(next);
-            }
+              const next = new Set(favorites);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              setFavorites(next);
+            },
           }}
         />
       </main>
@@ -501,11 +565,11 @@ function AppShell() {
           onToggleRepeat={toggleRepeat}
           isFavorite={favorites.has(nowPlaying.videoId)}
           onToggleFavorite={() => {
-             const id = nowPlaying.videoId;
-             const next = new Set(favorites);
-             if (next.has(id)) next.delete(id);
-             else next.add(id);
-             setFavorites(next);
+            const id = nowPlaying.videoId;
+            const next = new Set(favorites);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            setFavorites(next);
           }}
           onHide={() => setPlayerVisible(false)}
         />

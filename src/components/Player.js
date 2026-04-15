@@ -17,8 +17,21 @@ function formatTime(seconds) {
   const safeSeconds = Number.isFinite(seconds) ? seconds : 0;
   const minutes = Math.floor(safeSeconds / 60);
   const rest = Math.floor(safeSeconds % 60);
-
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
+}
+
+// Repeat icon shows a "1" badge when repeat-one is active
+function RepeatIcon({ repeatMode, ...props }) {
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <Repeat2 {...props} />
+      {repeatMode === "one" && (
+        <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none">
+          1
+        </span>
+      )}
+    </span>
+  );
 }
 
 function Player({
@@ -34,7 +47,7 @@ function Player({
   onPrev,
   onNext,
   isShuffled = false,
-  repeatMode = 'none',
+  repeatMode = "none",
   onToggleShuffle,
   onToggleRepeat,
   isFavorite = false,
@@ -59,6 +72,11 @@ function Player({
     onVolumeChange?.(vol);
   };
 
+  const repeatTitle =
+    repeatMode === "none" ? "Włącz powtarzanie" :
+    repeatMode === "all" ? "Powtarzaj wszystko (klik → jeden)" :
+    "Powtarzaj jeden utwór (klik → wyłącz)";
+
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/5 px-8 py-4 flex items-center justify-between z-[200] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
       {/* Current Track Info */}
@@ -73,7 +91,7 @@ function Player({
         {onToggleFavorite && (
           <button
             onClick={onToggleFavorite}
-            className={`p-2 rounded-full hover:bg-white/5 transition-all ${isFavorite ? 'text-red-500' : 'text-neutral-600 hover:text-white'}`}
+            className={`p-2 rounded-full hover:bg-white/5 transition-all ${isFavorite ? "text-red-500" : "text-neutral-600 hover:text-white"}`}
             title={isFavorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
           >
             <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
@@ -84,48 +102,48 @@ function Player({
       {/* Controls and Progress */}
       <div className="flex flex-col items-center gap-3 flex-1 max-w-2xl px-12">
         <div className="flex items-center gap-8">
-          <button 
-            onClick={onToggleShuffle} 
-            className={`transition-all hover:scale-110 ${isShuffled ? "text-red-500" : "text-neutral-500 hover:text-white"}`} 
-            title="Shuffle"
+          <button
+            onClick={onToggleShuffle}
+            className={`transition-all hover:scale-110 ${isShuffled ? "text-red-500" : "text-neutral-500 hover:text-white"}`}
+            title={isShuffled ? "Wyłącz losowe" : "Włącz losowe"}
           >
             <Shuffle size={18} />
           </button>
-          <button 
-            onClick={() => onPrev?.()} 
-            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90" 
-            title="Previous"
+          <button
+            onClick={() => onPrev?.()}
+            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90"
+            title="Poprzedni"
           >
             <SkipBack size={24} fill="currentColor" />
           </button>
           <button
             onClick={onTogglePlay}
             className="w-12 h-12 flex items-center justify-center bg-white text-black rounded-[18px] hover:scale-110 active:scale-95 transition-all shadow-xl shadow-white/10"
-            aria-label={isPlaying ? "Pause" : "Play"}
-            title={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? "Pauza" : "Odtwórz"}
+            title={isPlaying ? "Pauza" : "Odtwórz"}
           >
             {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
           </button>
-          <button 
-            onClick={() => onNext?.()} 
-            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90" 
-            title="Next"
+          <button
+            onClick={() => onNext?.()}
+            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90"
+            title="Następny"
           >
             <SkipForward size={24} fill="currentColor" />
           </button>
-          <button 
-            onClick={onToggleRepeat} 
-            className={`transition-all hover:scale-110 ${repeatMode !== 'none' ? "text-red-500" : "text-neutral-500 hover:text-white"}`} 
-            title="Repeat"
+          <button
+            onClick={onToggleRepeat}
+            className={`transition-all hover:scale-110 ${repeatMode !== "none" ? "text-red-500" : "text-neutral-500 hover:text-white"}`}
+            title={repeatTitle}
           >
-            <Repeat2 size={18} />
+            <RepeatIcon repeatMode={repeatMode} size={18} />
           </button>
         </div>
 
         <div className="flex items-center gap-4 w-full text-[10px] font-black tracking-widest text-neutral-600 uppercase">
           <span className="w-10 text-right">{formatTime(elapsedSeconds)}</span>
-          <div 
-            onClick={handleProgressClick} 
+          <div
+            onClick={handleProgressClick}
             className="flex-1 h-1.5 bg-neutral-800/50 rounded-full relative group cursor-pointer overflow-visible"
           >
             <div
@@ -134,7 +152,7 @@ function Player({
             />
             <div
               className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-0 group-hover:scale-100 border-2 border-red-500"
-              style={{ left: `${progress}%`, marginLeft: '-7px' }}
+              style={{ left: `${progress}%`, marginLeft: "-7px" }}
             />
           </div>
           <span className="w-10">{formatTime(Math.round(audioDuration || 0))}</span>
@@ -153,21 +171,23 @@ function Player({
             <ArrowRight size={20} />
           </button>
         )}
-        <button className="text-neutral-500 hover:text-white transition-colors" title="Queue">
+        <button className="text-neutral-500 hover:text-white transition-colors" title="Kolejka">
           <LayoutGrid size={20} />
         </button>
         <div className="flex items-center gap-4 w-36 group">
           <div className="relative">
             <Volume2 size={20} className="text-neutral-500 group-hover:text-white transition-colors" />
-            {volume === 0 && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[2px] bg-red-500 rotate-45"></div>}
+            {volume === 0 && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[2px] bg-red-500 rotate-45"></div>
+            )}
           </div>
-          <div 
-            onClick={handleVolumeClick} 
+          <div
+            onClick={handleVolumeClick}
             className="flex-1 h-1.5 bg-neutral-800/50 rounded-full cursor-pointer relative overflow-hidden group/vol"
           >
-            <div 
-              className="h-full bg-neutral-500 group-hover/vol:bg-red-500 transition-all shadow-[0_0_8px_rgba(239,68,68,0.2)]" 
-              style={{ width: `${volume}%` }} 
+            <div
+              className="h-full bg-neutral-500 group-hover/vol:bg-red-500 transition-all shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+              style={{ width: `${volume}%` }}
             />
           </div>
         </div>

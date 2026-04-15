@@ -29,7 +29,6 @@ app.use(express.json());
 app.set('trust proxy', 1);
 app.use(session({
   secret: (() => {
-    // In production, require a real SESSION_SECRET for security
     if (process.env.NODE_ENV === 'production') {
       if (!process.env.SESSION_SECRET) {
         console.error('SESSION_SECRET must be set in production');
@@ -37,7 +36,6 @@ app.use(session({
       }
       return process.env.SESSION_SECRET;
     }
-    // Safe default for development only
     return process.env.SESSION_SECRET || 'bozia-dev-secret';
   })(),
   resave: false,
@@ -48,15 +46,17 @@ app.use(session({
   }
 }));
 
-// Content Security Policy to allow Chrome DevTools and basic operations
+// Fix: expanded CSP to allow YouTube thumbnails, Google fonts and YouTube IFrame API
 app.use((req, res, next) => {
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self'; " +
-    "connect-src 'self' http://localhost:3001 http://localhost:3002 https://*.googleapis.com; " +
-    "script-src 'self' 'unsafe-inline'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com;"
+    "connect-src 'self' http://localhost:3001 http://localhost:3002 https://*.googleapis.com https://music.youtube.com; " +
+    "script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "frame-src https://www.youtube.com; " +
+    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;"
   );
   next();
 });
@@ -144,7 +144,7 @@ function wrap(fn) {
   };
 }
 
-// YT Music API Routes (Integrated from BoziaYT4PI)
+// YT Music API Routes
 app.get('/api/ytmusic/search', wrap(async (req) => {
   const { q, filter, limit = 20 } = req.query;
   if (!q) return { error: "q is required" };
@@ -251,7 +251,6 @@ app.delete('/api/ytmusic/playlist/:playlistId/tracks', wrap(async (req) => {
   return { success: ok };
 }));
 
-// Playlist CRUD (requires headers.json auth headers)
 app.post('/api/ytmusic/playlists', wrap(async (req) => {
   const { title, description = "", privacyStatus = "PRIVATE", videoIds = [] } = req.body || {};
   if (!title) return { error: "title is required" };
@@ -340,7 +339,6 @@ app.get('/api/page/:key', wrap(async (req) => {
     const queue = trendingSongs.slice(0, 20).map(toQueueItem).filter(Boolean);
 
     const primaryRow = homeRows?.[0];
-    const secondaryRow = homeRows?.[1];
     const hit = trendingSongs[0] || null;
 
     return {
@@ -393,7 +391,7 @@ app.get('/api/page/:key', wrap(async (req) => {
     const lib = await yt.getLibraryPlaylists(24, authHeaders).catch(() => []);
     const localPlaylists = loadLocalPlaylists();
     const merged = [
-      ...localPlaylists.map(p => ({
+      ...localPlaylists.map((p) => ({
         title: p.title,
         author: "Lokalna",
         thumbnail: null,
@@ -402,7 +400,7 @@ app.get('/api/page/:key', wrap(async (req) => {
         trackCount: p.tracks.length,
         source: "local",
       })),
-      ...lib.map(p => ({ ...p, source: "youtube" })),
+      ...lib.map((p) => ({ ...p, source: "youtube" })),
     ];
     return {
       ...base,
@@ -417,7 +415,8 @@ app.get('/api/page/:key', wrap(async (req) => {
       ],
       primarySection: {
         title: "Wszystkie playlisty",
-        action: "Odśwież",
+        // Fix: primary section action for playlists should be "Nowa playlista"
+        action: "Nowa playlista",
         items: merged.map((p) =>
           toMediaItem({
             title: p.title,
@@ -653,7 +652,7 @@ app.post('/api/local/playlists', (req, res) => {
 
 app.get('/api/local/playlists/:id', (req, res) => {
   const playlists = loadLocalPlaylists();
-  const playlist = playlists.find(p => p.id === req.params.id);
+  const playlist = playlists.find((p) => p.id === req.params.id);
   if (!playlist) return res.status(404).json({ error: "Playlist not found" });
   res.json(playlist);
 });
@@ -662,7 +661,7 @@ app.post('/api/local/playlists/:id/tracks', (req, res) => {
   const { videoId, title, artist, thumbnail, duration } = req.body;
   if (!videoId || !title) return res.status(400).json({ error: "videoId and title required" });
   const playlists = loadLocalPlaylists();
-  const playlist = playlists.find(p => p.id === req.params.id);
+  const playlist = playlists.find((p) => p.id === req.params.id);
   if (!playlist) return res.status(404).json({ error: "Playlist not found" });
   const track = { videoId, title, artist: artist || "", thumbnail, duration: duration || "" };
   playlist.tracks.push(track);
@@ -674,16 +673,16 @@ app.delete('/api/local/playlists/:id/tracks', (req, res) => {
   const { videoId } = req.body;
   if (!videoId) return res.status(400).json({ error: "videoId required" });
   const playlists = loadLocalPlaylists();
-  const playlist = playlists.find(p => p.id === req.params.id);
+  const playlist = playlists.find((p) => p.id === req.params.id);
   if (!playlist) return res.status(404).json({ error: "Playlist not found" });
-  playlist.tracks = playlist.tracks.filter(t => t.videoId !== videoId);
+  playlist.tracks = playlist.tracks.filter((t) => t.videoId !== videoId);
   saveLocalPlaylists(playlists);
   res.json({ success: true });
 });
 
 app.delete('/api/local/playlists/:id', (req, res) => {
   const playlists = loadLocalPlaylists();
-  const index = playlists.findIndex(p => p.id === req.params.id);
+  const index = playlists.findIndex((p) => p.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: "Playlist not found" });
   playlists.splice(index, 1);
   saveLocalPlaylists(playlists);
@@ -695,10 +694,8 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../build')));
 }
 
-// Root Route - information that backend is running
+// Root Route
 app.get('/', (req, res) => {
-  // In development, port 3001 is only for API.
-  // In production, we might serve the frontend.
   if (process.env.NODE_ENV === 'production') {
     const indexPath = path.join(__dirname, '../build', 'index.html');
     res.sendFile(indexPath, (err) => {

@@ -51,7 +51,7 @@ function Sidebar() {
           </div>
           <div>
             <h2 className="text-xl font-black tracking-tighter uppercase italic" style={{ color: "var(--text-main)" }}>
-              Bozia<span style={{ color: "var(--primary)" }}>Music</span>
+              AetherPulse| style={{ color: "var(--primary)" }}>Music</span>
             </h2>
             <p className="text-[9px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-soft)" }}>
               Powered by Energy

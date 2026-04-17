@@ -28,17 +28,37 @@ const allowedOrigins = [
   'http://0.0.0.0:5000',
 ];
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+
+  try {
+    const { hostname } = new URL(origin);
+    const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+    return (
+      (replitDomain && hostname === replitDomain) ||
+      hostname.endsWith('.replit.dev') ||
+      hostname.endsWith('.replit.app')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getFrontendRedirectUrl(pathname = '/') {
+  const configuredUrl = process.env.FRONTEND_URL;
+  if (configuredUrl && !configuredUrl.includes('0.0.0.0')) {
+    return configuredUrl;
+  }
+  return pathname;
+}
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-    if (
-      allowedOrigins.includes(origin) ||
-      (replitDomain && origin.includes(replitDomain))
-    ) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
-    return callback(null, true);
+    return callback(new Error('Origin not allowed by CORS'));
   },
   credentials: true
 }));
@@ -98,10 +118,10 @@ app.get('/api/auth/google/callback', async (req, res) => {
     const { data } = await oauth2.userinfo.get();
     req.session.user = data;
 
-    res.redirect(process.env.FRONTEND_URL || '/');
+    res.redirect(getFrontendRedirectUrl('/'));
   } catch (error) {
     console.error('Error during Google Auth callback:', error);
-    res.redirect(`${process.env.FRONTEND_URL || '/'}?error=auth_failed`);
+    res.redirect(`${getFrontendRedirectUrl('/')}?error=auth_failed`);
   }
 });
 

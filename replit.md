@@ -9,6 +9,7 @@ A modern music player application integrated with YouTube Music. Features a full
 - **YouTube Music**: Custom InnerTube API integration via `server/ytmusic.js`
 - **Auth**: Optional Google OAuth via `googleapis`
 - **Theme system**: CSS custom properties + ThemeContext (dark/light/custom themes)
+- **Security**: API requests use same-origin relative URLs in the client; backend CORS is limited to local development, Replit preview, and deployed Replit app origins.
 
 ## Development
 
@@ -80,3 +81,9 @@ Non-editable YouTube playlists can be copied to local storage via the "Importuj 
 ## Workflow
 
 - **Start application**: `npm run dev` — runs both servers via concurrently, serves frontend on port 5000
+
+## Migration Notes
+
+- Dependencies are installed for the Replit Node.js 20 environment.
+- The Replit workflow launches `npm run dev` and waits for the frontend on port 5000.
+- The backend remains separated on port 3001 in development while the frontend proxies `/api` requests.

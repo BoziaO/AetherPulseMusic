@@ -3,7 +3,15 @@
     "id": "1776407693101",
     "title": "nie wiem",
     "description": "ol",
-    "tracks": [],
+    "tracks": [
+      {
+        "videoId": "B2lmOei7qfk",
+        "title": "Duality",
+        "artist": "Slipknot",
+        "thumbnail": "https://lh3.googleusercontent.com/NcBCPN1E4DVzkJ6qHmV-KXdxEBYNmvrGJ9OiwbLNDV-CwKVA9nmlFmwybpWohcbSfLl_BYcXzwhqzdyrEQ=w120-h120-l90-rj",
+        "duration": "4:13"
+      }
+    ],
     "createdAt": "2026-04-17T06:34:53.101Z"
   }
 ]

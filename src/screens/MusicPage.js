@@ -4,6 +4,8 @@ import { fetchJson } from "../lib/api";
 import CoverArt from "../components/CoverArt";
 import {
   ArrowLeft,
+  Download,
+  Edit2,
   Play,
   Plus,
   RefreshCw,
@@ -34,6 +36,7 @@ function MusicPage({ pageKey }) {
 
   const [playlists, setPlaylists] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [importingYt, setImportingYt] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -173,6 +176,33 @@ function MusicPage({ pageKey }) {
 
   const isLocalPlaylist = selectedPlaylist?.playlistId?.startsWith("local-");
 
+  async function handleImportYtPlaylist() {
+    if (!selectedPlaylist?.playlistId) return;
+    if (importingYt) return;
+    setImportingYt(true);
+    try {
+      const playlistId = selectedPlaylist.playlistId.replace(/^VL/, "");
+      const result = await fetchJson(`/api/local/playlists/import-yt/${playlistId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (result.error) throw new Error(result.error);
+      showToast(
+        `Zaimportowano „${result.title}" — ${result.trackCount} utworów. Możesz teraz edytować!`,
+        "success"
+      );
+      // Navigate to the imported local playlist
+      await fetchPlaylistDetails(`local-${result.localId}`);
+      // Refresh playlist list in background
+      fetchPlaylists();
+    } catch (err) {
+      console.error("Import error:", err);
+      showToast("Nie udało się zaimportować playlisty.", "error");
+    } finally {
+      setImportingYt(false);
+    }
+  }
+
   async function handleRemoveTrack(playlistId, videoId, setVideoId) {
     if (!window.confirm("Czy na pewno chcesz usunąć ten utwór z playlisty?")) return;
     try {
@@ -268,16 +298,27 @@ function MusicPage({ pageKey }) {
             <CoverArt art={playlistCover} />
           </div>
           <div className="flex-1 space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setSelectedPlaylist(null)}
                 className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-white hover:scale-105 active:scale-95"
               >
                 <ArrowLeft size={24} />
               </button>
-              <span className="px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-full">
-                Playlista
-              </span>
+              {isLocalPlaylist ? (
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  Playlista lokalna
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  YouTube Music
+                </span>
+              )}
+              {!isLocalPlaylist && (
+                <span className="text-[10px] text-neutral-500 font-medium">
+                  Kliknij „Importuj i edytuj" aby edytować lokalnie
+                </span>
+              )}
             </div>
             <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight font-display tracking-tight">
               {selectedPlaylist.title}
@@ -309,7 +350,7 @@ function MusicPage({ pageKey }) {
                 <Play size={20} fill="white" />
                 Odtwórz
               </button>
-              {(ytMusicHeaders || isLocalPlaylist) && (
+              {isLocalPlaylist && (
                 <button
                   onClick={() => setShowAddTrackModal(true)}
                   className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
@@ -318,23 +359,51 @@ function MusicPage({ pageKey }) {
                   Dodaj utwór
                 </button>
               )}
-              {(ytMusicHeaders || isLocalPlaylist) && (
+
+              {!isLocalPlaylist && (
+                <button
+                  type="button"
+                  onClick={handleImportYtPlaylist}
+                  disabled={importingYt}
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5 disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {importingYt ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin" />
+                      Importuję...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={20} />
+                      Importuj i edytuj
+                    </>
+                  )}
+                </button>
+              )}
+
+              {(ytMusicHeaders && !isLocalPlaylist) && (
+                <button
+                  onClick={() => setShowAddTrackModal(true)}
+                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
+                >
+                  <Edit2 size={20} />
+                  Edytuj (InnerTube)
+                </button>
+              )}
+
+              {isLocalPlaylist && (
                 <button
                   type="button"
                   onClick={() => {
                     if (!window.confirm("Usunąć tę playlistę? Tej operacji nie można cofnąć.")) return;
-                    if (isLocalPlaylist) {
-                      const localId = selectedPlaylist.playlistId.replace("local-", "");
-                      fetchJson(`/api/local/playlists/${localId}`, { method: "DELETE" })
-                        .then(() => {
-                          showToast("Playlista usunięta.", "success");
-                          setSelectedPlaylist(null);
-                          fetchPlaylists();
-                        })
-                        .catch(() => showToast("Błąd usuwania playlisty.", "error"));
-                    } else {
-                      handleDeletePlaylist(selectedPlaylist.playlistId?.replace(/^VL/, "") || selectedPlaylist.playlistId);
-                    }
+                    const localId = selectedPlaylist.playlistId.replace("local-", "");
+                    fetchJson(`/api/local/playlists/${localId}`, { method: "DELETE" })
+                      .then(() => {
+                        showToast("Playlista usunięta.", "success");
+                        setSelectedPlaylist(null);
+                        fetchPlaylists();
+                      })
+                      .catch(() => showToast("Błąd usuwania playlisty.", "error"));
                   }}
                   className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-red-400 font-bold transition-all hover:bg-red-400/10 border border-white/5"
                 >
@@ -360,7 +429,7 @@ function MusicPage({ pageKey }) {
                     <th className="px-4 py-2">Tytuł</th>
                     <th className="px-4 py-2 hidden md:table-cell">Album</th>
                     <th className="px-4 py-2 text-right pr-6">Czas</th>
-                    {(ytMusicHeaders || isLocalPlaylist) && <th className="px-4 py-2 w-12"></th>}
+                    {isLocalPlaylist && <th className="px-4 py-2 w-12"></th>}
                   </tr>
                 </thead>
                 <tbody className="before:block before:h-4">
@@ -402,7 +471,7 @@ function MusicPage({ pageKey }) {
                       <td className="px-4 py-4 text-right pr-6 text-sm font-mono text-neutral-500 group-hover:text-neutral-300">
                         {track.duration}
                       </td>
-                      {(ytMusicHeaders || isLocalPlaylist) && (
+                      {isLocalPlaylist && (
                         <td className="px-4 py-4 rounded-r-2xl">
                           <button
                             onClick={(e) => {

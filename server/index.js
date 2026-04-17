@@ -706,6 +706,53 @@ app.delete('/api/local/playlists/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Import YouTube playlist to local storage
+app.post('/api/local/playlists/import-yt/:playlistId', wrap(async (req) => {
+  const { playlistId } = req.params;
+  const cleanId = playlistId.replace(/^VL/, '');
+
+  // Fetch the YouTube playlist data
+  const ytPlaylist = await yt.getPlaylist(cleanId, 500);
+  if (!ytPlaylist) {
+    return { error: 'Nie znaleziono playlisty YouTube Music.' };
+  }
+
+  const tracks = (ytPlaylist.tracks || []).filter(Boolean);
+  const title = ytPlaylist.title || 'Importowana playlista';
+  const description = ytPlaylist.author
+    ? `Importowane z YouTube Music — ${ytPlaylist.author}`
+    : 'Importowane z YouTube Music';
+
+  // Create a new local playlist
+  const playlists = loadLocalPlaylists();
+  const newPlaylist = {
+    id: Date.now().toString(),
+    title,
+    description,
+    tracks: tracks.map((t) => ({
+      videoId: t.videoId || '',
+      title: t.title || 'Nieznany',
+      artist:
+        t.artist ||
+        (Array.isArray(t.artists) ? t.artists.map((a) => a.name).join(', ') : '') ||
+        t.author ||
+        '',
+      thumbnail:
+        t.thumbnail ||
+        (Array.isArray(t.thumbnails) ? t.thumbnails[t.thumbnails.length - 1]?.url : null) ||
+        null,
+      duration: t.duration || '',
+    })).filter((t) => t.videoId),
+    importedFrom: playlistId,
+    createdAt: new Date().toISOString(),
+  };
+
+  playlists.push(newPlaylist);
+  saveLocalPlaylists(playlists);
+
+  return { success: true, localId: newPlaylist.id, title: newPlaylist.title, trackCount: newPlaylist.tracks.length };
+}));
+
 // Static files for production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../build')));

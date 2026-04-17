@@ -4,13 +4,17 @@ import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Search, Sparkles, X } from "./Icons";
+import { Bell, Menu, Search, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
 import { useToast } from "./Toast";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
 const FILTER_LABELS = { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" };
+
+function getTrackKey(track) {
+  return track?.videoId || `${track?.title || "track"}-${track?.artist || track?.subtitle || ""}`;
+}
 
 function AppShell() {
   const navigate = useNavigate();
@@ -40,6 +44,8 @@ function AppShell() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // YouTube IFrame API refs
   const ytPlayerRef = useRef(null);
@@ -47,7 +53,27 @@ function AppShell() {
   const intervalRef = useRef(null);
 
   // Favorites state
-  const [favorites, setFavorites] = useState(new Set());
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("aetherpulse:favorites") || "[]"));
+    } catch {
+      return new Set();
+    }
+  });
+  const [favoriteTracks, setFavoriteTracks] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("aetherpulse:favoriteTracks") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [recentPlays, setRecentPlays] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("aetherpulse:recent") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   // Use refs for values needed inside YT callbacks to avoid stale closures
   const repeatModeRef = useRef(repeatMode);
@@ -61,6 +87,15 @@ function AppShell() {
   useEffect(() => { nowPlayingRef.current = nowPlaying; }, [nowPlaying]);
   useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
   useEffect(() => { pageQueueRef.current = pageRequest.data?.queue || []; }, [pageRequest.data]);
+
+  useEffect(() => {
+    window.localStorage.setItem("aetherpulse:favorites", JSON.stringify(Array.from(favorites)));
+    window.localStorage.setItem("aetherpulse:favoriteTracks", JSON.stringify(favoriteTracks));
+  }, [favorites, favoriteTracks]);
+
+  useEffect(() => {
+    window.localStorage.setItem("aetherpulse:recent", JSON.stringify(recentPlays));
+  }, [recentPlays]);
 
   // Load YouTube IFrame API once on mount
   useEffect(() => {
@@ -193,7 +228,12 @@ function AppShell() {
     const art = item.thumbnail || item.cover || item.art;
     const duration = typeof item.durationSeconds === "number" ? item.durationSeconds : 0;
 
-    setNowPlaying({ title, artist, art, duration, videoId: item.videoId || null });
+    const nextTrack = { title, artist, art, duration, videoId: item.videoId || null };
+    setNowPlaying(nextTrack);
+    setRecentPlays((current) => {
+      const key = getTrackKey(nextTrack);
+      return [nextTrack, ...current.filter((track) => getTrackKey(track) !== key)].slice(0, 25);
+    });
     setCurrentTime(0);
     setAudioDuration(duration || 0);
     setPlayerVisible(true);
@@ -216,7 +256,7 @@ function AppShell() {
   const playRef = useRef(play);
   useEffect(() => { playRef.current = play; }, [play]);
 
-  function togglePlay() {
+  const togglePlay = useCallback(() => {
     try {
       if (!ytPlayerRef.current) return;
       if (isPlaying) {
@@ -225,7 +265,7 @@ function AppShell() {
         ytPlayerRef.current.playVideo();
       }
     } catch (_) {}
-  }
+  }, [isPlaying]);
 
   // Previous / Next behavior: prefer queue navigation, fallback to seek +/-10s
   const prevTrack = useCallback(() => {
@@ -326,6 +366,10 @@ function AppShell() {
     setSearchOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   // Click outside to close search dropdown
   useEffect(() => {
     function handleClickOutside(e) {
@@ -336,6 +380,26 @@ function AppShell() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      const target = event.target;
+      const isTyping = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (event.key === "/" && !isTyping) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        setSearchOpen(true);
+      }
+      if ((event.key === " " || event.key.toLowerCase() === "k") && !isTyping) {
+        event.preventDefault();
+        togglePlay();
+      }
+      if (event.key === "ArrowRight" && !isTyping) nextTrack();
+      if (event.key === "ArrowLeft" && !isTyping) prevTrack();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nextTrack, prevTrack, togglePlay]);
 
   // Server-side nowPlaying init (first load)
   useEffect(() => {
@@ -408,15 +472,23 @@ function AppShell() {
       className="flex min-h-screen font-sans"
       style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
     >
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 ml-[260px] p-10 pb-40 overflow-x-hidden" style={{ backgroundColor: "var(--bg-main)" }}>
-        {/* Top Header */}
+      <main className="flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 pb-48 sm:pb-52 lg:pb-40 overflow-x-hidden" style={{ backgroundColor: "var(--bg-main)" }}>
         <header
-          className="flex items-center justify-between mb-12 sticky top-0 z-[100] backdrop-blur-md py-4 -mt-4 px-4 rounded-b-[32px]"
+          className="flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] backdrop-blur-md py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px]"
           style={{ backgroundColor: "color-mix(in srgb, var(--bg-main) 80%, transparent)" }}
         >
-          <div className="flex-1 max-w-2xl relative" ref={searchRef}>
+          <button
+            type="button"
+            className="lg:hidden w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)" }}
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Otwórz menu"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex-1 max-w-2xl relative min-w-0" ref={searchRef}>
             <div className="relative group">
               <Search
                 size={20}
@@ -426,7 +498,8 @@ function AppShell() {
               <input
                 type="text"
                 placeholder={currentPage.searchPlaceholder || "Szukaj..."}
-                className="w-full rounded-2xl py-4 pl-14 pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
+                ref={searchInputRef}
+                className="w-full rounded-2xl py-3.5 sm:py-4 pl-12 sm:pl-14 pr-11 sm:pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
                 style={{
                   backgroundColor: "var(--bg-input)",
                   border: "1px solid var(--surface-line)",
@@ -452,14 +525,14 @@ function AppShell() {
 
             {showSearch && (
               <div
-                className="absolute top-full left-0 right-0 mt-4 rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]"
+                className="absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]"
                 style={{
                   backgroundColor: "var(--bg-panel)",
                   border: "1px solid var(--surface-line)",
                   boxShadow: "var(--shadow-card)",
                 }}
               >
-                <div className="p-4 flex gap-2" style={{ borderBottom: "1px solid var(--surface-line)" }}>
+                <div className="p-3 sm:p-4 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
                   {SEARCH_FILTERS.map((f) => (
                     <button
                       key={f}
@@ -475,7 +548,7 @@ function AppShell() {
                   ))}
                 </div>
 
-                <div className="max-h-[480px] overflow-y-auto p-3 space-y-1">
+                <div className="max-h-[65vh] sm:max-h-[480px] overflow-y-auto p-3 space-y-1">
                   {searchLoading ? (
                     <div className="p-12 flex flex-col items-center justify-center gap-4">
                       <div className="w-8 h-8 border-4 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }}></div>
@@ -515,9 +588,9 @@ function AppShell() {
             )}
           </div>
 
-          <div className="flex items-center gap-5 ml-8">
+          <div className="flex items-center gap-2 sm:gap-5 sm:ml-4 lg:ml-8">
             <button
-              className="relative p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
+              className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
               style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
             >
               <Bell size={22} />
@@ -542,7 +615,7 @@ function AppShell() {
             ) : (
               <a
                 href={loginUrl}
-                className="flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
+                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
                 style={{ backgroundColor: "var(--primary)", color: "#fff" }}
               >
                 <Sparkles size={16} fill="white" />
@@ -569,11 +642,21 @@ function AppShell() {
             searchLoading,
             authSession,
             favorites,
-            toggleFavorite: (id) => {
+            favoriteItems: Object.values(favoriteTracks),
+            recentPlays,
+            toggleFavoriteTrack: (track) => {
+              const id = getTrackKey(track);
               const next = new Set(favorites);
-              if (next.has(id)) next.delete(id);
-              else next.add(id);
+              const nextTracks = { ...favoriteTracks };
+              if (next.has(id)) {
+                next.delete(id);
+                delete nextTracks[id];
+              } else {
+                next.add(id);
+                nextTracks[id] = track;
+              }
               setFavorites(next);
+              setFavoriteTracks(nextTracks);
             },
           }}
         />
@@ -598,13 +681,20 @@ function AppShell() {
           repeatMode={repeatMode}
           onToggleShuffle={toggleShuffle}
           onToggleRepeat={toggleRepeat}
-          isFavorite={favorites.has(nowPlaying.videoId)}
+          isFavorite={favorites.has(getTrackKey(nowPlaying))}
           onToggleFavorite={() => {
-            const id = nowPlaying.videoId;
+            const id = getTrackKey(nowPlaying);
             const next = new Set(favorites);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
+            const nextTracks = { ...favoriteTracks };
+            if (next.has(id)) {
+              next.delete(id);
+              delete nextTracks[id];
+            } else {
+              next.add(id);
+              nextTracks[id] = nowPlaying;
+            }
             setFavorites(next);
+            setFavoriteTracks(nextTracks);
           }}
           onHide={() => setPlayerVisible(false)}
         />

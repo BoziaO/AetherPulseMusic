@@ -1,75 +1,65 @@
-# 🎵 BoziaMusic
+# AetherPulse|Music
 
-Moderny odtwarzacz muzyczny zintegrowany z YouTube Music, oferujący płynne doświadczenie użytkownika, importowanie playlist oraz nowoczesny interfejs w stylu Dark Mode.
+Responsywny odtwarzacz muzyczny z YouTube Music, lokalnymi playlistami, ulubionymi utworami i historią odtwarzania. Aplikacja jest zoptymalizowana pod desktop i telefony.
 
-## 🚀 Główne Funkcje
+## Funkcje
 
-- **YouTube Music (Innertube)**: Wyszukiwanie, playlisty, albumy i trendy bezpośrednio z YouTube Music.
-- **Google Auth**: Logowanie kontem Google i pobieranie własnych playlist z YouTube.
-- **Dopracowane Playlisty**: Widok listy oraz szczegółów playlist (okładka + tracklista).
-- **Nowoczesny Design**: Responsywny interfejs zbudowany w oparciu o Tailwind CSS z dedykowaną paletą barw (Dark Theme).
-- **Dynamiczne Dane**: Dane stron (home/discover/chill/energy/artists/albums) z endpointów `ytmusic`.
-- **Wydajność**: Frontend React 19 + Backend Express.
+- Wyszukiwanie utworów, playlist, albumów i wykonawców z YouTube Music.
+- Odtwarzacz z kolejką, przewijaniem, głośnością, losowaniem i powtarzaniem.
+- Lokalne playlisty z dodawaniem oraz usuwaniem utworów.
+- Import playlist YouTube Music do edytowalnej playlisty lokalnej.
+- Ulubione utwory zapisywane lokalnie w przeglądarce.
+- Historia ostatnio odtwarzanych utworów.
+- Motywy: ciemny, jasny i własny kolor akcentu.
+- Ergonomiczne skróty: `/` wyszukuje, `Spacja` lub `K` pauzuje, strzałki przełączają utwory.
+- Mobilne menu dolne, wysuwane menu boczne i responsywny player.
 
-## 🛠️ Technologie
+## Technologie
 
-- **Frontend**: React, Tailwind CSS, React Router, Lucide Icons (Icons.js).
-- **Backend**: Node.js, Express, Google OAuth.
-- **API**: Zintegrowane endpointy inspirowane `BoziaYT4PI` (YouTube Music Innertube).
+- Frontend: React, Create React App, React Router, Tailwind CSS.
+- Backend: Node.js, Express, sesje i opcjonalny Google OAuth.
+- Dane muzyczne: integracja YouTube Music przez moduł `server/ytmusic.js`.
+- Storage: lokalny plik `localPlaylists.json` oraz `localStorage` dla ulubionych i historii.
 
-## 📦 Instalacja i Konfiguracja
-
-1. **Sklonuj repozytorium**:
-   ```bash
-   git clone https://github.com/BoziaO/BoziaMusic.git
-   cd BoziaMusic
-   ```
-
-2. **Zainstaluj zależności**:
-   ```bash
-   npm install
-   ```
-
-3. **Skonfiguruj zmienne środowiskowe**:
-   Skopiuj plik `.env.example` jako `.env` i uzupełnij swoje dane:
-   ```bash
-   cp .env.example .env
-   ```
-   Opcjonalnie:
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-   - `GOOGLE_CALLBACK_URL`
-   - Jeśli chcesz edytować bibliotekę (dodawanie/usuwanie tracków z playlist) utwórz `headers.json` w root projektu z nagłówkami zalogowanej sesji YouTube Music.
-
-## 🏃 Uruchamianie
-
-Projekt korzysta z `concurrently`, co pozwala na uruchomienie frontendu i backendu jedną komendą:
+## Start lokalny
 
 ```bash
+npm install
+cp .env.example .env
 npm run dev
 ```
 
-- **Frontend**: http://localhost:3002
-- **Backend**: http://localhost:3001
+- Frontend: `http://localhost:5000`
+- Backend API: `http://localhost:3001`
 
-### Osobne uruchamianie:
-- Tylko frontend: `npm run client`
-- Tylko backend: `npm run server`
-- Backend w trybie watch: `npm run server:dev`
+## Zmienne środowiskowe
 
-## 📁 Struktura Projektu
+| Zmienna | Opis | Wymagana |
+|---|---|---|
+| `BACKEND_PORT` | Port backendu w development | Nie |
+| `SESSION_SECRET` | Sekret sesji Express | Tak w produkcji |
+| `GOOGLE_CLIENT_ID` | OAuth Google | Nie |
+| `GOOGLE_CLIENT_SECRET` | OAuth Google | Nie |
+| `GOOGLE_CALLBACK_URL` | Callback OAuth | Nie |
+| `REACT_APP_API_BASE_URL` | Niestandardowy adres API; domyślnie puste dla proxy | Nie |
 
-- `/server` - Backend Express (obsługa API i OAuth).
-- `/src/components` - Komponenty interfejsu (Sidebar, Player, AppShell).
-- `/src/screens` - Widoki stron (MusicPage).
-- `/src/lib` - Narzędzia pomocnicze (API fetcher).
-- `/src/hooks` - Customowe hooki React (Auth, PageData).
-- `/src/data` - Dane statyczne i konfiguracja nawigacji.
+## Struktura
 
-## 🎨 Design
+```text
+server/                 Backend Express i API muzyczne
+src/components/         Komponenty UI, player, sidebar, modale
+src/screens/            Główne widoki aplikacji
+src/hooks/              Hooki danych i sesji
+src/lib/                Klient API
+src/data/               Nawigacja i fallback content
+public/                 Manifest PWA i HTML
+.github/                Szablony GitHub
+```
 
-Aplikacja wykorzystuje dedykowany system projektowy zdefiniowany w `tailwind.config.js` oraz `src/index.css`. Główne kolory to `#f84f39` (Bozia Red) oraz głęboka czerń `#0a0a0a`.
+## Przygotowanie pod GitHub
 
----
-Autor: [BoziaO](https://github.com/BoziaO)
-Licencja: MIT
+Repo zawiera szablon pull requesta, zgłoszenia błędu, prośby o funkcję, zasady kontrybucji i politykę bezpieczeństwa. Przed wysłaniem zmian upewnij się, że aplikacja uruchamia się przez `npm run dev`.
+
+## Licencja
+
+MIT

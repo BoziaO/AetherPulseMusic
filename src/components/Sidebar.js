@@ -4,8 +4,10 @@ import {
   BookImage,
   Compass,
   HeartHandshake,
+  Heart,
   LibraryBig,
   ListMusic,
+  Music,
   Mic2,
   Moon,
   Palette,
@@ -24,18 +26,29 @@ const iconMap = {
   chill: Wind,
   energy: Zap,
   playlists: ListMusic,
+  favorites: Heart,
+  recent: Music,
   artists: Mic2,
   albums: BookImage,
 };
 
-function Sidebar() {
+function Sidebar({ isOpen = false, onClose }) {
   const { theme, setTheme } = useTheme();
   const [showTheme, setShowTheme] = useState(false);
 
   return (
     <>
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Zamknij menu"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
       <aside
-        className="sidebar sidebar--no-scrollbar w-[260px] h-screen fixed left-0 top-0 overflow-y-auto flex flex-col p-6 z-[110]"
+        className={`sidebar sidebar--no-scrollbar w-[260px] h-screen fixed left-0 top-0 overflow-y-auto flex flex-col p-6 z-[110] transition-transform duration-300 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
         style={{
           backgroundColor: "var(--bg-sidebar)",
           borderRight: "1px solid var(--surface-line)",
@@ -50,11 +63,11 @@ function Sidebar() {
             <Zap size={22} fill="white" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tighter uppercase italic" style={{ color: "var(--text-main)" }}>
-  AetherPulse<span style={{ color: "var(--primary)" }}> Music</span>
-</h2>
+            <h2 className="text-lg font-black tracking-tighter uppercase italic leading-tight" style={{ color: "var(--text-main)" }}>
+              AetherPulse<span style={{ color: "var(--primary)" }}>|Music</span>
+            </h2>
             <p className="text-[9px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-soft)" }}>
-              Powered by Energy
+              Adaptive player
             </p>
           </div>
         </div>
@@ -73,6 +86,7 @@ function Sidebar() {
                     key={item.path}
                     end={item.path === "/"}
                     to={item.path}
+                    onClick={onClose}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 group ${
                         isActive ? "font-bold" : "font-medium"
@@ -176,7 +190,7 @@ function Sidebar() {
               >
                 System
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>v1.2.0</span>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>v2.0.0</span>
             </div>
             <p className="text-sm font-black uppercase italic tracking-tight" style={{ color: "var(--text-main)" }}>Status Serwera</p>
             <div className="flex items-center gap-2 mt-1">
@@ -186,6 +200,34 @@ function Sidebar() {
           </div>
         </div>
       </aside>
+
+      <nav
+        className="fixed left-3 right-3 bottom-3 z-[190] grid grid-cols-5 gap-1 rounded-[28px] p-2 shadow-2xl lg:hidden"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--bg-player) 92%, transparent)",
+          border: "1px solid var(--surface-line)",
+          backdropFilter: "blur(22px)",
+        }}
+      >
+        {navigationGroups.flatMap((group) => group.items).filter((item) => ["home", "discover", "playlists", "favorites", "recent"].includes(item.key)).map((item) => {
+          const Icon = iconMap[item.key] || LibraryBig;
+          return (
+            <NavLink
+              key={item.path}
+              end={item.path === "/"}
+              to={item.path}
+              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-black"
+              style={({ isActive }) => ({
+                color: isActive ? "var(--primary)" : "var(--text-muted)",
+                backgroundColor: isActive ? "var(--bg-hover)" : "transparent",
+              })}
+            >
+              <Icon size={18} />
+              <span className="truncate max-w-full">{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
 
       {showTheme && <ThemeSettings onClose={() => setShowTheme(false)} />}
     </>

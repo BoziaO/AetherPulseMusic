@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useTheme, PRESET_THEMES } from "../contexts/ThemeContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { X, Palette, Moon, Sun, Sparkles } from "./Icons";
 
 const PRESET_PRIMARIES = [
-  { color: "#e8352a", label: "Bozia Red" },
+  { color: "#8b5cf6", label: "Aether Violet" },
   { color: "#6d28d9", label: "Fiolet" },
   { color: "#059669", label: "Zieleń" },
   { color: "#d97706", label: "Złoto" },
@@ -26,8 +26,8 @@ const PRESET_BACKGROUNDS = [
 
 export default function ThemeSettings({ onClose }) {
   const { theme, setTheme, primaryColor, applyCustomTheme, bgColor, customBase } = useTheme();
-  const [localPrimary, setLocalPrimary] = useState(primaryColor || "#e8352a");
-  const [localBg, setLocalBg] = useState(bgColor || "#0a0a0a");
+  const [localPrimary, setLocalPrimary] = useState(primaryColor || "#8b5cf6");
+  const [localBg, setLocalBg] = useState(bgColor || "#050816");
   const [localBase, setLocalBase] = useState(customBase || "dark");
 
   function handleApplyCustom() {

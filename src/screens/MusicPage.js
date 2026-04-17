@@ -31,6 +31,8 @@ function MusicPage({ pageKey }) {
     query,
     searchResults,
     authSession,
+    favoriteItems = [],
+    recentPlays = [],
   } = useOutletContext();
   const showToast = useToast();
 
@@ -120,20 +122,6 @@ function MusicPage({ pageKey }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageKey, location.search]);
-
-  async function handleDeletePlaylist(playlistId) {
-    if (!playlistId) return;
-    if (!window.confirm("Usunąć playlistę? Tej operacji nie można cofnąć.")) return;
-    try {
-      await fetchJson(`/api/ytmusic/playlist/${playlistId}`, { method: "DELETE" });
-      setSelectedPlaylist(null);
-      showToast("Playlista usunięta.", "success");
-      fetchPlaylists();
-    } catch (error) {
-      console.error("Delete playlist error:", error);
-      showToast("Nie udało się usunąć playlisty. (Wymaga headers.json)", "error");
-    }
-  }
 
   async function fetchPlaylistDetails(playlistId) {
     if (!playlistId) return;
@@ -229,18 +217,79 @@ function MusicPage({ pageKey }) {
   }
 
   const fallbackPage = pageContent[pageKey] || pageContent.home;
-  const page = {
+  const serverPageData = ["favorites", "recent"].includes(pageKey) ? null : pageData;
+  let page = {
     ...fallbackPage,
-    ...(pageData || {}),
+    ...(serverPageData || {}),
     primarySection: {
       ...fallbackPage.primarySection,
-      ...(pageData?.primarySection || {}),
+      ...(serverPageData?.primarySection || {}),
     },
     secondarySection: {
       ...fallbackPage.secondarySection,
-      ...(pageData?.secondarySection || {}),
+      ...(serverPageData?.secondarySection || {}),
     },
   };
+
+  const favoriteDisplayItems = favoriteItems.map((item, index) => ({
+    id: item.videoId || `${item.title}-${index}`,
+    title: item.title,
+    subtitle: item.artist || item.subtitle || "Ulubiony utwór",
+    cover: item.art,
+    meta: "Ulubione",
+    videoId: item.videoId,
+  }));
+
+  const recentDisplayItems = recentPlays.map((item, index) => ({
+    id: item.videoId || `${item.title}-${index}`,
+    title: item.title,
+    subtitle: item.artist || item.subtitle || "Ostatnio odtwarzane",
+    cover: item.art,
+    meta: "Historia",
+    videoId: item.videoId,
+  }));
+
+  if (pageKey === "favorites") {
+    page = {
+      ...page,
+      stats: [
+        { label: "Ulubione", value: String(favoriteDisplayItems.length) },
+        { label: "Zapis", value: "Lokalny" },
+        { label: "Dostęp", value: "Szybki" },
+      ],
+      primarySection: { ...page.primarySection, items: favoriteDisplayItems },
+      queue: favoriteDisplayItems.map((item) => ({
+        title: item.title,
+        artist: item.subtitle,
+        detail: "Ulubione",
+        duration: "—",
+        energy: 90,
+        videoId: item.videoId,
+        thumbnail: item.cover,
+      })),
+    };
+  }
+
+  if (pageKey === "recent") {
+    page = {
+      ...page,
+      stats: [
+        { label: "Odtworzenia", value: String(recentDisplayItems.length) },
+        { label: "Limit", value: "25" },
+        { label: "Zapis", value: "Lokalny" },
+      ],
+      primarySection: { ...page.primarySection, items: recentDisplayItems },
+      queue: recentDisplayItems.map((item) => ({
+        title: item.title,
+        artist: item.subtitle,
+        detail: "Historia",
+        duration: "—",
+        energy: 70,
+        videoId: item.videoId,
+        thumbnail: item.cover,
+      })),
+    };
+  }
 
   const ytMusicHeaders = page.backendStatus?.imports?.ytMusicHeaders;
 
@@ -260,7 +309,11 @@ function MusicPage({ pageKey }) {
   }));
 
   const displayItems =
-    pageKey === "playlists" && playlists.length > 0
+    pageKey === "favorites"
+      ? favoriteDisplayItems
+      : pageKey === "recent"
+      ? recentDisplayItems
+      : pageKey === "playlists" && playlists.length > 0
       ? playlists.map((pl) => {
           const browseId = pl.browseId || pl.playlistId;
           return {
@@ -279,7 +332,7 @@ function MusicPage({ pageKey }) {
   if (loadingPlaylist) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <RefreshCw className="animate-spin text-red-500" size={48} />
+        <RefreshCw className="animate-spin text-[var(--primary)]" size={48} />
         <p className="text-neutral-400 animate-pulse font-medium">Ładowanie zawartości...</p>
       </div>
     );
@@ -345,7 +398,8 @@ function MusicPage({ pageKey }) {
                   if (first) play?.(first);
                   else showToast("Playlista jest pusta.", "info");
                 }}
-                className="flex items-center gap-3 px-10 py-4 rounded-full bg-red-600 text-white font-bold transition-all hover:bg-red-700 hover:scale-105 active:scale-95 shadow-2xl shadow-red-600/30"
+                className="flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-white font-bold transition-all hover:scale-105 active:scale-95 shadow-2xl"
+                style={{ backgroundColor: "var(--primary)", boxShadow: "0 18px 45px color-mix(in srgb, var(--primary) 28%, transparent)" }}
               >
                 <Play size={20} fill="white" />
                 Odtwórz
@@ -508,22 +562,22 @@ function MusicPage({ pageKey }) {
   }
 
   return (
-    <div className="page space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
+      <div className="page space-y-10 lg:space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
       <header className="page-header relative">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-        <p className="text-sm font-black uppercase tracking-[0.3em] text-red-500 mb-4">{page.eyebrow}</p>
-        <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 font-display tracking-tight leading-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 blur-[120px] rounded-full pointer-events-none" style={{ backgroundColor: "color-mix(in srgb, var(--primary) 14%, transparent)" }}></div>
+        <p className="text-xs sm:text-sm font-black uppercase tracking-[0.22em] sm:tracking-[0.3em] mb-4" style={{ color: "var(--primary)" }}>{page.eyebrow}</p>
+        <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold text-white mb-4 sm:mb-6 font-display tracking-tight leading-none">
           {isSearching ? "Wyniki wyszukiwania" : page.title}
         </h1>
-        <p className="text-xl text-neutral-400 max-w-3xl leading-relaxed font-medium">
+        <p className="text-base sm:text-xl text-neutral-400 max-w-3xl leading-relaxed font-medium">
           {isSearching ? `Znaleziono wyniki dla frazy "${query}"` : page.description}
         </p>
 
-        <div className="flex flex-wrap gap-3 mt-10">
+        <div className="flex gap-3 mt-7 sm:mt-10 overflow-x-auto pb-2 sm:flex-wrap">
           {page.chips?.map((chip) => (
             <button
               key={chip}
-              className="px-6 py-2.5 rounded-full bg-neutral-900 border border-white/5 text-sm font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-white/10 transition-all active:scale-95"
+              className="px-5 sm:px-6 py-2.5 rounded-full bg-neutral-900 border border-white/5 text-xs sm:text-sm font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-white/10 transition-all active:scale-95 whitespace-nowrap"
             >
               {chip}
             </button>
@@ -551,7 +605,7 @@ function MusicPage({ pageKey }) {
                   : undefined
               }
             />
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-8">
               {displayItems.map((item, idx) => (
                 <MediaCard
                   key={item.id || item.browseId || item.videoId || `pri-${idx}`}
@@ -567,10 +621,14 @@ function MusicPage({ pageKey }) {
               ))}
             </div>
             {displayItems.length === 0 && (
-              <div className="text-center py-20 bg-neutral-900/50 rounded-[40px] border border-dashed border-white/10">
+              <div className="text-center py-16 sm:py-20 bg-neutral-900/50 rounded-[32px] sm:rounded-[40px] border border-dashed border-white/10 px-6">
                 <p className="text-neutral-500 font-medium italic">
                   {pageKey === "playlists" && importing
                     ? "Ładowanie playlist..."
+                    : pageKey === "favorites"
+                    ? "Kliknij serce w odtwarzaczu, aby dodać pierwszy ulubiony utwór."
+                    : pageKey === "recent"
+                    ? "Odtwórz dowolny utwór, aby zbudować historię odsłuchu."
                     : "Nie znaleziono żadnych elementów."}
                 </p>
               </div>
@@ -580,7 +638,7 @@ function MusicPage({ pageKey }) {
           {page.secondarySection?.items?.length > 0 && !isSearching && (
             <section>
               <SectionHeader title={page.secondarySection.title} action={page.secondarySection.action} />
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-8">
                 {page.secondarySection.items.map((item, idx) => (
                   <MediaCard
                     key={item.id || item.browseId || item.videoId || `sec-${idx}`}
@@ -598,7 +656,7 @@ function MusicPage({ pageKey }) {
           {page.tertiarySection?.items?.length > 0 && !isSearching && (
             <section>
               <SectionHeader title={page.tertiarySection.title} action={page.tertiarySection.action} />
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 xl:gap-8">
                 {page.tertiarySection.items.map((item, idx) => (
                   <MediaCard
                     key={item.id || item.browseId || item.videoId || `ter-${idx}`}
@@ -618,7 +676,7 @@ function MusicPage({ pageKey }) {
           )}
         </div>
 
-        <aside className="space-y-12 sticky top-24">
+        <aside className="space-y-8 lg:space-y-12 lg:sticky lg:top-24">
           {page.chartItems?.length > 0 && !isSearching && (
             <section className="bg-neutral-900/50 border border-white/5 p-8 rounded-[40px] backdrop-blur-sm">
               <h2 className="text-2xl font-bold text-white mb-8 font-display">{page.chartTitle}</h2>
@@ -631,14 +689,15 @@ function MusicPage({ pageKey }) {
           )}
 
           {!isSearching && (
-            <div className="bg-gradient-to-br from-red-600 to-red-900 p-8 rounded-[40px] shadow-2xl shadow-red-600/20 group cursor-pointer overflow-hidden relative">
+            <div className="p-6 sm:p-8 rounded-[32px] sm:rounded-[40px] shadow-2xl group cursor-pointer overflow-hidden relative"
+              style={{ background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #050816))", boxShadow: "0 24px 60px color-mix(in srgb, var(--primary) 18%, transparent)" }}>
               <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-              <h3 className="text-2xl font-black text-white mb-2 italic uppercase">Premium</h3>
+              <h3 className="text-2xl font-black text-white mb-2 italic uppercase">Focus Mode</h3>
               <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">
-                Wszystkie funkcje BoziaMusic bez ograniczeń. Ciesz się muzyką w najwyższej jakości.
+                Używaj skrótów: / wyszukuje, spacja lub K pauzuje, strzałki przełączają utwory.
               </p>
-              <button className="w-full py-4 bg-white text-red-600 font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-neutral-100 transition-colors shadow-xl">
-                Sprawdź więcej
+              <button className="w-full py-4 bg-white font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-neutral-100 transition-colors shadow-xl" style={{ color: "var(--primary)" }}>
+                Ergonomia ON
               </button>
             </div>
           )}

@@ -79,7 +79,7 @@ function Player({
 
   return (
     <footer
-      className="fixed bottom-0 left-0 right-0 px-8 py-4 flex items-center justify-between z-[200]"
+      className="fixed bottom-0 left-0 right-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-6 z-[200]"
       style={{
         backgroundColor: "var(--bg-player)",
         borderTop: "1px solid var(--surface-line)",
@@ -88,7 +88,7 @@ function Player({
       }}
     >
       {/* Current Track Info */}
-      <div className="flex items-center gap-5 w-[300px] group min-w-0">
+      <div className="flex items-center gap-3 sm:gap-5 w-full lg:w-[300px] group min-w-0">
         <div
           className="w-14 h-14 rounded-[18px] overflow-hidden shadow-2xl group-hover:scale-105 transition-transform duration-500 flex-shrink-0"
           style={{ border: "1px solid var(--surface-line)", backgroundColor: "var(--bg-card)" }}
@@ -100,13 +100,13 @@ function Player({
             className="font-black truncate text-sm tracking-tight"
             style={{ color: "var(--text-main)" }}
           >
-            {track?.title || "Bozia Mix"}
+            {track?.title || "AetherPulse Mix"}
           </p>
           <p
             className="text-[11px] font-bold truncate mt-1 uppercase tracking-wider"
             style={{ color: "var(--text-muted)" }}
           >
-            {track?.artist || "BoziaMusic Originals"}
+            {track?.artist || "AetherPulse Originals"}
           </p>
         </div>
         {onToggleFavorite && (
@@ -122,8 +122,8 @@ function Player({
       </div>
 
       {/* Controls and Progress */}
-      <div className="flex flex-col items-center gap-3 flex-1 max-w-2xl px-12">
-        <div className="flex items-center gap-8">
+      <div className="flex flex-col items-center gap-3 flex-1 w-full lg:max-w-2xl lg:px-8">
+        <div className="flex items-center justify-center gap-5 sm:gap-8">
           <button
             onClick={onToggleShuffle}
             className="transition-all hover:scale-110"
@@ -166,8 +166,8 @@ function Player({
           </button>
         </div>
 
-        <div className="flex items-center gap-4 w-full text-[10px] font-black tracking-widest uppercase" style={{ color: "var(--text-soft)" }}>
-          <span className="w-10 text-right">{formatTime(elapsedSeconds)}</span>
+        <div className="flex items-center gap-2 sm:gap-4 w-full text-[10px] font-black tracking-widest uppercase" style={{ color: "var(--text-soft)" }}>
+          <span className="w-9 sm:w-10 text-right">{formatTime(elapsedSeconds)}</span>
           <div
             onClick={handleProgressClick}
             className="flex-1 h-1.5 rounded-full relative group cursor-pointer overflow-visible"
@@ -182,12 +182,12 @@ function Player({
               style={{ left: `${progress}%`, marginLeft: "-7px", backgroundColor: "var(--text-main)", border: "2px solid var(--primary)" }}
             />
           </div>
-          <span className="w-10">{formatTime(Math.round(audioDuration || 0))}</span>
+          <span className="w-9 sm:w-10">{formatTime(Math.round(audioDuration || 0))}</span>
         </div>
       </div>
 
       {/* Extras and Volume */}
-      <div className="flex items-center justify-end gap-5 w-[300px]">
+      <div className="hidden lg:flex items-center justify-end gap-5 w-[300px]">
         {onHide && (
           <button
             type="button"

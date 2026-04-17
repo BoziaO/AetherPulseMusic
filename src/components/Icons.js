@@ -122,6 +122,16 @@ export function ListMusic(props) {
   );
 }
 
+export function Menu(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </IconBase>
+  );
+}
+
 export function Mic2(props) {
   return (
     <IconBase {...props}>

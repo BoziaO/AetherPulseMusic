@@ -73,7 +73,7 @@ app.use(session({
       }
       return process.env.SESSION_SECRET;
     }
-    return process.env.SESSION_SECRET || 'bozia-dev-secret';
+    return process.env.SESSION_SECRET || 'aetherpulse-dev-secret';
   })(),
   resave: false,
   saveUninitialized: false,
@@ -380,7 +380,7 @@ app.get('/api/page/:key', wrap(async (req) => {
 
     return {
       ...base,
-      eyebrow: "Witaj w BoziaMusic",
+      eyebrow: "Witaj w AetherPulse|Music",
       title: "Trending — utwory na czasie",
       description: "Hit dnia i trendy z YouTube Music (Innertube).",
       chips: ["Polecane", "Trendy", "Playlisty", "Albumy"],
@@ -632,7 +632,7 @@ app.get('/api/page/:key', wrap(async (req) => {
 
   return {
     ...base,
-    eyebrow: "BoziaMusic",
+    eyebrow: "AetherPulse|Music",
     title: "Strona",
     description: "Brak danych dla tej strony.",
     chips: [],
@@ -790,7 +790,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   app.get('/', (req, res) => {
-    res.send('BoziaMusic API Server is running on port 3001. Frontend is on port 5000 during development.');
+    res.send('AetherPulse|Music API Server is running on port 3001. Frontend is on port 5000 during development.');
   });
 }
 

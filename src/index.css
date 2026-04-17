@@ -7,16 +7,16 @@
    THEME VARIABLES (dark default)
    ======================== */
 :root {
-  --primary: #e8352a;
-  --primary-hover: #c42d22;
-  --bg-main: #0a0a0a;
-  --bg-sidebar: #111111;
-  --bg-panel: #181818;
-  --bg-card: #222222;
-  --bg-card-hover: #2e2e2e;
-  --bg-input: #1a1a1a;
-  --bg-player: #000000;
-  --bg-overlay: #111111;
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --bg-main: #050816;
+  --bg-sidebar: #0b1020;
+  --bg-panel: #10172a;
+  --bg-card: #151f35;
+  --bg-card-hover: #1d2a45;
+  --bg-input: #111a2e;
+  --bg-player: #070b16;
+  --bg-overlay: #0b1020;
   --bg-hover: rgba(255,255,255,0.05);
   --bg-hover-strong: rgba(255,255,255,0.10);
   --text-main: #ffffff;
@@ -47,6 +47,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 18%, transparent), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 32rem);
+  z-index: 0;
 }
 
 button, input { font: inherit; }
@@ -375,6 +386,62 @@ button { cursor: pointer; }
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+@media (max-width: 1023px) {
+  html, body, #root {
+    min-height: 100%;
+  }
+
+  .page-header {
+    overflow: hidden;
+  }
+
+  .page-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-split {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-table__head {
+    display: none;
+  }
+
+  .queue-table__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .queue-table__row > :nth-child(2),
+  .queue-table__row > :nth-child(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .media-card__body {
+    margin-top: 10px;
+  }
+
+  .media-card__body h3 {
+    font-size: 0.9rem;
+  }
+
+  .media-card__body p {
+    font-size: 0.78rem;
+  }
+
+  .cover-art--compact {
+    width: 56px;
+    min-width: 56px;
+    border-radius: 16px;
+  }
+}
+
 .page-split {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
@@ -547,4 +614,36 @@ button { cursor: pointer; }
   .media-grid, .metric-grid, .media-grid--wide { grid-template-columns: 1fr; }
   .queue-table__head { display: none; }
   .queue-table__row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1023px) {
+  .page-hero,
+  .page-split {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-table__head {
+    display: none;
+  }
+
+  .queue-table__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .queue-table__row > :nth-child(2),
+  .queue-table__row > :nth-child(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .cover-art--compact {
+    width: 56px;
+    min-width: 56px;
+    border-radius: 16px;
+  }
 }

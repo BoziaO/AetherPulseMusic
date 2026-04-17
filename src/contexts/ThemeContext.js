@@ -4,14 +4,14 @@ export const PRESET_THEMES = {
   dark: {
     name: "Ciemny",
     vars: {
-      "--bg-main": "#0a0a0a",
-      "--bg-sidebar": "#111111",
-      "--bg-panel": "#181818",
-      "--bg-card": "#222222",
-      "--bg-card-hover": "#2e2e2e",
-      "--bg-input": "#1a1a1a",
-      "--bg-player": "#000000",
-      "--bg-overlay": "#111111",
+      "--bg-main": "#050816",
+      "--bg-sidebar": "#0b1020",
+      "--bg-panel": "#10172a",
+      "--bg-card": "#151f35",
+      "--bg-card-hover": "#1d2a45",
+      "--bg-input": "#111a2e",
+      "--bg-player": "#070b16",
+      "--bg-overlay": "#0b1020",
       "--bg-hover": "rgba(255,255,255,0.05)",
       "--bg-hover-strong": "rgba(255,255,255,0.10)",
       "--text-main": "#ffffff",
@@ -51,7 +51,7 @@ export const PRESET_THEMES = {
   },
 };
 
-const DEFAULT_PRIMARY = "#e8352a";
+const DEFAULT_PRIMARY = "#8b5cf6";
 
 function buildCustomVars(base, primaryColor, bgColor, textColor) {
   const baseVars = PRESET_THEMES[base]?.vars || PRESET_THEMES.dark.vars;
@@ -67,7 +67,6 @@ function buildCustomVars(base, primaryColor, bgColor, textColor) {
     overrides["--bg-hover"] = isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.05)";
     overrides["--bg-hover-strong"] = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.10)";
     const darken = darkenColor(bgColor, 8);
-    const lighten = lightenColor(bgColor, 4);
     overrides["--bg-sidebar"] = isLight ? lightenColor(bgColor, 6) : darken;
     overrides["--bg-panel"] = isLight ? lightenColor(bgColor, 4) : darken;
     overrides["--bg-card"] = isLight ? darkenColor(bgColor, 3) : lightenColor(bgColor, 4);

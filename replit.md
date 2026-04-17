@@ -1,6 +1,6 @@
-# BoziaMusic
+# AetherPulse|Music
 
-A modern music player application integrated with YouTube Music. Features a fully themeable UI (dark, light, and custom themes), responsive layout, playlist management, and YouTube Music streaming. Supports optional Google Authentication for personalized playlist management.
+A modern music player application integrated with YouTube Music. Features a fully themeable UI, mobile-first responsive layout, playlist management, YouTube Music streaming, favorites, recent playback history, and optional Google Authentication for personalized playlist management.
 
 ## Architecture
 
@@ -9,6 +9,8 @@ A modern music player application integrated with YouTube Music. Features a full
 - **YouTube Music**: Custom InnerTube API integration via `server/ytmusic.js`
 - **Auth**: Optional Google OAuth via `googleapis`
 - **Theme system**: CSS custom properties + ThemeContext (dark/light/custom themes)
+- **Personal library**: Favorites and recent playback history persist in browser localStorage.
+- **Mobile UX**: Desktop sidebar, mobile slide-out sidebar, bottom tab navigation, and responsive bottom player.
 - **Security**: API requests use same-origin relative URLs in the client; backend CORS is limited to local development, Replit preview, and deployed Replit app origins.
 
 ## Development
@@ -38,7 +40,7 @@ NODE_ENV=production node server/index.js
 - `src/lib/api.js` — Frontend API client (uses relative URLs via CRA proxy)
 - `src/App.js` — React root (wraps with ThemeProvider)
 - `src/contexts/ThemeContext.js` — Theme state management (dark/light/custom), CSS variable injection, localStorage persistence
-- `src/screens/MusicPage.js` — Main music page (playlists, home, artists, albums, import YT playlists)
+- `src/screens/MusicPage.js` — Main music page (playlists, home, artists, albums, favorites, recent history, import YT playlists)
 - `src/components/AddTrackModal.js` — Search modal for adding songs to playlists
 - `src/components/CreatePlaylistModal.js` — Modal for creating local/YT playlists
 - `src/components/ThemeSettings.js` — Theme picker modal (preset colors, custom primary/background)

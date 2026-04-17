@@ -8,7 +8,7 @@ export const navigationGroups = [
   {
     title: "Menu",
     items: [
-      { key: "home", label: "Główna", path: "/", eyebrow: "Witaj w BoziaMusic", searchPlaceholder: "Szukaj ulubionej muzyki..." },
+      { key: "home", label: "Główna", path: "/", eyebrow: "Witaj w AetherPulse|Music", searchPlaceholder: "Szukaj ulubionej muzyki..." },
       { key: "discover", label: "Odkrywaj", path: "/discover", eyebrow: "Nowe brzmienia", searchPlaceholder: "Odkryj coś nowego..." },
     ],
   },
@@ -23,6 +23,8 @@ export const navigationGroups = [
     title: "Biblioteka",
     items: [
       { key: "playlists", label: "Playlisty", path: "/playlists", eyebrow: "Twoje kolekcje", searchPlaceholder: "Szukaj w swoich playlistach..." },
+      { key: "favorites", label: "Ulubione", path: "/favorites", eyebrow: "Zapisane utwory", searchPlaceholder: "Szukaj i dodawaj ulubione..." },
+      { key: "recent", label: "Ostatnio grane", path: "/recent", eyebrow: "Historia odsłuchu", searchPlaceholder: "Szukaj w historii..." },
       { key: "artists", label: "Wykonawcy", path: "/artists", eyebrow: "Ulubieni twórcy", searchPlaceholder: "Szukaj wykonawców..." },
       { key: "albums", label: "Albumy", path: "/albums", eyebrow: "Pełne wydania", searchPlaceholder: "Szukaj albumów..." },
     ],
@@ -41,7 +43,7 @@ export const pageContent = {
   home: {
     key: "home",
     title: "Twoja codzienna dawka energii",
-    description: "Wyselekcjonowane utwory specjalnie dla Twojego nastroju.",
+    description: "Wyselekcjonowane utwory, szybkie playlisty i historia odsłuchu dopasowane do Twojego rytmu.",
     chips: ["Pop", "Electronic", "Lo-Fi", "Focus"],
     spotlightTitle: "Hit Dnia",
     spotlightText: "Najczęściej odtwarzany utwór dzisiaj.",
@@ -116,6 +118,58 @@ export const pageContent = {
     chartItems: [],
     queueTitle: "Piosenki w wybranej playliście",
     queueAction: "Odtwórz wszystko",
+    queue: [],
+  },
+  favorites: {
+    key: "favorites",
+    title: "Ulubione utwory",
+    description: "Szybki dostęp do muzyki zapisanej podczas słuchania.",
+    chips: ["Zapisane", "Szybki start", "Offline lista"],
+    stats: [
+      { label: "Ulubione", value: "0" },
+      { label: "Źródło", value: "Local" },
+      { label: "Tryb", value: "Fast" },
+    ],
+    primarySection: {
+      title: "Twoje ulubione",
+      action: "Dodawaj sercem",
+      items: [],
+    },
+    secondarySection: {
+      title: "Podpowiedź",
+      action: "Słuchaj",
+      items: [],
+    },
+    chartTitle: "Nawyk",
+    chartItems: [],
+    queueTitle: "Ulubiona kolejka",
+    queueAction: "Odtwórz",
+    queue: [],
+  },
+  recent: {
+    key: "recent",
+    title: "Ostatnio odtwarzane",
+    description: "Wróć do utworów, które były odtwarzane w tej przeglądarce.",
+    chips: ["Historia", "Szybki powrót", "Lokalnie"],
+    stats: [
+      { label: "Historia", value: "0" },
+      { label: "Pamięć", value: "Local" },
+      { label: "Limit", value: "25" },
+    ],
+    primarySection: {
+      title: "Najnowsze odsłuchy",
+      action: "Automatycznie",
+      items: [],
+    },
+    secondarySection: {
+      title: "Podpowiedź",
+      action: "Odtwarzaj",
+      items: [],
+    },
+    chartTitle: "Historia",
+    chartItems: [],
+    queueTitle: "Ostatnia kolejka",
+    queueAction: "Odtwórz",
     queue: [],
   }
 };

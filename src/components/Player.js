@@ -10,6 +10,7 @@ import {
   Volume2,
   ArrowRight,
   Heart,
+  Mic,
 } from "./Icons";
 import CoverArt from "./CoverArt";
 
@@ -54,6 +55,8 @@ function Player({
   onToggleRepeat,
   isFavorite = false,
   onToggleFavorite,
+  onShowQueue,
+  onShowLyrics,
 }) {
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
   const elapsedSeconds = currentTime || 0;
@@ -101,7 +104,7 @@ function Player({
               className="font-black truncate text-sm tracking-tight"
               style={{ color: "var(--text-main)" }}
             >
-              {track?.title || "BoziaMusic Mix"}
+              {track?.title || "AetherPulse Mix"}
             </p>
             {isPlaying && (
               <div className="wave-bars flex-shrink-0">
@@ -113,7 +116,7 @@ function Player({
             className="text-[11px] font-bold truncate mt-1 uppercase tracking-wider"
             style={{ color: "var(--text-muted)" }}
           >
-            {track?.artist || "BoziaMusic Originals"}
+            {track?.artist || "AetherPulse Originals"}
           </p>
         </div>
         {onToggleFavorite && (
@@ -193,36 +196,53 @@ function Player({
         </div>
       </div>
 
-      {/* Extras and Volume */}
-      <div className="hidden lg:flex items-center justify-end gap-5 w-[300px]">
-        {onHide && (
-          <button
-            type="button"
-            onClick={onHide}
-            className="transition-all hover:rotate-90 duration-500"
-            style={{ color: "var(--text-soft)" }}
-            title="Ukryj"
-          >
-            <ArrowRight size={20} />
-          </button>
-        )}
-        <button className="transition-colors" style={{ color: "var(--text-soft)" }} title="Kolejka">
-          <LayoutGrid size={20} />
-        </button>
-        <div className="flex items-center gap-3 w-36">
-          <Volume2 size={18} style={{ color: "var(--text-soft)" }} />
-          <div
-            onClick={handleVolumeClick}
-            className="flex-1 h-1.5 rounded-full cursor-pointer relative overflow-hidden"
-            style={{ backgroundColor: "var(--bg-hover-strong)" }}
-          >
-            <div
-              className="h-full transition-all"
-              style={{ width: `${volume}%`, backgroundColor: "var(--primary)" }}
-            />
-          </div>
-        </div>
-      </div>
+       {/* Extras and Volume */}
+       <div className="hidden lg:flex items-center justify-end gap-5 w-[300px]">
+         {onHide && (
+           <button
+             type="button"
+             onClick={onHide}
+             className="transition-all hover:rotate-90 duration-500"
+             style={{ color: "var(--text-soft)" }}
+             title="Ukryj"
+           >
+             <ArrowRight size={20} />
+           </button>
+         )}
+         {onShowQueue && (
+           <button
+             onClick={onShowQueue}
+             className="transition-colors hover:scale-110"
+             style={{ color: "var(--text-soft)" }}
+             title="Kolejka"
+           >
+             <LayoutGrid size={20} />
+           </button>
+         )}
+         {onShowLyrics && (
+           <button
+             onClick={onShowLyrics}
+             className="transition-colors hover:scale-110"
+             style={{ color: "var(--text-soft)" }}
+             title="Napisy"
+           >
+             <Mic size={20} />
+           </button>
+         )}
+         <div className="flex items-center gap-3 w-36">
+           <Volume2 size={18} style={{ color: "var(--text-soft)" }} />
+           <div
+             onClick={handleVolumeClick}
+             className="flex-1 h-1.5 rounded-full cursor-pointer relative overflow-hidden"
+             style={{ backgroundColor: "var(--bg-hover-strong)" }}
+           >
+             <div
+               className="h-full transition-all"
+               style={{ width: `${volume}%`, backgroundColor: "var(--primary)" }}
+             />
+           </div>
+         </div>
+       </div>
     </footer>
   );
 }

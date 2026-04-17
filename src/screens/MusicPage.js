@@ -33,10 +33,8 @@ function MusicPage({ pageKey }) {
     pageLoading,
     play,
     query,
-    searchFilter,
     searchResults,
     authSession,
-    favorites,
     favoriteItems = [],
     recentPlays = [],
   } = useOutletContext();
@@ -476,7 +474,7 @@ function MusicPage({ pageKey }) {
                 </span>
               )}
             </div>
-            <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>
+            <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight" style={{ fontFamily: '"Space Grotesk", sans-serif', color: "var(--text-main)" }}>
               {selectedPlaylist.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
@@ -501,8 +499,7 @@ function MusicPage({ pageKey }) {
                   if (first) play?.(first);
                   else showToast("Playlista jest pusta.", "info");
                 }}
-                className="flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-white font-bold transition-all hover:scale-105 active:scale-95 shadow-2xl" style={{ backgroundColor: "var(--primary)" }}
-                style={{ backgroundColor: "var(--primary)", boxShadow: "0 18px 45px color-mix(in srgb, var(--primary) 28%, transparent)" }}
+                className="flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-white font-bold transition-all hover:scale-105 active:scale-95 shadow-2xl" style={{ backgroundColor: "var(--primary)", boxShadow: "0 18px 45px color-mix(in srgb, var(--primary) 28%, transparent)" }}
               >
                 <Play size={20} fill="white" />
                 Odtwórz
@@ -669,7 +666,7 @@ function MusicPage({ pageKey }) {
       <header className="page-header relative">
         <div className="absolute -top-24 -left-24 w-96 h-96 blur-[120px] rounded-full pointer-events-none" style={{ backgroundColor: "color-mix(in srgb, var(--primary) 14%, transparent)" }}></div>
         <p className="text-xs sm:text-sm font-black uppercase tracking-[0.22em] sm:tracking-[0.3em] mb-4" style={{ color: "var(--primary)" }}>{page.eyebrow}</p>
-        <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6 tracking-tight leading-none" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>
+        <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6 tracking-tight leading-none" style={{ fontFamily: '"Space Grotesk", sans-serif', color: "var(--text-main)" }}>
           {isSearching ? "Wyniki wyszukiwania" : page.title}
         </h1>
         <p className="text-base sm:text-xl max-w-3xl leading-relaxed font-medium" style={{ color: "var(--text-muted)" }}>
@@ -782,7 +779,7 @@ function MusicPage({ pageKey }) {
         <aside className="space-y-8 lg:space-y-12 lg:sticky lg:top-24">
           {page.chartItems?.length > 0 && !isSearching && (
             <section className="p-8 rounded-[40px]" style={{ backgroundColor: "var(--bg-panel)", border: "1px solid var(--surface-line)" }}>
-              <h2 className="text-2xl font-black mb-8" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>{page.chartTitle}</h2>
+              <h2 className="text-2xl font-black mb-8" style={{ fontFamily: '"Space Grotesk", sans-serif', color: "var(--text-main)" }}>{page.chartTitle}</h2>
               <div className="space-y-2">
                 {page.chartItems.map((item, idx) => (
                   <ChartRow key={idx} item={item} />
@@ -799,7 +796,7 @@ function MusicPage({ pageKey }) {
               <p className="text-sm font-medium leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
                 Używaj skrótów: / wyszukuje, spacja lub K pauzuje, strzałki przełączają utwory.
               </p>
-              <button className="w-full py-4 font-black text-sm uppercase tracking-widest rounded-2xl transition-colors shadow-xl" style={{ backgroundColor: "var(--text-main)", color: "var(--primary)" }} style={{ color: "var(--primary)" }}>
+              <button className="w-full py-4 font-black text-sm uppercase tracking-widest rounded-2xl transition-colors shadow-xl" style={{ backgroundColor: "var(--text-main)", color: "var(--primary)" }}>
                 Ergonomia ON
               </button>
             </div>

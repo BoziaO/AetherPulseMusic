@@ -341,11 +341,11 @@ function SettingsPage() {
         <SettingSection icon={Music} title="O aplikacji" iconColor="#7c3aed">
           <div className="space-y-3">
             {[
-              ["Aplikacja", "BoziaMusic"],
+              ["Aplikacja", "AetherPulse"],
               ["Frontend", "React 19 + Tailwind CSS"],
               ["Backend", "Node.js + Express"],
               ["API", "YouTube Music (Innertube)"],
-              ["Autor", "BoziaO"],
+              ["Autor", "AetherPulse Team"],
             ].map(([label, value]) => (
               <div key={label} className="flex items-center justify-between py-1">
                 <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>{label}</span>

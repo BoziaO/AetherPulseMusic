@@ -7,6 +7,8 @@ import { buildApiUrl, fetchJson } from "../lib/api";
 import { Bell, Menu, Music, Search, Settings, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
+import QueueModal from "./QueueModal";
+import LyricsModal from "./LyricsModal";
 import { useToast } from "./Toast";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -46,6 +48,11 @@ function AppShell() {
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState("none"); // 'none', 'one', 'all'
   const [shuffledQueue, setShuffledQueue] = useState([]);
+
+  // Queue and Lyrics states
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showLyricsModal, setShowLyricsModal] = useState(false);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -735,6 +742,8 @@ function AppShell() {
             setFavoriteTracks(nextTracks);
           }}
           onHide={() => setPlayerVisible(false)}
+          onShowQueue={() => setShowQueueModal(true)}
+          onShowLyrics={() => setShowLyricsModal(true)}
         />
       ) : nowPlaying ? (
         <button
@@ -751,6 +760,34 @@ function AppShell() {
           <Music size={24} className="relative z-10" />
         </button>
       ) : null}
+
+      {/* Queue Modal */}
+      <QueueModal
+        isOpen={showQueueModal}
+        onClose={() => setShowQueueModal(false)}
+        queue={isShuffled ? shuffledQueue : (pageRequest.data?.queue || [])}
+        currentTrackIndex={currentQueueIndex}
+        onSelectTrack={(index) => {
+          const queue = isShuffled ? shuffledQueue : (pageRequest.data?.queue || []);
+          if (queue[index]) {
+            play(queue[index]);
+            setCurrentQueueIndex(index);
+          }
+        }}
+        onRemoveTrack={(index) => {
+          // Optional: implement removal logic
+        }}
+      />
+
+      {/* Lyrics Modal */}
+      <LyricsModal
+        isOpen={showLyricsModal}
+        onClose={() => setShowLyricsModal(false)}
+        trackTitle={nowPlaying?.title || ""}
+        trackArtist={nowPlaying?.artist || ""}
+        currentTime={currentTime}
+        isPlaying={isPlaying}
+      />
     </div>
   );
 }

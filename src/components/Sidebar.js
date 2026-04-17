@@ -64,10 +64,10 @@ function Sidebar({ isOpen = false, onClose }) {
           </div>
           <div>
             <h2 className="text-lg font-black tracking-tighter uppercase italic leading-tight" style={{ color: "var(--text-main)" }}>
-              Bozia<span style={{ color: "var(--primary)" }}>Music</span>
+              AetherPulse<span style={{ color: "var(--primary)" }}>Music</span>
             </h2>
             <p className="text-[9px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-soft)" }}>
-              YT Music Player
+              Twoja Energia w zasiegu reki
             </p>
           </div>
         </div>
@@ -120,64 +120,6 @@ function Sidebar({ isOpen = false, onClose }) {
             </div>
           ))}
         </nav>
-
-        {/* Footer */}
-        <div className="mt-8 pt-6 space-y-2" style={{ borderTop: "1px solid var(--surface-line)" }}>
-          {/* Theme quick toggles */}
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              onClick={() => setTheme("dark")}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              style={{
-                backgroundColor: theme === "dark" ? "var(--primary)" : "var(--bg-hover)",
-                color: theme === "dark" ? "#fff" : "var(--text-muted)",
-              }}
-              title="Ciemny"
-            >
-              <Moon size={14} />
-            </button>
-            <button
-              onClick={() => setTheme("light")}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              style={{
-                backgroundColor: theme === "light" ? "var(--primary)" : "var(--bg-hover)",
-                color: theme === "light" ? "#fff" : "var(--text-muted)",
-              }}
-              title="Jasny"
-            >
-              <Sun size={14} />
-            </button>
-            <button
-              onClick={() => setShowTheme(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              style={{
-                backgroundColor: theme === "custom" ? "var(--primary)" : "var(--bg-hover)",
-                color: theme === "custom" ? "#fff" : "var(--text-muted)",
-              }}
-              title="Własny motyw"
-            >
-              <Palette size={14} />
-            </button>
-          </div>
-
-          {/* Settings button */}
-          <button
-            onClick={() => setShowTheme(true)}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 font-medium text-sm"
-            style={{ color: "var(--text-muted)", backgroundColor: "transparent" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--bg-hover)";
-              e.currentTarget.style.color = "var(--text-main)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--text-muted)";
-            }}
-          >
-            <Settings size={19} />
-            <span>Ustawienia motywu</span>
-          </button>
-        </div>
       </aside>
 
       <nav

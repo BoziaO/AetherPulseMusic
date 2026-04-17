@@ -793,6 +793,38 @@ app.post('/api/local/playlists/import-yt/:playlistId', wrap(async (req) => {
   return { success: true, localId: newPlaylist.id, title: newPlaylist.title, trackCount: newPlaylist.tracks.length };
 }));
 
+// Lyrics endpoint - search and return lyrics with timestamps
+app.get('/api/lyrics', wrap(async (req) => {
+  const { q } = req.query;
+  if (!q) return { error: "Query parameter 'q' is required" };
+
+  try {
+    // First try to search for a matching track and get its lyrics
+    const searchResults = await yt.search(q, 'songs', 1);
+    if (searchResults && searchResults.length > 0) {
+      const track = searchResults[0];
+      if (track.videoId) {
+        const lyrics = await yt.getLyrics(track.videoId);
+        if (lyrics && lyrics.lyrics) {
+          // Format lyrics - try to preserve timestamps if they exist
+          let formattedLyrics = lyrics.lyrics;
+
+          // Check if lyrics already have timestamps
+          const hasTimestamps = /\[\d{1,2}:\d{2}(?:\.\d+)?\]/.test(formattedLyrics);
+
+          // If no timestamps, return as-is (each line can be clicked)
+          return { lyrics: formattedLyrics, source: lyrics.source };
+        }
+      }
+    }
+    // If no lyrics found, return a message
+    return { lyrics: "Napisy dla tego utworu nie są dostępne." };
+  } catch (error) {
+    console.warn("Lyrics fetch error:", error.message);
+    return { lyrics: "Błąd pobierania napisów. Spróbuj ponownie." };
+  }
+}));
+
 // Static files for production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../build')));

@@ -1,8 +1,8 @@
 import React from "react";
 import CoverArt from "../CoverArt";
-import { Play } from "../Icons";
+import { Play, Edit2, Trash2 } from "../Icons";
 
-export default function MediaCard({ item, onClick }) {
+export default function MediaCard({ item, onClick, onEdit, onDelete }) {
   return (
     <article
       className="media-card group cursor-pointer"
@@ -23,6 +23,38 @@ export default function MediaCard({ item, onClick }) {
             <Play size={24} fill="currentColor" />
           </button>
         </div>
+        {(onEdit || onDelete) && (
+          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                className="w-8 h-8 flex items-center justify-center text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
+                style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+                aria-label="Edytuj"
+              >
+                <Edit2 size={16} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="w-8 h-8 flex items-center justify-center text-red-400 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
+                style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+                aria-label="Usuń"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="media-card__body mt-4 px-1">
         <h3

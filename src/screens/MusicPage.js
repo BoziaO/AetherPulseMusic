@@ -22,6 +22,7 @@ import ChartRow from "../components/music/ChartRow";
 import QueueTable from "../components/music/QueueTable";
 import CreatePlaylistModal from "../components/CreatePlaylistModal";
 import AddTrackModal from "../components/AddTrackModal";
+import EditPlaylistModal from "../components/EditPlaylistModal";
 
 function MusicPage({ pageKey }) {
   const location = useLocation();
@@ -44,6 +45,8 @@ function MusicPage({ pageKey }) {
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddTrackModal, setShowAddTrackModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedPlaylistForEdit, setSelectedPlaylistForEdit] = useState(null);
 
   // Fix: correct path — authSession.data.auth.connected (not authSession.auth.connected)
   const isConnected = authSession?.data?.auth?.connected;
@@ -275,6 +278,23 @@ function MusicPage({ pageKey }) {
     }
   }
 
+  function handleEditPlaylist(playlist) {
+    setSelectedPlaylistForEdit(playlist);
+    setShowEditModal(true);
+  }
+
+  async function handleDeletePlaylist(playlist) {
+    if (!window.confirm(`Czy na pewno chcesz usunąć playlistę "${playlist.title}"? Tej akcji nie można cofnąć.`)) return;
+    try {
+      await fetchJson(`/api/ytmusic/playlist/${playlist.playlistId}`, { method: "DELETE" });
+      showToast("Playlista usunięta.", "success");
+      fetchPlaylists();
+    } catch (err) {
+      console.error("Błąd usuwania playlisty:", err);
+      showToast("Nie udało się usunąć playlisty.", "error");
+    }
+  }
+
   const fallbackPage = pageContent[pageKey] || pageContent.home;
   const serverPageData = ["favorites", "recent"].includes(pageKey) ? null : pageData;
   let page = {
@@ -382,6 +402,8 @@ function MusicPage({ pageKey }) {
             cover: pl.thumbnail || (pl.thumbnails && (pl.thumbnails[0]?.url || pl.thumbnails.url)),
             meta: `${pl.trackCount ? `${pl.trackCount} utworów` : "Playlista"}`,
             onClick: () => fetchPlaylistDetails(browseId),
+            onEdit: pl.source === "google" ? () => handleEditPlaylist(pl) : undefined,
+            onDelete: pl.source === "google" ? () => handleDeletePlaylist(pl) : undefined,
           };
         })
       : isSearching
@@ -790,6 +812,44 @@ function MusicPage({ pageKey }) {
             }
           }}
           onCancel={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {showEditModal && selectedPlaylistForEdit && (
+        <EditPlaylistModal
+          playlist={selectedPlaylistForEdit}
+          onConfirm={async (data) => {
+            try {
+              await fetchJson(`/api/ytmusic/playlist/${selectedPlaylistForEdit.playlistId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+              });
+              showToast("Playlista zaktualizowana!", "success");
+              setShowEditModal(false);
+              setSelectedPlaylistForEdit(null);
+              fetchPlaylists();
+            } catch (error) {
+              console.error("Edit playlist error:", error);
+              showToast("Nie udało się zaktualizować playlisty.", "error");
+            }
+          }}
+          onDelete={async () => {
+            try {
+              await fetchJson(`/api/ytmusic/playlist/${selectedPlaylistForEdit.playlistId}`, { method: "DELETE" });
+              showToast("Playlista usunięta.", "success");
+              setShowEditModal(false);
+              setSelectedPlaylistForEdit(null);
+              fetchPlaylists();
+            } catch (error) {
+              console.error("Delete playlist error:", error);
+              showToast("Nie udało się usunąć playlisty.", "error");
+            }
+          }}
+          onCancel={() => {
+            setShowEditModal(false);
+            setSelectedPlaylistForEdit(null);
+          }}
         />
       )}
     </div>

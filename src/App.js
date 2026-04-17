@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import ErrorBoundary from "./components/ErrorBoundary";
 import MusicPage from "./screens/MusicPage";
+import SettingsPage from "./screens/SettingsPage";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
               <Route path="artist/:artistId" element={<MusicPage pageKey="artist" />} />
               <Route path="albums" element={<MusicPage pageKey="albums" />} />
               <Route path="album/:albumId" element={<MusicPage pageKey="album" />} />
+              <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

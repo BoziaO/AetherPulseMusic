@@ -4,10 +4,11 @@ import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Menu, Music, Search, Sparkles, X } from "./Icons";
+import { Bell, Menu, Music, Search, Settings, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
 import { useToast } from "./Toast";
+import { useTheme } from "../contexts/ThemeContext";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
 const FILTER_LABELS = { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" };
@@ -31,6 +32,7 @@ function AppShell() {
   const recentIds = recentPlays.map(p => p.videoId).filter(Boolean).slice(0, 5).join(',');
   const pageRequest = usePageData(currentPage.key, currentPage.key === "home" ? { recent: recentIds } : {});
   const showToast = useToast();
+  const { liquidGlassEnabled, blurIntensity, transparency } = useTheme();
 
   const resolvedUser = authSession.data?.auth?.user || userProfile;
 
@@ -492,8 +494,15 @@ function AppShell() {
         style={{ backgroundColor: "var(--bg-main)" }}
       >
         <header
-          className="flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] backdrop-blur-md py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px]"
-          style={{ backgroundColor: "color-mix(in srgb, var(--bg-main) 80%, transparent)" }}
+          className={`flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px] ${
+            liquidGlassEnabled ? 'backdrop-blur' : ''
+          }`}
+          style={{
+            backgroundColor: liquidGlassEnabled
+              ? `rgba(var(--bg-main-rgb, 5, 8, 22), ${transparency})`
+              : "color-mix(in srgb, var(--bg-main) 80%, transparent)",
+            backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
+          }}
         >
           <button
             type="button"
@@ -541,11 +550,16 @@ function AppShell() {
 
             {showSearch && (
               <div
-                className="absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]"
+                className={`absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110] ${
+                  liquidGlassEnabled ? 'backdrop-blur' : ''
+                }`}
                 style={{
-                  backgroundColor: "var(--bg-panel)",
+                  backgroundColor: liquidGlassEnabled
+                    ? `rgba(var(--bg-panel-rgb, 16, 23, 42), ${transparency})`
+                    : "var(--bg-panel)",
                   border: "1px solid var(--surface-line)",
                   boxShadow: "var(--shadow-card)",
+                  backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
                 }}
               >
                 <div className="p-3 sm:p-4 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
@@ -605,6 +619,14 @@ function AppShell() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-5 sm:ml-4 lg:ml-8">
+            <button
+              onClick={() => navigate("/settings")}
+              className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
+              style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
+              title="Ustawienia"
+            >
+              <Settings size={22} />
+            </button>
             <button
               className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
               style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}

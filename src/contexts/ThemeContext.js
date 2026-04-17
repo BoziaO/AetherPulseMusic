@@ -133,6 +133,50 @@ export function ThemeProvider({ children }) {
   const [textColor, setTextColorState] = useState(saved?.textColor || "");
   const [customBase, setCustomBaseState] = useState(saved?.customBase || "dark");
 
+  // Ustawienia strony
+  const [liquidGlassEnabled, setLiquidGlassEnabledState] = useState(() => {
+    try {
+      const pageSettings = JSON.parse(localStorage.getItem("bm-page-settings") || "{}");
+      return pageSettings.liquidGlassEnabled ?? true;
+    } catch {
+      return true;
+    }
+  });
+  const [blurIntensity, setBlurIntensityState] = useState(() => {
+    try {
+      const pageSettings = JSON.parse(localStorage.getItem("bm-page-settings") || "{}");
+      return pageSettings.blurIntensity ?? 10;
+    } catch {
+      return 10;
+    }
+  });
+  const [transparency, setTransparencyState] = useState(() => {
+    try {
+      const pageSettings = JSON.parse(localStorage.getItem("bm-page-settings") || "{}");
+      return pageSettings.transparency ?? 0.8;
+    } catch {
+      return 0.8;
+    }
+  });
+
+  // Ustawienia dźwięku
+  const [defaultVolume, setDefaultVolumeState] = useState(() => {
+    try {
+      const audioSettings = JSON.parse(localStorage.getItem("bm-audio-settings") || "{}");
+      return audioSettings.defaultVolume ?? 80;
+    } catch {
+      return 80;
+    }
+  });
+  const [audioEffects, setAudioEffectsState] = useState(() => {
+    try {
+      const audioSettings = JSON.parse(localStorage.getItem("bm-audio-settings") || "{}");
+      return audioSettings.audioEffects ?? true;
+    } catch {
+      return true;
+    }
+  });
+
   function applyVars(themeName, primary, bg, text, base) {
     let vars;
     if (themeName === "custom") {
@@ -185,7 +229,26 @@ export function ThemeProvider({ children }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, primaryColor, setPrimaryColor, applyCustomTheme, bgColor, textColor, customBase }}>
+    <ThemeContext.Provider value={{
+      theme,
+      setTheme,
+      primaryColor,
+      setPrimaryColor,
+      applyCustomTheme,
+      bgColor,
+      textColor,
+      customBase,
+      liquidGlassEnabled,
+      setLiquidGlassEnabled: setLiquidGlassEnabledState,
+      blurIntensity,
+      setBlurIntensity: setBlurIntensityState,
+      transparency,
+      setTransparency: setTransparencyState,
+      defaultVolume,
+      setDefaultVolume: setDefaultVolumeState,
+      audioEffects,
+      setAudioEffects: setAudioEffectsState
+    }}>
       {children}
     </ThemeContext.Provider>
   );

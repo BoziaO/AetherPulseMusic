@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 
-function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube" }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+function EditPlaylistModal({ playlist, onConfirm, onCancel, onDelete }) {
+  const [title, setTitle] = useState(playlist?.title || "");
+  const [description, setDescription] = useState(playlist?.description || "");
   const [privacy, setPrivacy] = useState("PRIVATE");
-  const [type, setType] = useState(initialType);
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -13,6 +12,12 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
     e.preventDefault();
     if (!title.trim()) return;
     onConfirm({ title: title.trim(), description: description.trim(), privacyStatus: privacy });
+  }
+
+  function handleDelete() {
+    if (window.confirm("Czy na pewno chcesz usunąć tę playlistę? Tej akcji nie można cofnąć.")) {
+      onDelete();
+    }
   }
 
   const inputStyle = {
@@ -40,9 +45,9 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
           color: "var(--text-main)",
         }}
       >
-        <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-main)" }}>Nowa playlista</h2>
+        <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-main)" }}>Edytuj playlistę</h2>
         <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-          {type === "local" ? "Lokalna playlista zostanie utworzona." : "Playlista zostanie utworzona w YouTube Music."}
+          Zmiany zostaną zapisane w YouTube Music.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -55,7 +60,7 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               style={inputStyle}
-              placeholder="Moja playlista..."
+              placeholder="Nazwa playlisty..."
             />
           </div>
 
@@ -72,68 +77,42 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
             />
           </div>
 
-          {type !== "local" && (
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-soft)" }}>
-                Widoczność
-              </label>
-              <div className="flex gap-2">
-                {[
-                  { value: "PRIVATE", label: "Prywatna" },
-                  { value: "UNLISTED", label: "Niewidoczna" },
-                  { value: "PUBLIC", label: "Publiczna" },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPrivacy(opt.value)}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all"
-                    style={
-                      privacy === opt.value
-                        ? { backgroundColor: "var(--primary)", color: "#fff" }
-                        : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
-                    }
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-soft)" }}>
-              Typ playlisty
+              Widoczność
             </label>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setType("local")}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all"
-                style={
-                  type === "local"
-                    ? { backgroundColor: "var(--primary)", color: "#fff" }
-                    : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
-                }
-              >
-                Lokalna
-              </button>
-              <button
-                type="button"
-                onClick={() => setType("youtube")}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all"
-                style={
-                  type === "youtube"
-                    ? { backgroundColor: "var(--primary)", color: "#fff" }
-                    : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
-                }
-              >
-                YouTube Music
-              </button>
+              {[
+                { value: "PRIVATE", label: "Prywatna" },
+                { value: "UNLISTED", label: "Niewidoczna" },
+                { value: "PUBLIC", label: "Publiczna" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPrivacy(opt.value)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all"
+                  style={
+                    privacy === opt.value
+                      ? { backgroundColor: "var(--primary)", color: "#fff" }
+                      : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="px-4 py-3 rounded-full text-sm font-bold transition-colors text-red-400"
+              style={{ backgroundColor: "var(--bg-hover)" }}
+            >
+              Usuń
+            </button>
             <button
               type="button"
               onClick={onCancel}
@@ -148,7 +127,7 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
               className="flex-1 px-6 py-3 rounded-full text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-white"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              Utwórz
+              Zapisz
             </button>
           </div>
         </form>
@@ -157,4 +136,4 @@ function CreatePlaylistModal({ onConfirm, onCancel, type: initialType = "youtube
   );
 }
 
-export default CreatePlaylistModal;
+export default EditPlaylistModal;

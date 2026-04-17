@@ -193,7 +193,8 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     applyVars(theme, primaryColor, bgColor, textColor, customBase);
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, primaryColor, bgColor, textColor, customBase]);
 
   function persist(state) {
     localStorage.setItem("bm-theme-state", JSON.stringify(state));
@@ -228,6 +229,22 @@ export function ThemeProvider({ children }) {
     applyVars("custom", p, b, t, base2);
   }
 
+  // Auto-persist page settings on change
+  useEffect(() => {
+    localStorage.setItem("bm-page-settings", JSON.stringify({ liquidGlassEnabled, blurIntensity, transparency }));
+  }, [liquidGlassEnabled, blurIntensity, transparency]);
+
+  // Auto-persist audio settings on change
+  useEffect(() => {
+    localStorage.setItem("bm-audio-settings", JSON.stringify({ defaultVolume, audioEffects }));
+  }, [defaultVolume, audioEffects]);
+
+  function setLiquidGlassEnabled(val) { setLiquidGlassEnabledState(val); }
+  function setBlurIntensity(val) { setBlurIntensityState(Number(val)); }
+  function setTransparency(val) { setTransparencyState(Number(val)); }
+  function setDefaultVolume(val) { setDefaultVolumeState(Number(val)); }
+  function setAudioEffects(val) { setAudioEffectsState(val); }
+
   return (
     <ThemeContext.Provider value={{
       theme,
@@ -239,15 +256,15 @@ export function ThemeProvider({ children }) {
       textColor,
       customBase,
       liquidGlassEnabled,
-      setLiquidGlassEnabled: setLiquidGlassEnabledState,
+      setLiquidGlassEnabled,
       blurIntensity,
-      setBlurIntensity: setBlurIntensityState,
+      setBlurIntensity,
       transparency,
-      setTransparency: setTransparencyState,
+      setTransparency,
       defaultVolume,
-      setDefaultVolume: setDefaultVolumeState,
+      setDefaultVolume,
       audioEffects,
-      setAudioEffects: setAudioEffectsState
+      setAudioEffects
     }}>
       {children}
     </ThemeContext.Provider>

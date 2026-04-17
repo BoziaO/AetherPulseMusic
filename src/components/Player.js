@@ -96,17 +96,24 @@ function Player({
           <CoverArt art={track?.art} compact />
         </div>
         <div className="min-w-0 flex-1">
-          <p
-            className="font-black truncate text-sm tracking-tight"
-            style={{ color: "var(--text-main)" }}
-          >
-            {track?.title || "AetherPulse Mix"}
-          </p>
+          <div className="flex items-center gap-2">
+            <p
+              className="font-black truncate text-sm tracking-tight"
+              style={{ color: "var(--text-main)" }}
+            >
+              {track?.title || "BoziaMusic Mix"}
+            </p>
+            {isPlaying && (
+              <div className="wave-bars flex-shrink-0">
+                <span /><span /><span /><span />
+              </div>
+            )}
+          </div>
           <p
             className="text-[11px] font-bold truncate mt-1 uppercase tracking-wider"
             style={{ color: "var(--text-muted)" }}
           >
-            {track?.artist || "AetherPulse Originals"}
+            {track?.artist || "BoziaMusic Originals"}
           </p>
         </div>
         {onToggleFavorite && (

@@ -23,16 +23,20 @@ import QueueTable from "../components/music/QueueTable";
 import CreatePlaylistModal from "../components/CreatePlaylistModal";
 import AddTrackModal from "../components/AddTrackModal";
 import EditPlaylistModal from "../components/EditPlaylistModal";
+import PageSkeleton from "../components/PageSkeleton";
 
 function MusicPage({ pageKey }) {
   const location = useLocation();
   const { artistId, albumId } = useParams();
   const {
     pageData,
+    pageLoading,
     play,
     query,
+    searchFilter,
     searchResults,
     authSession,
+    favorites,
     favoriteItems = [],
     recentPlays = [],
   } = useOutletContext();
@@ -410,11 +414,21 @@ function MusicPage({ pageKey }) {
       ? liveSearchItems
       : page.primarySection.items;
 
+  // Page-level skeleton (first load from API)
+  if (pageLoading && !pageData) {
+    return <PageSkeleton />;
+  }
+
   if (loadingPlaylist) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <RefreshCw className="animate-spin text-[var(--primary)]" size={48} />
-        <p className="text-neutral-400 animate-pulse font-medium">Ładowanie zawartości...</p>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-5">
+        <div className="loading-spinner" />
+        <p
+          className="text-xs font-black uppercase tracking-widest animate-pulse"
+          style={{ color: "var(--text-soft)" }}
+        >
+          Ładowanie zawartości...
+        </p>
       </div>
     );
   }
@@ -428,14 +442,14 @@ function MusicPage({ pageKey }) {
     return (
       <div className="page space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
         <section className="page-hero flex flex-col md:flex-row gap-10 items-end">
-          <div className="w-full md:w-72 h-72 flex-shrink-0 rounded-[40px] overflow-hidden shadow-2xl bg-neutral-900 border border-white/5 group">
+          <div className="w-full md:w-72 h-72 flex-shrink-0 rounded-[40px] overflow-hidden shadow-2xl group" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--surface-line)" }}>
             <CoverArt art={playlistCover} />
           </div>
           <div className="flex-1 space-y-6">
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setSelectedPlaylist(null)}
-                className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-white hover:scale-105 active:scale-95"
+                className="p-3 rounded-2xl hover:scale-105 active:scale-95 transition-all"
               >
                 <ArrowLeft size={24} />
               </button>
@@ -457,23 +471,23 @@ function MusicPage({ pageKey }) {
                 </span>
               )}
               {(!isLocalPlaylist && pageKey !== "artist" && pageKey !== "album") && (
-                <span className="text-[10px] text-neutral-500 font-medium">
+                <span className="text-[10px] font-medium" style={{ color: "var(--text-soft)" }}>
                   Kliknij „Importuj i edytuj" aby edytować lokalnie
                 </span>
               )}
             </div>
-            <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight font-display tracking-tight">
+            <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>
               {selectedPlaylist.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-400 font-medium">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               <span>
-                Autor: <span className="text-white">{selectedPlaylist.author}</span>
+                Autor: <span style={{ color: "var(--text-main)" }}>{selectedPlaylist.author}</span>
               </span>
-              <span className="w-1 h-1 bg-neutral-700 rounded-full"></span>
+              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "var(--surface-line-strong)" }}></span>
               <span>{selectedPlaylist.trackCount} utworów</span>
               {selectedPlaylist.duration && (
                 <>
-                  <span className="w-1 h-1 bg-neutral-700 rounded-full"></span>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "var(--surface-line-strong)" }}></span>
                   <span>{selectedPlaylist.duration}</span>
                 </>
               )}
@@ -487,7 +501,7 @@ function MusicPage({ pageKey }) {
                   if (first) play?.(first);
                   else showToast("Playlista jest pusta.", "info");
                 }}
-                className="flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-white font-bold transition-all hover:scale-105 active:scale-95 shadow-2xl"
+                className="flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-white font-bold transition-all hover:scale-105 active:scale-95 shadow-2xl" style={{ backgroundColor: "var(--primary)" }}
                 style={{ backgroundColor: "var(--primary)", boxShadow: "0 18px 45px color-mix(in srgb, var(--primary) 28%, transparent)" }}
               >
                 <Play size={20} fill="white" />
@@ -496,7 +510,7 @@ function MusicPage({ pageKey }) {
               {isLocalPlaylist && (
                 <button
                   onClick={() => setShowAddTrackModal(true)}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
+                  className="flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all" style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)", border: "1px solid var(--surface-line)" }}
                 >
                   <Plus size={20} />
                   Dodaj utwór
@@ -508,7 +522,7 @@ function MusicPage({ pageKey }) {
                   type="button"
                   onClick={handleImportYtPlaylist}
                   disabled={importingYt}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5 disabled:opacity-60 disabled:cursor-wait"
+                  className="flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all disabled:opacity-60 disabled:cursor-wait" style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)", border: "1px solid var(--surface-line)" }}
                 >
                   {importingYt ? (
                     <>
@@ -527,7 +541,7 @@ function MusicPage({ pageKey }) {
               {(ytMusicHeaders && !isLocalPlaylist && pageKey !== "artist" && pageKey !== "album") && (
                 <button
                   onClick={() => setShowAddTrackModal(true)}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
+                  className="flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all" style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)", border: "1px solid var(--surface-line)" }}
                 >
                   <Edit2 size={20} />
                   Edytuj (InnerTube)
@@ -548,7 +562,7 @@ function MusicPage({ pageKey }) {
                       })
                       .catch(() => showToast("Błąd usuwania playlisty.", "error"));
                   }}
-                  className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-red-400 font-bold transition-all hover:bg-red-400/10 border border-white/5"
+                  className="flex items-center gap-3 px-8 py-4 rounded-full font-bold transition-all" style={{ backgroundColor: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
                 >
                   <Trash2 size={20} />
                   Usuń
@@ -558,16 +572,16 @@ function MusicPage({ pageKey }) {
           </div>
         </section>
 
-        <section className="bg-neutral-900/30 rounded-[40px] border border-white/5 overflow-hidden">
+        <section className="rounded-[40px] overflow-hidden" style={{ backgroundColor: "var(--bg-panel)", border: "1px solid var(--surface-line)" }}>
           <div className="p-8">
             {(selectedPlaylist.tracks || []).length === 0 ? (
-              <div className="text-center py-16 text-neutral-500 font-medium italic">
+              <div className="text-center py-16 font-medium italic" style={{ color: "var(--text-soft)" }}>
                 Ta playlista jest pusta.
               </div>
             ) : (
               <table className="w-full text-left border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-widest font-black text-neutral-500">
+                  <tr className="text-[10px] uppercase tracking-widest font-black" style={{ color: "var(--text-soft)" }}>
                     <th className="px-4 py-2 w-12 text-center">#</th>
                     <th className="px-4 py-2">Tytuł</th>
                     <th className="px-4 py-2 hidden md:table-cell">Album</th>
@@ -579,15 +593,15 @@ function MusicPage({ pageKey }) {
                   {(selectedPlaylist.tracks || []).map((track, idx) => (
                     <tr
                       key={track.videoId + idx}
-                      className="group hover:bg-white/5 transition-all cursor-pointer"
+                      className="group transition-all cursor-pointer" style={{ }}
                       onClick={() => play?.(track)}
                     >
-                      <td className="px-4 py-4 rounded-l-2xl text-center text-sm font-bold text-neutral-600 group-hover:text-red-500">
+                      <td className="px-4 py-4 rounded-l-2xl text-center text-sm font-bold" style={{ color: "var(--text-soft)" }}>
                         {idx + 1}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-800 border border-white/5">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--surface-line)" }}>
                             {(track.thumbnail || track.thumbnails?.[0]?.url) && (
                               <img
                                 src={track.thumbnail || track.thumbnails?.[0]?.url}
@@ -597,10 +611,10 @@ function MusicPage({ pageKey }) {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-white truncate group-hover:text-red-400 transition-colors">
+                            <p className="font-bold truncate transition-colors" style={{ color: "var(--text-main)" }}>
                               {track.title}
                             </p>
-                            <p className="text-xs text-neutral-500 truncate mt-1">
+                            <p className="text-xs truncate mt-1" style={{ color: "var(--text-muted)" }}>
                               {Array.isArray(track.artists)
                                 ? track.artists.map((a) => a.name).join(", ")
                                 : track.author}
@@ -608,10 +622,10 @@ function MusicPage({ pageKey }) {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-neutral-400 hidden md:table-cell">
+                      <td className="px-4 py-4 text-sm hidden md:table-cell" style={{ color: "var(--text-muted)" }}>
                         {track.album?.name || "—"}
                       </td>
-                      <td className="px-4 py-4 text-right pr-6 text-sm font-mono text-neutral-500 group-hover:text-neutral-300">
+                      <td className="px-4 py-4 text-right pr-6 text-sm font-mono" style={{ color: "var(--text-soft)" }}>
                         {track.duration}
                       </td>
                       {isLocalPlaylist && (
@@ -621,7 +635,7 @@ function MusicPage({ pageKey }) {
                               e.stopPropagation();
                               handleRemoveTrack(selectedPlaylist.playlistId, track.videoId, track.setVideoId);
                             }}
-                            className="p-2 text-neutral-600 hover:text-red-500 transition-colors"
+                            className="p-2 transition-colors" style={{ color: "var(--text-soft)" }}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -655,10 +669,10 @@ function MusicPage({ pageKey }) {
       <header className="page-header relative">
         <div className="absolute -top-24 -left-24 w-96 h-96 blur-[120px] rounded-full pointer-events-none" style={{ backgroundColor: "color-mix(in srgb, var(--primary) 14%, transparent)" }}></div>
         <p className="text-xs sm:text-sm font-black uppercase tracking-[0.22em] sm:tracking-[0.3em] mb-4" style={{ color: "var(--primary)" }}>{page.eyebrow}</p>
-        <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold text-white mb-4 sm:mb-6 font-display tracking-tight leading-none">
+        <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6 tracking-tight leading-none" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>
           {isSearching ? "Wyniki wyszukiwania" : page.title}
         </h1>
-        <p className="text-base sm:text-xl text-neutral-400 max-w-3xl leading-relaxed font-medium">
+        <p className="text-base sm:text-xl max-w-3xl leading-relaxed font-medium" style={{ color: "var(--text-muted)" }}>
           {isSearching ? `Znaleziono wyniki dla frazy "${query}"` : page.description}
         </p>
 
@@ -666,7 +680,7 @@ function MusicPage({ pageKey }) {
           {page.chips?.map((chip) => (
             <button
               key={chip}
-              className="px-5 sm:px-6 py-2.5 rounded-full bg-neutral-900 border border-white/5 text-xs sm:text-sm font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 hover:border-white/10 transition-all active:scale-95 whitespace-nowrap"
+              className="px-5 sm:px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all active:scale-95 whitespace-nowrap" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--surface-line)", color: "var(--text-muted)" }}
             >
               {chip}
             </button>
@@ -710,8 +724,8 @@ function MusicPage({ pageKey }) {
               ))}
             </div>
             {displayItems.length === 0 && (
-              <div className="text-center py-16 sm:py-20 bg-neutral-900/50 rounded-[32px] sm:rounded-[40px] border border-dashed border-white/10 px-6">
-                <p className="text-neutral-500 font-medium italic">
+              <div className="text-center py-16 sm:py-20 rounded-[32px] sm:rounded-[40px] px-6" style={{ backgroundColor: "var(--bg-panel)", border: "2px dashed var(--surface-line)" }}>
+                <p className="font-medium italic" style={{ color: "var(--text-soft)" }}>
                   {pageKey === "playlists" && importing
                     ? "Ładowanie playlist..."
                     : pageKey === "favorites"
@@ -767,8 +781,8 @@ function MusicPage({ pageKey }) {
 
         <aside className="space-y-8 lg:space-y-12 lg:sticky lg:top-24">
           {page.chartItems?.length > 0 && !isSearching && (
-            <section className="bg-neutral-900/50 border border-white/5 p-8 rounded-[40px] backdrop-blur-sm">
-              <h2 className="text-2xl font-bold text-white mb-8 font-display">{page.chartTitle}</h2>
+            <section className="p-8 rounded-[40px]" style={{ backgroundColor: "var(--bg-panel)", border: "1px solid var(--surface-line)" }}>
+              <h2 className="text-2xl font-black mb-8" style={{ fontFamily: '\"Space Grotesk\", sans-serif', color: "var(--text-main)" }}>{page.chartTitle}</h2>
               <div className="space-y-2">
                 {page.chartItems.map((item, idx) => (
                   <ChartRow key={idx} item={item} />
@@ -780,12 +794,12 @@ function MusicPage({ pageKey }) {
           {!isSearching && (
             <div className="p-6 sm:p-8 rounded-[32px] sm:rounded-[40px] shadow-2xl group cursor-pointer overflow-hidden relative"
               style={{ background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 45%, #050816))", boxShadow: "0 24px 60px color-mix(in srgb, var(--primary) 18%, transparent)" }}>
-              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-              <h3 className="text-2xl font-black text-white mb-2 italic uppercase">Focus Mode</h3>
-              <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">
+              <div className="absolute -right-8 -bottom-8 w-32 h-32 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700" style={{ backgroundColor: "color-mix(in srgb, var(--primary) 20%, transparent)" }}></div>
+              <h3 className="text-2xl font-black mb-2 italic uppercase" style={{ color: "var(--text-main)" }}>Focus Mode</h3>
+              <p className="text-sm font-medium leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
                 Używaj skrótów: / wyszukuje, spacja lub K pauzuje, strzałki przełączają utwory.
               </p>
-              <button className="w-full py-4 bg-white font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-neutral-100 transition-colors shadow-xl" style={{ color: "var(--primary)" }}>
+              <button className="w-full py-4 font-black text-sm uppercase tracking-widest rounded-2xl transition-colors shadow-xl" style={{ backgroundColor: "var(--text-main)", color: "var(--primary)" }} style={{ color: "var(--primary)" }}>
                 Ergonomia ON
               </button>
             </div>

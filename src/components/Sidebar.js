@@ -64,10 +64,10 @@ function Sidebar({ isOpen = false, onClose }) {
           </div>
           <div>
             <h2 className="text-lg font-black tracking-tighter uppercase italic leading-tight" style={{ color: "var(--text-main)" }}>
-              AetherPulse<span style={{ color: "var(--primary)" }}>|Music</span>
+              Bozia<span style={{ color: "var(--primary)" }}>Music</span>
             </h2>
             <p className="text-[9px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-soft)" }}>
-              Adaptive player
+              YT Music Player
             </p>
           </div>
         </div>

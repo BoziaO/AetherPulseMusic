@@ -647,3 +647,203 @@ button { cursor: pointer; }
     border-radius: 16px;
   }
 }
+
+/* ========================
+   SKELETON LOADING
+   ======================== */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--bg-card-hover) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 12px;
+}
+
+.skeleton--text {
+  height: 14px;
+  border-radius: 8px;
+}
+
+.skeleton--title {
+  height: 20px;
+  border-radius: 8px;
+}
+
+.skeleton--card {
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+}
+
+.skeleton--circle {
+  border-radius: 999px;
+}
+
+/* ========================
+   PAGE LOADING OVERLAY
+   ======================== */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-smooth {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse-ring {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50%       { transform: scale(1.15); opacity: 1; }
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-top-color: var(--primary);
+  animation: spin-smooth 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.loading-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pulse-bars 0.8s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+/* ========================
+   STAGGERED CHILDREN ENTER
+   ======================== */
+.stagger-children > * {
+  animation: fade-in-up 400ms ease both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+
+/* ========================
+   WAVEFORM / NOW PLAYING
+   ======================== */
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.4); }
+  50%       { transform: scaleY(1); }
+}
+
+.wave-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 18px;
+}
+
+.wave-bars span {
+  width: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform-origin: bottom;
+  animation: wave-bar 0.8s ease-in-out infinite;
+}
+
+.wave-bars span:nth-child(1) { height: 60%; animation-delay: 0s; }
+.wave-bars span:nth-child(2) { height: 100%; animation-delay: 0.15s; }
+.wave-bars span:nth-child(3) { height: 75%; animation-delay: 0.3s; }
+.wave-bars span:nth-child(4) { height: 50%; animation-delay: 0.45s; }
+
+/* ========================
+   GLASS CARD EFFECT
+   ======================== */
+.glass-card {
+  background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-line);
+}
+
+/* ========================
+   HOVER LIFT
+   ======================== */
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================
+   TRACK PLAYING INDICATOR
+   ======================== */
+.playing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+.playing-indicator i {
+  display: block;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  animation: wave-bar 0.9s ease-in-out infinite;
+}
+.playing-indicator i:nth-child(1) { height: 10px; animation-delay: 0s; }
+.playing-indicator i:nth-child(2) { height: 16px; animation-delay: 0.2s; }
+.playing-indicator i:nth-child(3) { height: 8px;  animation-delay: 0.4s; }
+
+/* ========================
+   PAGE TRANSITION (softer)
+   ======================== */
+.page {
+  animation: fade-in-up 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ========================
+   SCROLLABLE FADE EDGES
+   ======================== */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 24px),
+    transparent 100%
+  );
+}
+
+/* ========================
+   TOAST IMPROVEMENTS
+   ======================== */
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(16px) scale(0.96); }
+}

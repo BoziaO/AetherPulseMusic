@@ -24,7 +24,7 @@ function AppShell() {
   const authSession = useAuthSession();
   const [recentPlays, setRecentPlays] = useState(() => {
     try {
-      return JSON.parse(window.localStorage.getItem("aetherpulse:recent") || "[]");
+      return JSON.parse(window.localStorage.getItem("boziamusic:recent") || "[]");
     } catch {
       return [];
     }
@@ -65,14 +65,14 @@ function AppShell() {
   // Favorites state
   const [favorites, setFavorites] = useState(() => {
     try {
-      return new Set(JSON.parse(window.localStorage.getItem("aetherpulse:favorites") || "[]"));
+      return new Set(JSON.parse(window.localStorage.getItem("boziamusic:favorites") || "[]"));
     } catch {
       return new Set();
     }
   });
   const [favoriteTracks, setFavoriteTracks] = useState(() => {
     try {
-      return JSON.parse(window.localStorage.getItem("aetherpulse:favoriteTracks") || "{}");
+      return JSON.parse(window.localStorage.getItem("boziamusic:favoriteTracks") || "{}");
     } catch {
       return {};
     }
@@ -92,12 +92,12 @@ function AppShell() {
   useEffect(() => { pageQueueRef.current = pageRequest.data?.queue || []; }, [pageRequest.data]);
 
   useEffect(() => {
-    window.localStorage.setItem("aetherpulse:favorites", JSON.stringify(Array.from(favorites)));
-    window.localStorage.setItem("aetherpulse:favoriteTracks", JSON.stringify(favoriteTracks));
+    window.localStorage.setItem("boziamusic:favorites", JSON.stringify(Array.from(favorites)));
+    window.localStorage.setItem("boziamusic:favoriteTracks", JSON.stringify(favoriteTracks));
   }, [favorites, favoriteTracks]);
 
   useEffect(() => {
-    window.localStorage.setItem("aetherpulse:recent", JSON.stringify(recentPlays));
+    window.localStorage.setItem("boziamusic:recent", JSON.stringify(recentPlays));
   }, [recentPlays]);
 
   // Load YouTube IFrame API once on mount

@@ -8,7 +8,7 @@ const fs = require('fs');
 const yt = require('./ytmusic');
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 5000) : (process.env.BACKEND_PORT || 3001);
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -21,8 +21,25 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5000',
+  'http://localhost:5000',
+  'http://localhost:3002',
+  'http://0.0.0.0:5000',
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3002',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+    if (
+      allowedOrigins.includes(origin) ||
+      (replitDomain && origin.includes(replitDomain))
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -694,19 +711,21 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../build')));
 }
 
-// Root Route
-app.get('/', (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
+// Catch-all for React Router (production)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, '../build', 'index.html');
     res.sendFile(indexPath, (err) => {
       if (err) {
         res.status(500).send("Build folder missing. Run 'npm run build' first.");
       }
     });
-  } else {
-    res.send('BoziaMusic API Server is running. Frontend is usually on port 3002 during development.');
-  }
-});
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('BoziaMusic API Server is running on port 3001. Frontend is on port 5000 during development.');
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

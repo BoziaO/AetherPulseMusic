@@ -25,11 +25,11 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "client": "cross-env PORT=3002 react-scripts start",
+    "client": "cross-env PORT=5000 HOST=0.0.0.0 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "dev": "concurrently --kill-others \"npm run server:dev\" \"npm run client\"",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
-    "start": "react-scripts start",
+    "start": "cross-env PORT=5000 HOST=0.0.0.0 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -40,6 +40,7 @@
       "react-app/jest"
     ]
   },
+  "proxy": "http://localhost:3001",
   "browserslist": {
     "production": [
       ">0.2%",

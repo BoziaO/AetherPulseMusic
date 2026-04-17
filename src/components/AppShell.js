@@ -404,19 +404,34 @@ function AppShell() {
   const showSearch = searchOpen && query.trim().length >= 2;
 
   return (
-    <div className="flex bg-black min-h-screen font-sans text-neutral-200">
+    <div
+      className="flex min-h-screen font-sans"
+      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+    >
       <Sidebar />
 
-      <main className="flex-1 ml-[280px] p-10 pb-40 overflow-x-hidden">
+      <main className="flex-1 ml-[260px] p-10 pb-40 overflow-x-hidden" style={{ backgroundColor: "var(--bg-main)" }}>
         {/* Top Header */}
-        <header className="flex items-center justify-between mb-12 sticky top-0 z-[100] bg-black/50 backdrop-blur-md py-4 -mt-4 px-4 rounded-b-[32px]">
+        <header
+          className="flex items-center justify-between mb-12 sticky top-0 z-[100] backdrop-blur-md py-4 -mt-4 px-4 rounded-b-[32px]"
+          style={{ backgroundColor: "color-mix(in srgb, var(--bg-main) 80%, transparent)" }}
+        >
           <div className="flex-1 max-w-2xl relative" ref={searchRef}>
             <div className="relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500 group-focus-within:text-red-500 transition-colors" size={20} />
+              <Search
+                size={20}
+                className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: "var(--text-soft)" }}
+              />
               <input
                 type="text"
                 placeholder={currentPage.searchPlaceholder || "Szukaj..."}
-                className="w-full bg-neutral-900/80 border border-white/5 rounded-2xl py-4 pl-14 pr-12 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/40 transition-all text-sm font-medium placeholder:text-neutral-600 shadow-xl"
+                className="w-full rounded-2xl py-4 pl-14 pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
+                style={{
+                  backgroundColor: "var(--bg-input)",
+                  border: "1px solid var(--surface-line)",
+                  color: "var(--text-main)",
+                }}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -427,7 +442,8 @@ function AppShell() {
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-full text-neutral-500 hover:text-white transition-all"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all"
+                  style={{ color: "var(--text-muted)" }}
                 >
                   <X size={16} />
                 </button>
@@ -435,51 +451,63 @@ function AppShell() {
             </div>
 
             {showSearch && (
-              <div className="absolute top-full left-0 right-0 mt-4 bg-neutral-900 border border-white/10 rounded-[32px] shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]">
-                <div className="p-4 border-b border-white/5 flex gap-2">
+              <div
+                className="absolute top-full left-0 right-0 mt-4 rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110]"
+                style={{
+                  backgroundColor: "var(--bg-panel)",
+                  border: "1px solid var(--surface-line)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div className="p-4 flex gap-2" style={{ borderBottom: "1px solid var(--surface-line)" }}>
                   {SEARCH_FILTERS.map((f) => (
                     <button
                       key={f}
                       onClick={() => setSearchFilter(f)}
-                      className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
-                        searchFilter === f ? "bg-red-500 text-white" : "bg-white/5 text-neutral-500 hover:text-white"
-                      }`}
+                      className="px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all"
+                      style={searchFilter === f
+                        ? { backgroundColor: "var(--primary)", color: "#fff" }
+                        : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
+                      }
                     >
                       {FILTER_LABELS[f]}
                     </button>
                   ))}
                 </div>
 
-                <div className="max-h-[480px] overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                <div className="max-h-[480px] overflow-y-auto p-3 space-y-1">
                   {searchLoading ? (
                     <div className="p-12 flex flex-col items-center justify-center gap-4">
-                      <div className="w-8 h-8 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin"></div>
-                      <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Przeszukiwanie bazy...</p>
+                      <div className="w-8 h-8 border-4 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }}></div>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>Przeszukiwanie bazy...</p>
                     </div>
                   ) : searchResults.length > 0 ? (
                     searchResults.map((item, idx) => (
                       <button
                         key={idx}
-                        className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
+                        className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-left group"
+                        style={{ color: "var(--text-main)" }}
                         onClick={() => handleSearchResultClick(item)}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                       >
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-neutral-800 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform" style={{ backgroundColor: "var(--bg-card)" }}>
                           {item.thumbnail && <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-white truncate group-hover:text-red-400 transition-colors">{item.title}</p>
-                          <p className="text-xs text-neutral-500 truncate mt-1">
+                          <p className="font-bold truncate" style={{ color: "var(--text-main)" }}>{item.title}</p>
+                          <p className="text-xs truncate mt-1" style={{ color: "var(--text-muted)" }}>
                             {item.artists?.map((a) => a.name).join(", ") || item.author || "YouTube Music"}
                           </p>
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-700 bg-white/5 px-2 py-1 rounded-md group-hover:text-red-500 group-hover:bg-red-500/10 transition-all">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md" style={{ color: "var(--text-soft)", backgroundColor: "var(--bg-hover)" }}>
                           {item.resultType}
                         </span>
                       </button>
                     ))
                   ) : (
                     <div className="p-12 text-center">
-                      <p className="text-neutral-500 font-medium">Brak wyników dla tej kategorii.</p>
+                      <p className="font-medium" style={{ color: "var(--text-muted)" }}>Brak wyników dla tej kategorii.</p>
                     </div>
                   )}
                 </div>
@@ -487,30 +515,37 @@ function AppShell() {
             )}
           </div>
 
-          <div className="flex items-center gap-6 ml-8">
-            <button className="relative p-2 text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90 group">
-              <Bell size={24} />
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-black group-hover:animate-ping"></span>
+          <div className="flex items-center gap-5 ml-8">
+            <button
+              className="relative p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
+              style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
+            >
+              <Bell size={22} />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ backgroundColor: "var(--primary)" }}></span>
             </button>
-            <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
+            <div className="h-7 w-px mx-1" style={{ backgroundColor: "var(--surface-line)" }}></div>
             {authSession.data?.auth?.connected ? (
               <div className="flex items-center gap-4">
                 <button
                   onClick={handleLogout}
-                  className="text-xs font-black uppercase tracking-widest text-neutral-500 hover:text-red-500 transition-colors"
+                  className="text-xs font-black uppercase tracking-widest transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                 >
                   Wyloguj
                 </button>
-                <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform cursor-pointer" style={{ border: "2px solid var(--surface-line)" }}>
                   {resolvedUser.picture && <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />}
                 </div>
               </div>
             ) : (
               <a
                 href={loginUrl}
-                className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-neutral-200 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-white/5"
+                className="flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
+                style={{ backgroundColor: "var(--primary)", color: "#fff" }}
               >
-                <Sparkles size={16} fill="black" />
+                <Sparkles size={16} fill="white" />
                 Zaloguj
               </a>
             )}

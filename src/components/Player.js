@@ -20,13 +20,15 @@ function formatTime(seconds) {
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
-// Repeat icon shows a "1" badge when repeat-one is active
 function RepeatIcon({ repeatMode, ...props }) {
   return (
     <span className="relative inline-flex items-center justify-center">
       <Repeat2 {...props} />
       {repeatMode === "one" && (
-        <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none">
+        <span
+          className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
           1
         </span>
       )}
@@ -60,38 +62,58 @@ function Player({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const pct = Math.max(0, Math.min(1, x / rect.width));
-    const seconds = pct * (audioDuration || 0);
-    onSeek?.(seconds);
+    onSeek?.(pct * (audioDuration || 0));
   };
 
   const handleVolumeClick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const pct = Math.max(0, Math.min(1, x / rect.width));
-    const vol = Math.round(pct * 100);
-    onVolumeChange?.(vol);
+    onVolumeChange?.(Math.round(pct * 100));
   };
 
   const repeatTitle =
     repeatMode === "none" ? "Włącz powtarzanie" :
-    repeatMode === "all" ? "Powtarzaj wszystko (klik → jeden)" :
-    "Powtarzaj jeden utwór (klik → wyłącz)";
+    repeatMode === "all" ? "Powtarzaj wszystko" :
+    "Powtarzaj jeden utwór";
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/5 px-8 py-4 flex items-center justify-between z-[200] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+    <footer
+      className="fixed bottom-0 left-0 right-0 px-8 py-4 flex items-center justify-between z-[200]"
+      style={{
+        backgroundColor: "var(--bg-player)",
+        borderTop: "1px solid var(--surface-line)",
+        backdropFilter: "blur(24px)",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.3)",
+      }}
+    >
       {/* Current Track Info */}
-      <div className="flex items-center gap-5 w-[320px] group">
-        <div className="w-16 h-16 rounded-[20px] overflow-hidden shadow-2xl border border-white/5 group-hover:scale-105 transition-transform duration-500 bg-neutral-900">
+      <div className="flex items-center gap-5 w-[300px] group min-w-0">
+        <div
+          className="w-14 h-14 rounded-[18px] overflow-hidden shadow-2xl group-hover:scale-105 transition-transform duration-500 flex-shrink-0"
+          style={{ border: "1px solid var(--surface-line)", backgroundColor: "var(--bg-card)" }}
+        >
           <CoverArt art={track?.art} compact />
         </div>
-        <div className="min-w-0">
-          <p className="font-black text-white truncate text-sm tracking-tight group-hover:text-red-400 transition-colors">{track?.title || "Bozia Mix"}</p>
-          <p className="text-[11px] text-neutral-500 font-bold truncate mt-1 uppercase tracking-wider">{track?.artist || "BoziaMusic Originals"}</p>
+        <div className="min-w-0 flex-1">
+          <p
+            className="font-black truncate text-sm tracking-tight"
+            style={{ color: "var(--text-main)" }}
+          >
+            {track?.title || "Bozia Mix"}
+          </p>
+          <p
+            className="text-[11px] font-bold truncate mt-1 uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {track?.artist || "BoziaMusic Originals"}
+          </p>
         </div>
         {onToggleFavorite && (
           <button
             onClick={onToggleFavorite}
-            className={`p-2 rounded-full hover:bg-white/5 transition-all ${isFavorite ? "text-red-500" : "text-neutral-600 hover:text-white"}`}
+            className="p-2 rounded-full transition-all flex-shrink-0"
+            style={{ color: isFavorite ? "var(--primary)" : "var(--text-soft)" }}
             title={isFavorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
           >
             <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
@@ -104,55 +126,60 @@ function Player({
         <div className="flex items-center gap-8">
           <button
             onClick={onToggleShuffle}
-            className={`transition-all hover:scale-110 ${isShuffled ? "text-red-500" : "text-neutral-500 hover:text-white"}`}
+            className="transition-all hover:scale-110"
+            style={{ color: isShuffled ? "var(--primary)" : "var(--text-soft)" }}
             title={isShuffled ? "Wyłącz losowe" : "Włącz losowe"}
           >
             <Shuffle size={18} />
           </button>
           <button
             onClick={() => onPrev?.()}
-            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90"
+            className="transition-all hover:scale-110 active:scale-90"
+            style={{ color: "var(--text-muted)" }}
             title="Poprzedni"
           >
-            <SkipBack size={24} fill="currentColor" />
+            <SkipBack size={22} fill="currentColor" />
           </button>
           <button
             onClick={onTogglePlay}
-            className="w-12 h-12 flex items-center justify-center bg-white text-black rounded-[18px] hover:scale-110 active:scale-95 transition-all shadow-xl shadow-white/10"
+            className="w-12 h-12 flex items-center justify-center rounded-[18px] hover:scale-110 active:scale-95 transition-all shadow-xl"
+            style={{ backgroundColor: "var(--text-main)", color: "var(--bg-main)" }}
             aria-label={isPlaying ? "Pauza" : "Odtwórz"}
-            title={isPlaying ? "Pauza" : "Odtwórz"}
           >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
           </button>
           <button
             onClick={() => onNext?.()}
-            className="text-neutral-400 hover:text-white transition-all hover:scale-110 active:scale-90"
+            className="transition-all hover:scale-110 active:scale-90"
+            style={{ color: "var(--text-muted)" }}
             title="Następny"
           >
-            <SkipForward size={24} fill="currentColor" />
+            <SkipForward size={22} fill="currentColor" />
           </button>
           <button
             onClick={onToggleRepeat}
-            className={`transition-all hover:scale-110 ${repeatMode !== "none" ? "text-red-500" : "text-neutral-500 hover:text-white"}`}
+            className="transition-all hover:scale-110"
+            style={{ color: repeatMode !== "none" ? "var(--primary)" : "var(--text-soft)" }}
             title={repeatTitle}
           >
             <RepeatIcon repeatMode={repeatMode} size={18} />
           </button>
         </div>
 
-        <div className="flex items-center gap-4 w-full text-[10px] font-black tracking-widest text-neutral-600 uppercase">
+        <div className="flex items-center gap-4 w-full text-[10px] font-black tracking-widest uppercase" style={{ color: "var(--text-soft)" }}>
           <span className="w-10 text-right">{formatTime(elapsedSeconds)}</span>
           <div
             onClick={handleProgressClick}
-            className="flex-1 h-1.5 bg-neutral-800/50 rounded-full relative group cursor-pointer overflow-visible"
+            className="flex-1 h-1.5 rounded-full relative group cursor-pointer overflow-visible"
+            style={{ backgroundColor: "var(--bg-hover-strong)" }}
           >
             <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-600 to-red-400 rounded-full transition-all duration-150 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
-              style={{ width: `${progress}%` }}
+              className="absolute inset-y-0 left-0 rounded-full transition-all duration-150"
+              style={{ width: `${progress}%`, background: "linear-gradient(to right, var(--primary), color-mix(in srgb, var(--primary) 70%, #ff9988))" }}
             />
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-0 group-hover:scale-100 border-2 border-red-500"
-              style={{ left: `${progress}%`, marginLeft: "-7px" }}
+              className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-0 group-hover:scale-100"
+              style={{ left: `${progress}%`, marginLeft: "-7px", backgroundColor: "var(--text-main)", border: "2px solid var(--primary)" }}
             />
           </div>
           <span className="w-10">{formatTime(Math.round(audioDuration || 0))}</span>
@@ -160,34 +187,31 @@ function Player({
       </div>
 
       {/* Extras and Volume */}
-      <div className="flex items-center justify-end gap-6 w-[320px]">
+      <div className="flex items-center justify-end gap-5 w-[300px]">
         {onHide && (
           <button
             type="button"
             onClick={onHide}
-            className="text-neutral-500 hover:text-white transition-all hover:rotate-90 duration-500"
+            className="transition-all hover:rotate-90 duration-500"
+            style={{ color: "var(--text-soft)" }}
             title="Ukryj"
           >
             <ArrowRight size={20} />
           </button>
         )}
-        <button className="text-neutral-500 hover:text-white transition-colors" title="Kolejka">
+        <button className="transition-colors" style={{ color: "var(--text-soft)" }} title="Kolejka">
           <LayoutGrid size={20} />
         </button>
-        <div className="flex items-center gap-4 w-36 group">
-          <div className="relative">
-            <Volume2 size={20} className="text-neutral-500 group-hover:text-white transition-colors" />
-            {volume === 0 && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[2px] bg-red-500 rotate-45"></div>
-            )}
-          </div>
+        <div className="flex items-center gap-3 w-36">
+          <Volume2 size={18} style={{ color: "var(--text-soft)" }} />
           <div
             onClick={handleVolumeClick}
-            className="flex-1 h-1.5 bg-neutral-800/50 rounded-full cursor-pointer relative overflow-hidden group/vol"
+            className="flex-1 h-1.5 rounded-full cursor-pointer relative overflow-hidden"
+            style={{ backgroundColor: "var(--bg-hover-strong)" }}
           >
             <div
-              className="h-full bg-neutral-500 group-hover/vol:bg-red-500 transition-all shadow-[0_0_8px_rgba(239,68,68,0.2)]"
-              style={{ width: `${volume}%` }}
+              className="h-full transition-all"
+              style={{ width: `${volume}%`, backgroundColor: "var(--primary)" }}
             />
           </div>
         </div>

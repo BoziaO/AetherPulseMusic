@@ -1,6 +1,6 @@
 # BoziaMusic
 
-A modern music player application integrated with YouTube Music. Features a dark-themed, responsive UI for searching music, importing playlists, and streaming from YouTube Music. Supports optional Google Authentication for personalized playlist management.
+A modern music player application integrated with YouTube Music. Features a fully themeable UI (dark, light, and custom themes), responsive layout, playlist management, and YouTube Music streaming. Supports optional Google Authentication for personalized playlist management.
 
 ## Architecture
 
@@ -8,6 +8,7 @@ A modern music player application integrated with YouTube Music. Features a dark
 - **Backend**: Node.js + Express serving the API on port 3001 (dev) / 5000 (production)
 - **YouTube Music**: Custom InnerTube API integration via `server/ytmusic.js`
 - **Auth**: Optional Google OAuth via `googleapis`
+- **Theme system**: CSS custom properties + ThemeContext (dark/light/custom themes)
 
 ## Development
 
@@ -34,14 +35,37 @@ NODE_ENV=production node server/index.js
 - `server/index.js` — Express API, session management, Google OAuth, YouTube Music routes
 - `server/ytmusic.js` — InnerTube API client for YouTube Music
 - `src/lib/api.js` — Frontend API client (uses relative URLs via CRA proxy)
-- `src/App.js` — React root component
-- `src/screens/MusicPage.js` — Main music page view (playlists, home, artists, albums, etc.)
-- `src/components/AddTrackModal.js` — Search modal for adding songs to playlists (replaces video ID prompt)
-- `src/components/CreatePlaylistModal.js` — Modal for creating local playlists
+- `src/App.js` — React root (wraps with ThemeProvider)
+- `src/contexts/ThemeContext.js` — Theme state management (dark/light/custom), CSS variable injection, localStorage persistence
+- `src/screens/MusicPage.js` — Main music page (playlists, home, artists, albums, import YT playlists)
+- `src/components/AddTrackModal.js` — Search modal for adding songs to playlists
+- `src/components/CreatePlaylistModal.js` — Modal for creating local/YT playlists
+- `src/components/ThemeSettings.js` — Theme picker modal (preset colors, custom primary/background)
 - `src/components/AppShell.js` — Global layout, playback state, YouTube IFrame player, search
+- `src/components/Sidebar.js` — Navigation sidebar with theme quick-toggles (dark/light/custom)
+- `src/components/Player.js` — Bottom player bar (theme-aware)
+- `src/index.css` — CSS custom properties for all themes + light/custom theme override rules
 - `src/hooks/` — Custom React hooks (`useAuthSession`, `usePageData`)
 - `localPlaylists.json` — Local playlists storage (auto-created)
 - `headers.json` — Optional: YouTube Music authenticated headers for library access
+
+## Theme System
+
+The app supports three themes:
+- **Dark** (default): Deep black background, white text, red accents
+- **Light**: Light gray background, dark text, same red accents
+- **Custom**: User-defined primary color and background color
+
+Theme toggles are at the bottom of the sidebar. The full settings modal (accessible via the palette icon or "Ustawienia motywu") allows:
+- Choosing preset primary colors (8 presets + color picker)
+- Choosing preset backgrounds (8 presets + color picker)
+- Selecting dark or light base for custom theme
+
+Theme state persists in `localStorage` under key `bm-theme-state`. CSS variables are injected on `document.documentElement`.
+
+## YouTube Playlist Import
+
+Non-editable YouTube playlists can be copied to local storage via the "Importuj i edytuj" button on any YouTube Music playlist detail page. The copy is saved to `localPlaylists.json` and becomes fully editable (add/remove tracks, delete playlist).
 
 ## Environment Variables
 

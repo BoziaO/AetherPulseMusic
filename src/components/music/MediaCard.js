@@ -4,16 +4,20 @@ import { Play } from "../Icons";
 
 export default function MediaCard({ item, onClick }) {
   return (
-    <article 
-      className="media-card group cursor-pointer" 
+    <article
+      className="media-card group cursor-pointer"
       onClick={onClick || (() => {})}
     >
-      <div className="media-card__cover relative overflow-hidden rounded-2xl bg-neutral-900 shadow-lg group-hover:shadow-red-500/10 transition-all duration-500 group-hover:scale-[1.02]">
+      <div
+        className="media-card__cover relative overflow-hidden rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-500 group-hover:scale-[1.02]"
+        style={{ backgroundColor: "var(--bg-card)" }}
+      >
         <CoverArt art={item.cover} />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <button 
-            type="button" 
-            className="w-14 h-14 flex items-center justify-center bg-red-500 text-white rounded-full shadow-2xl translate-y-4 group-hover:translate-y-0 transition-all duration-500 hover:scale-110 active:scale-95"
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <button
+            type="button"
+            className="w-14 h-14 flex items-center justify-center text-white rounded-full shadow-2xl translate-y-4 group-hover:translate-y-0 transition-all duration-500 hover:scale-110 active:scale-95"
+            style={{ backgroundColor: "var(--primary)" }}
             aria-label={`Odtwórz ${item.title}`}
           >
             <Play size={24} fill="currentColor" />
@@ -21,10 +25,23 @@ export default function MediaCard({ item, onClick }) {
         </div>
       </div>
       <div className="media-card__body mt-4 px-1">
-        <h3 className="font-bold text-white truncate group-hover:text-red-400 transition-colors duration-300">{item.title}</h3>
-        <p className="text-sm text-neutral-400 truncate mt-1 group-hover:text-neutral-300 transition-colors duration-300">{item.subtitle}</p>
+        <h3
+          className="font-bold truncate transition-colors duration-300"
+          style={{ color: "var(--text-main)" }}
+        >
+          {item.title}
+        </h3>
+        <p
+          className="text-sm truncate mt-1 transition-colors duration-300"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {item.subtitle}
+        </p>
         {item.meta && (
-          <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mt-2 block group-hover:text-neutral-400 transition-colors">
+          <span
+            className="text-[10px] uppercase tracking-widest font-bold mt-2 block transition-colors"
+            style={{ color: "var(--text-soft)" }}
+          >
             {item.meta}
           </span>
         )}

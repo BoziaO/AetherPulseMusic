@@ -35,7 +35,10 @@ NODE_ENV=production node server/index.js
 - `server/ytmusic.js` — InnerTube API client for YouTube Music
 - `src/lib/api.js` — Frontend API client (uses relative URLs via CRA proxy)
 - `src/App.js` — React root component
-- `src/screens/MusicPage.js` — Main music page view
+- `src/screens/MusicPage.js` — Main music page view (playlists, home, artists, albums, etc.)
+- `src/components/AddTrackModal.js` — Search modal for adding songs to playlists (replaces video ID prompt)
+- `src/components/CreatePlaylistModal.js` — Modal for creating local playlists
+- `src/components/AppShell.js` — Global layout, playback state, YouTube IFrame player, search
 - `src/hooks/` — Custom React hooks (`useAuthSession`, `usePageData`)
 - `localPlaylists.json` — Local playlists storage (auto-created)
 - `headers.json` — Optional: YouTube Music authenticated headers for library access

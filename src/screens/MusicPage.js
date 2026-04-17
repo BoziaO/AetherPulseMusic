@@ -19,6 +19,7 @@ import MediaCard from "../components/music/MediaCard";
 import ChartRow from "../components/music/ChartRow";
 import QueueTable from "../components/music/QueueTable";
 import CreatePlaylistModal from "../components/CreatePlaylistModal";
+import AddTrackModal from "../components/AddTrackModal";
 
 function MusicPage({ pageKey }) {
   const location = useLocation();
@@ -36,6 +37,7 @@ function MusicPage({ pageKey }) {
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddTrackModal, setShowAddTrackModal] = useState(false);
 
   // Fix: correct path — authSession.data.auth.connected (not authSession.auth.connected)
   const isConnected = authSession?.data?.auth?.connected;
@@ -309,39 +311,11 @@ function MusicPage({ pageKey }) {
               </button>
               {(ytMusicHeaders || isLocalPlaylist) && (
                 <button
-                  onClick={() => {
-                    const videoId = prompt("Podaj YouTube Video ID:");
-                    if (!videoId?.trim()) return;
-                    if (isLocalPlaylist) {
-                      const localId = selectedPlaylist.playlistId.replace("local-", "");
-                      fetchJson(`/api/local/playlists/${localId}/tracks`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ videoId: videoId.trim(), title: "Unknown", artist: "Unknown" }),
-                      })
-                        .then(() => {
-                          showToast("Utwór dodany.", "success");
-                          fetchPlaylistDetails(selectedPlaylist.playlistId);
-                        })
-                        .catch(() => showToast("Błąd dodawania utworu.", "error"));
-                    } else {
-                      const cleanId = selectedPlaylist.playlistId?.replace(/^VL/, "");
-                      fetchJson(`/api/ytmusic/playlist/${cleanId}/tracks`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ videoIds: [videoId.trim()] }),
-                      })
-                        .then(() => {
-                          showToast("Utwór dodany.", "success");
-                          fetchPlaylistDetails(selectedPlaylist.playlistId);
-                        })
-                        .catch(() => showToast("Błąd dodawania utworu.", "error"));
-                    }
-                  }}
+                  onClick={() => setShowAddTrackModal(true)}
                   className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
                 >
                   <Plus size={20} />
-                  Dodaj
+                  Dodaj utwór
                 </button>
               )}
               {(ytMusicHeaders || isLocalPlaylist) && (
@@ -448,6 +422,18 @@ function MusicPage({ pageKey }) {
             )}
           </div>
         </section>
+
+        {showAddTrackModal && selectedPlaylist && (
+          <AddTrackModal
+            playlistId={selectedPlaylist.playlistId}
+            isLocal={isLocalPlaylist}
+            onClose={() => setShowAddTrackModal(false)}
+            onAdded={(track) => {
+              showToast(`Dodano: ${track.title}`, "success");
+              fetchPlaylistDetails(selectedPlaylist.playlistId);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -497,9 +483,9 @@ function MusicPage({ pageKey }) {
               }
             />
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
-              {displayItems.map((item) => (
+              {displayItems.map((item, idx) => (
                 <MediaCard
-                  key={item.id}
+                  key={item.id || item.browseId || item.videoId || `pri-${idx}`}
                   item={item}
                   onClick={
                     item.onClick ||
@@ -528,7 +514,7 @@ function MusicPage({ pageKey }) {
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
                 {page.secondarySection.items.map((item, idx) => (
                   <MediaCard
-                    key={idx}
+                    key={item.id || item.browseId || item.videoId || `sec-${idx}`}
                     item={item}
                     onClick={() => {
                       if (item.videoId) play?.(item);
@@ -546,7 +532,7 @@ function MusicPage({ pageKey }) {
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
                 {page.tertiarySection.items.map((item, idx) => (
                   <MediaCard
-                    key={idx}
+                    key={item.id || item.browseId || item.videoId || `ter-${idx}`}
                     item={item}
                     onClick={() => {
                       if (item.videoId) play?.(item);

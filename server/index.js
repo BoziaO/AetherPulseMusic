@@ -30,6 +30,7 @@ const allowedOrigins = [
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
+  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin.startsWith('http://0.0.0.0:')) return true;
   if (allowedOrigins.includes(origin)) return true;
 
   try {
@@ -361,6 +362,7 @@ function toQueueItem(track) {
 
 app.get('/api/page/:key', wrap(async (req) => {
   const { key } = req.params;
+  const { recent = "" } = req.query;
   const ytMusicHeaders = hasYtMusicHeaders();
   const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
 
@@ -370,37 +372,55 @@ app.get('/api/page/:key', wrap(async (req) => {
   };
 
   if (key === "home") {
-    const homeRows = await yt.getHome(4);
     const charts = await yt.getCharts("ZZ");
     const trendingSongs = (charts?.songs || []).filter(Boolean);
-    const queue = trendingSongs.slice(0, 20).map(toQueueItem).filter(Boolean);
+    
+    // Personalized recommendations based on recent plays
+    let recommendations = [];
+    const recentIds = recent.split(",").filter(Boolean);
+    if (recentIds.length > 0) {
+      try {
+        const lastId = recentIds[0];
+        const watchPlaylist = await yt.getWatchPlaylist(lastId, null, 12);
+        recommendations = (watchPlaylist?.tracks || []).slice(1).map(toMediaItem).filter(Boolean);
+      } catch (err) {
+        console.warn("Could not fetch personalized recommendations:", err.message);
+      }
+    }
 
+    const homeRows = await yt.getHome(4);
     const primaryRow = homeRows?.[0];
     const hit = trendingSongs[0] || null;
 
     return {
       ...base,
       eyebrow: "Witaj w AetherPulse|Music",
-      title: "Trending — utwory na czasie",
-      description: "Hit dnia i trendy z YouTube Music (Innertube).",
-      chips: ["Polecane", "Trendy", "Playlisty", "Albumy"],
+      title: recommendations.length > 0 ? "Polecane dla Ciebie" : "Trending — utwory na czasie",
+      description: recommendations.length > 0 
+        ? "Na podstawie Twojej ostatniej aktywności." 
+        : "Hit dnia i trendy z YouTube Music (Innertube).",
+      chips: ["Dla Ciebie", "Trendy", "Playlisty", "Albumy"],
       spotlightTitle: "Hit dnia",
       spotlightText: hit ? `${hit.title}` : "Najczęściej odtwarzany utwór dzisiaj.",
       spotlightItems: trendingSongs.slice(0, 5).map((s, idx) => `${idx + 1}. ${s.title}`),
       stats: [
         { label: "Trending songs", value: String(trendingSongs.length || 0) },
         { label: "Trending artists", value: String((charts?.artists || []).length || 0) },
-        { label: "Trending videos", value: String((charts?.videos || []).length || 0) },
+        { label: "Ostatnio grane", value: String(recentIds.length) },
       ],
       primarySection: {
-        title: "Trending (utwory)",
+        title: recommendations.length > 0 ? "Twoje rekomendacje" : "Trending (utwory)",
         action: "Odśwież",
-        items: trendingSongs.slice(0, 18).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean),
+        items: recommendations.length > 0 
+          ? recommendations 
+          : trendingSongs.slice(0, 18).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean),
       },
       secondarySection: {
-        title: primaryRow?.title || "Polecane playlisty",
+        title: recommendations.length > 0 ? "Trending (utwory)" : (primaryRow?.title || "Polecane playlisty"),
         action: "Odśwież",
-        items: (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
+        items: recommendations.length > 0
+          ? trendingSongs.slice(0, 12).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean)
+          : (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
       },
       tertiarySection: {
         title: "Popularne utwory",
@@ -417,7 +437,7 @@ app.get('/api/page/:key', wrap(async (req) => {
       })),
       queueTitle: "Trending (utwory)",
       queueAction: "Odtwórz",
-      queue,
+      queue: trendingSongs.slice(0, 12).map(toQueueItem).filter(Boolean),
       nowPlaying: hit
         ? { title: hit.title, artist: hit.artist || "", art: hit.thumbnail, duration: 240, progress: 10, videoId: hit.videoId || null }
         : undefined,

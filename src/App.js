@@ -20,7 +20,9 @@ function App() {
               <Route path="favorites" element={<MusicPage pageKey="favorites" />} />
               <Route path="recent" element={<MusicPage pageKey="recent" />} />
               <Route path="artists" element={<MusicPage pageKey="artists" />} />
+              <Route path="artist/:artistId" element={<MusicPage pageKey="artist" />} />
               <Route path="albums" element={<MusicPage pageKey="albums" />} />
+              <Route path="album/:albumId" element={<MusicPage pageKey="album" />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

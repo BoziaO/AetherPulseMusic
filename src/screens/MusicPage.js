@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useLocation, useOutletContext } from "react-router-dom";
+import { useLocation, useOutletContext, useParams } from "react-router-dom";
 import { fetchJson } from "../lib/api";
 import CoverArt from "../components/CoverArt";
 import {
@@ -25,6 +25,7 @@ import AddTrackModal from "../components/AddTrackModal";
 
 function MusicPage({ pageKey }) {
   const location = useLocation();
+  const { artistId, albumId } = useParams();
   const {
     pageData,
     play,
@@ -112,8 +113,14 @@ function MusicPage({ pageKey }) {
     if (pageKey === "playlists") {
       fetchPlaylists();
     }
+    if (pageKey === "artist" && artistId) {
+      fetchArtistDetails(artistId);
+    }
+    if (pageKey === "album" && albumId) {
+      fetchAlbumDetails(albumId);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageKey, isConnected]);
+  }, [pageKey, isConnected, artistId, albumId]);
 
   useEffect(() => {
     const playlistId = new URLSearchParams(location.search).get("playlist");
@@ -122,6 +129,58 @@ function MusicPage({ pageKey }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageKey, location.search]);
+
+  async function fetchArtistDetails(id) {
+    if (!id) return;
+    try {
+      setLoadingPlaylist(true);
+      const data = await fetchJson(`/api/ytmusic/artist/${id}`);
+      // Transform artist data to "playlist-like" structure for rendering
+      setSelectedPlaylist({
+        playlistId: id,
+        title: data.name,
+        author: "Wykonawca",
+        thumbnail: data.thumbnails?.[data.thumbnails.length - 1]?.url,
+        description: data.description,
+        trackCount: data.songs?.length || 0,
+        tracks: (data.songs || []).map((s, idx) => ({
+          ...s,
+          author: data.name,
+          setVideoId: `artist-${id}-${idx}`
+        }))
+      });
+    } catch (err) {
+      console.error("Błąd pobierania wykonawcy:", err);
+      showToast("Nie udało się pobrać danych wykonawcy.", "error");
+    } finally {
+      setLoadingPlaylist(false);
+    }
+  }
+
+  async function fetchAlbumDetails(id) {
+    if (!id) return;
+    try {
+      setLoadingPlaylist(true);
+      const data = await fetchJson(`/api/ytmusic/album/${id}`);
+      setSelectedPlaylist({
+        playlistId: id,
+        title: data.title,
+        author: data.artists?.[0]?.name || "Album",
+        thumbnail: data.thumbnails?.[data.thumbnails.length - 1]?.url,
+        description: data.description,
+        trackCount: data.tracks?.length || 0,
+        tracks: (data.tracks || []).map((t, idx) => ({
+          ...t,
+          setVideoId: `album-${id}-${idx}`
+        }))
+      });
+    } catch (err) {
+      console.error("Błąd pobierania albumu:", err);
+      showToast("Nie udało się pobrać danych albumu.", "error");
+    } finally {
+      setLoadingPlaylist(false);
+    }
+  }
 
   async function fetchPlaylistDetails(playlistId) {
     if (!playlistId) return;
@@ -362,12 +421,20 @@ function MusicPage({ pageKey }) {
                 <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
                   Playlista lokalna
                 </span>
+              ) : pageKey === "artist" ? (
+                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  Wykonawca
+                </span>
+              ) : pageKey === "album" ? (
+                <span className="px-3 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  Album
+                </span>
               ) : (
                 <span className="px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-full">
                   YouTube Music
                 </span>
               )}
-              {!isLocalPlaylist && (
+              {(!isLocalPlaylist && pageKey !== "artist" && pageKey !== "album") && (
                 <span className="text-[10px] text-neutral-500 font-medium">
                   Kliknij „Importuj i edytuj" aby edytować lokalnie
                 </span>
@@ -414,7 +481,7 @@ function MusicPage({ pageKey }) {
                 </button>
               )}
 
-              {!isLocalPlaylist && (
+              {(!isLocalPlaylist && pageKey !== "artist" && pageKey !== "album") && (
                 <button
                   type="button"
                   onClick={handleImportYtPlaylist}
@@ -435,7 +502,7 @@ function MusicPage({ pageKey }) {
                 </button>
               )}
 
-              {(ytMusicHeaders && !isLocalPlaylist) && (
+              {(ytMusicHeaders && !isLocalPlaylist && pageKey !== "artist" && pageKey !== "album") && (
                 <button
                   onClick={() => setShowAddTrackModal(true)}
                   className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 text-white font-bold transition-all hover:bg-white/10 border border-white/5"
@@ -585,7 +652,7 @@ function MusicPage({ pageKey }) {
         </div>
       </header>
 
-      {page.stats && !isSearching && (
+      {page.stats && !isSearching && pageKey !== "home" && (
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {page.stats.map((stat, idx) => (
             <MetricCard key={stat.label} stat={stat} index={idx} />

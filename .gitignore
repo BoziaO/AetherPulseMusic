@@ -34,3 +34,8 @@ coverage/
 *.log
 headers.json
 server/ytmusic-snapshots/
+AGENTS.md
+localPlaylists.json
+replit.md
+.zencoder
+attached_assets

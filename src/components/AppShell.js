@@ -4,7 +4,7 @@ import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Menu, Search, Sparkles, X } from "./Icons";
+import { Bell, Menu, Music, Search, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
 import { useToast } from "./Toast";
@@ -21,7 +21,15 @@ function AppShell() {
   const location = useLocation();
   const currentPage = getPageByPath(location.pathname);
   const authSession = useAuthSession();
-  const pageRequest = usePageData(currentPage.key);
+  const [recentPlays, setRecentPlays] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("aetherpulse:recent") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const recentIds = recentPlays.map(p => p.videoId).filter(Boolean).slice(0, 5).join(',');
+  const pageRequest = usePageData(currentPage.key, currentPage.key === "home" ? { recent: recentIds } : {});
   const showToast = useToast();
 
   const resolvedUser = authSession.data?.auth?.user || userProfile;
@@ -65,13 +73,6 @@ function AppShell() {
       return JSON.parse(window.localStorage.getItem("aetherpulse:favoriteTracks") || "{}");
     } catch {
       return {};
-    }
-  });
-  const [recentPlays, setRecentPlays] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem("aetherpulse:recent") || "[]");
-    } catch {
-      return [];
     }
   });
 
@@ -460,6 +461,14 @@ function AppShell() {
       navigate(`/playlists?playlist=${encodeURIComponent(item.browseId)}`);
       return;
     }
+    if (item.resultType === "artist" && item.browseId) {
+      navigate(`/artist/${encodeURIComponent(item.browseId)}`);
+      return;
+    }
+    if (item.resultType === "album" && item.browseId) {
+      navigate(`/album/${encodeURIComponent(item.browseId)}`);
+      return;
+    }
     if (item.videoId) {
       play(item);
     }
@@ -474,7 +483,14 @@ function AppShell() {
     >
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 pb-48 sm:pb-52 lg:pb-40 overflow-x-hidden" style={{ backgroundColor: "var(--bg-main)" }}>
+      <main 
+        className={`flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 overflow-x-hidden transition-all duration-500 ${
+          playerVisible && nowPlaying 
+            ? "pb-64 sm:pb-72 lg:pb-40" 
+            : "pb-24 sm:pb-28 lg:pb-12"
+        }`} 
+        style={{ backgroundColor: "var(--bg-main)" }}
+      >
         <header
           className="flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] backdrop-blur-md py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px]"
           style={{ backgroundColor: "color-mix(in srgb, var(--bg-main) 80%, transparent)" }}
@@ -665,7 +681,7 @@ function AppShell() {
       {/* Hidden YouTube Player */}
       <div id="yt-hidden-player" className="hidden"></div>
 
-      {playerVisible && nowPlaying && (
+      {playerVisible && nowPlaying ? (
         <Player
           track={nowPlaying}
           isPlaying={isPlaying}
@@ -698,7 +714,21 @@ function AppShell() {
           }}
           onHide={() => setPlayerVisible(false)}
         />
-      )}
+      ) : nowPlaying ? (
+        <button
+          onClick={() => setPlayerVisible(true)}
+          className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl animate-bounce-slow z-[180] group transition-all hover:scale-110 active:scale-95"
+          style={{ 
+            backgroundColor: "var(--primary)", 
+            color: "#fff",
+            boxShadow: "0 0 30px var(--primary)"
+          }}
+          title="Pokaż odtwarzacz"
+        >
+          <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping"></div>
+          <Music size={24} className="relative z-10" />
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchJson } from "../lib/api";
 
-export default function usePageData(pageKey) {
+export default function usePageData(pageKey, queryParams = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +12,9 @@ export default function usePageData(pageKey) {
       
       try {
         setLoading(true);
-        const pageData = await fetchJson(`/api/page/${pageKey}`);
+        const query = new URLSearchParams(queryParams).toString();
+        const url = `/api/page/${pageKey}${query ? `?${query}` : ""}`;
+        const pageData = await fetchJson(url);
         setData(pageData);
         setError(null);
       } catch (err) {
@@ -24,7 +26,8 @@ export default function usePageData(pageKey) {
     }
 
     fetchPageData();
-  }, [pageKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageKey, JSON.stringify(queryParams)]);
 
   return {
     data,

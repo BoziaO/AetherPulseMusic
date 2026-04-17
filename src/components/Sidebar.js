@@ -177,27 +177,6 @@ function Sidebar({ isOpen = false, onClose }) {
             <Settings size={19} />
             <span>Ustawienia motywu</span>
           </button>
-
-          {/* Server status */}
-          <div
-            className="p-4 rounded-2xl relative overflow-hidden"
-            style={{ backgroundColor: "var(--bg-hover)", border: "1px solid var(--surface-line)" }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full"
-                style={{ backgroundColor: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)", border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)" }}
-              >
-                System
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>v2.0.0</span>
-            </div>
-            <p className="text-sm font-black uppercase italic tracking-tight" style={{ color: "var(--text-main)" }}>Status Serwera</p>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>Połączono</p>
-            </div>
-          </div>
         </div>
       </aside>
 

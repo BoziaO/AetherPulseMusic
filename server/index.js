@@ -795,29 +795,40 @@ app.post('/api/local/playlists/import-yt/:playlistId', wrap(async (req) => {
 
 // Lyrics endpoint - search and return lyrics with timestamps
 app.get('/api/lyrics', wrap(async (req) => {
-  const { q } = req.query;
-  if (!q) return { error: "Query parameter 'q' is required" };
-
+  const { q, videoId, artist, title } = req.query;
+  
   try {
-    // First try to search for a matching track and get its lyrics
-    const searchResults = await yt.search(q, 'songs', 1);
-    if (searchResults && searchResults.length > 0) {
-      const track = searchResults[0];
-      if (track.videoId) {
-        const lyrics = await yt.getLyrics(track.videoId);
-        if (lyrics && lyrics.lyrics) {
-          // Format lyrics - try to preserve timestamps if they exist
-          let formattedLyrics = lyrics.lyrics;
+    // 1. Try LRCLIB for synced lyrics if we have artist and title
+    if (artist && title) {
+      const lrcLyrics = await yt.getLrclibLyrics(title, artist);
+      if (lrcLyrics) return lrcLyrics;
+    }
 
-          // Check if lyrics already have timestamps
-          const hasTimestamps = /\[\d{1,2}:\d{2}(?:\.\d+)?\]/.test(formattedLyrics);
+    // 2. Try YouTube Music lyrics by videoId
+    if (videoId) {
+      const ytLyrics = await yt.getLyrics(videoId);
+      if (ytLyrics) return ytLyrics;
+    }
 
-          // If no timestamps, return as-is (each line can be clicked)
-          return { lyrics: formattedLyrics, source: lyrics.source };
+    // 3. Fallback search by query
+    if (q) {
+      const searchResults = await yt.search(q, 'songs', 1);
+      if (searchResults && searchResults.length > 0) {
+        const track = searchResults[0];
+        
+        // Try LRCLIB first for the searched track
+        const trackArtist = track.artists ? track.artists[0].name : '';
+        const lrcLyrics = await yt.getLrclibLyrics(track.title, trackArtist);
+        if (lrcLyrics) return lrcLyrics;
+
+        // Try YTM as second fallback
+        if (track.videoId) {
+          const ytLyrics = await yt.getLyrics(track.videoId);
+          if (ytLyrics) return ytLyrics;
         }
       }
     }
-    // If no lyrics found, return a message
+
     return { lyrics: "Napisy dla tego utworu nie są dostępne." };
   } catch (error) {
     console.warn("Lyrics fetch error:", error.message);

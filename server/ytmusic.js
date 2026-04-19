@@ -732,6 +732,48 @@ async function getLyrics(videoId) {
   return { lyrics: lyricsText, source };
 }
 
+async function getLrclibLyrics(title, artist) {
+  return new Promise((resolve) => {
+    // Clean artist name (use only the first one if multiple)
+    const cleanArtist = (artist || "").split(',')[0].split('&')[0].split('feat.')[0].trim();
+    const cleanTitle = (title || "").split('(feat.')[0].split(' feat.')[0].split('-')[0].trim();
+
+    const fetchLrc = (url) => {
+      https.get(url, { headers: { 'User-Agent': 'AetherPulseMusic/0.1.0' } }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try {
+              const json = JSON.parse(data);
+              // Handle search result vs get result
+              const best = Array.isArray(json) ? json[0] : json;
+              if (best && (best.syncedLyrics || best.plainLyrics)) {
+                return resolve({
+                  lyrics: best.syncedLyrics || best.plainLyrics,
+                  source: "LRCLIB",
+                  isSynced: !!best.syncedLyrics
+                });
+              }
+            } catch (e) {}
+          }
+          
+          // If this was an exact match attempt and failed, try search as fallback
+          if (url.includes('/api/get?')) {
+            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${cleanArtist}`)}`;
+            fetchLrc(searchUrl);
+          } else {
+            resolve(null);
+          }
+        });
+      }).on('error', () => resolve(null));
+    };
+
+    const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
+    fetchLrc(url);
+  });
+}
+
 async function getWatchPlaylist(
   videoId,
   playlistId = null,
@@ -1849,6 +1891,7 @@ module.exports = {
   getUser,
   getSong,
   getLyrics,
+  getLrclibLyrics,
   getWatchPlaylist,
   getMoodCategories,
   getMoodPlaylists,

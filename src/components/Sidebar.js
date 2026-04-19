@@ -1,158 +1,159 @@
-import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
-import {
-  BookImage,
-  Compass,
-  HeartHandshake,
-  Heart,
-  LibraryBig,
-  ListMusic,
-  Music,
-  Mic2,
-  Moon,
-  Palette,
-  Settings,
-  Sun,
-  Wind,
-  Zap,
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { 
+  Home, 
+  Search, 
+  LayoutGrid, 
+  Heart, 
+  Clock, 
+  Settings, 
+  Zap, 
+  Music, 
+  Disc, 
+  Users, 
+  Sparkles,
+  X
 } from "./Icons";
-import { navigationGroups } from "../data/musicData";
 import { useTheme } from "../contexts/ThemeContext";
-import ThemeSettings from "./ThemeSettings";
 
-const iconMap = {
-  home: HeartHandshake,
-  discover: Compass,
-  chill: Wind,
-  energy: Zap,
-  playlists: ListMusic,
-  favorites: Heart,
-  recent: Music,
-  artists: Mic2,
-  albums: BookImage,
-};
+const NAV_ITEMS = [
+  { icon: Home, label: "Home", path: "/" },
+  { icon: Sparkles, label: "Discover", path: "/discover" },
+  { icon: Heart, label: "Favorites", path: "/favorites" },
+  { icon: Clock, label: "History", path: "/recent" },
+];
 
-function Sidebar({ isOpen = false, onClose }) {
-  const { theme, setTheme } = useTheme();
-  const [showTheme, setShowTheme] = useState(false);
+const LIBRARY_ITEMS = [
+  { icon: LayoutGrid, label: "Playlists", path: "/playlists" },
+  { icon: Disc, label: "Albums", path: "/albums" },
+  { icon: Users, label: "Artists", path: "/artists" },
+];
+
+export default function Sidebar({ isOpen, onClose }) {
+  const location = useLocation();
+  const { liquidGlassEnabled, blurIntensity, transparency } = useTheme();
+
+  const isSelected = (path) => location.pathname === path;
 
   return (
     <>
+      {/* Mobile Backdrop */}
       {isOpen && (
-        <button
-          type="button"
-          aria-label="Zamknij menu"
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] lg:hidden"
+        <div 
+          className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-md lg:hidden animate-in fade-in duration-300"
           onClick={onClose}
         />
       )}
 
+      {/* Sidebar Container */}
       <aside
-        className={`sidebar sidebar--no-scrollbar w-[260px] h-screen fixed left-0 top-0 overflow-y-auto flex flex-col p-6 z-[110] transition-transform duration-300 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed left-0 top-0 bottom-0 w-[280px] z-[300] flex flex-col transition-all duration-700 ease-out border-r border-surface-line overflow-hidden ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        } ${liquidGlassEnabled ? 'backdrop-blur' : ''}`}
         style={{
-          backgroundColor: "var(--bg-sidebar)",
-          borderRight: "1px solid var(--surface-line)",
+          backgroundColor: liquidGlassEnabled
+            ? `rgba(var(--bg-sidebar-rgb, 11, 16, 32), ${transparency})`
+            : "var(--bg-sidebar)",
+          backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined,
+          fontFamily: "var(--font-display)"
         }}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10 group cursor-pointer">
-          <div
-            className="w-11 h-11 flex items-center justify-center text-white rounded-2xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500"
-            style={{ background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #ff9988))" }}
-          >
-            <Zap size={22} fill="white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black tracking-tighter uppercase italic leading-tight" style={{ color: "var(--text-main)" }}>
-              AetherPulse<span style={{ color: "var(--primary)" }}>Music</span>
-            </h2>
-            <p className="text-[9px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-soft)" }}>
-              Twoja Energia w zasiegu reki
-            </p>
+        {/* Logo Section */}
+        <div className="p-10 flex items-center justify-between group">
+          <Link to="/" className="flex items-center gap-4 group" onClick={onClose}>
+            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-2xl group-hover:rotate-[360deg] transition-transform duration-1000 shadow-primary/30">
+              <Zap size={24} fill="white" className="text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-black tracking-tighter leading-none" style={{ color: "var(--text-main)" }}>
+                Aether<span className="text-primary">Pulse</span>
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">Music Engine</span>
+            </div>
+          </Link>
+          <button onClick={onClose} className="lg:hidden p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-primary transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Scrollable Navigation */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-hide space-y-10">
+          <nav>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 px-4 mb-6">Explore</h3>
+            <ul className="space-y-2">
+              {NAV_ITEMS.map((item) => (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    onClick={onClose}
+                    className={`flex items-center gap-5 px-6 py-4 rounded-2xl font-bold transition-all group ${
+                      isSelected(item.path)
+                        ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105"
+                        : "hover:bg-white/5 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <item.icon 
+                      size={20} 
+                      className={`transition-transform duration-500 group-hover:scale-125 ${isSelected(item.path) ? "animate-pulse" : ""}`} 
+                    />
+                    <span className="text-sm tracking-tight">{item.label}</span>
+                    {isSelected(item.path) && (
+                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 px-4 mb-6">Library</h3>
+            <ul className="space-y-2">
+              {LIBRARY_ITEMS.map((item) => (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    onClick={onClose}
+                    className={`flex items-center gap-5 px-6 py-4 rounded-2xl font-bold transition-all group ${
+                      isSelected(item.path)
+                        ? "bg-primary text-white shadow-xl shadow-primary/20"
+                        : "hover:bg-white/5 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <item.icon size={20} className="group-hover:text-primary transition-colors" />
+                    <span className="text-sm tracking-tight">{item.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className="px-6 py-8 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 group overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-4 opacity-10 -rotate-12 group-hover:scale-150 transition-transform duration-1000">
+               <Music size={64} />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-primary mb-2">Upgrade Now</p>
+            <p className="text-sm font-bold opacity-60 mb-4 relative z-10">Get full access to all themes and features.</p>
+            <button className="w-full py-3 bg-white text-black text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl">
+              Go Pro
+            </button>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-8">
-          {navigationGroups.map((group) => (
-            <div key={group.title} className="space-y-1">
-              <p className="px-3 mb-3 text-[10px] uppercase tracking-[0.25em] font-black" style={{ color: "var(--text-soft)" }}>
-                {group.title}
-              </p>
-              {group.items.map((item) => {
-                const Icon = iconMap[item.key] || LibraryBig;
-                return (
-                  <NavLink
-                    key={item.path}
-                    end={item.path === "/"}
-                    to={item.path}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-                        isActive ? "font-bold" : "font-medium"
-                      }`
-                    }
-                    style={({ isActive }) => ({
-                      backgroundColor: isActive ? "var(--bg-hover-strong)" : "transparent",
-                      color: isActive ? "var(--text-main)" : "var(--text-muted)",
-                    })}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          size={19}
-                          style={{ color: isActive ? "var(--primary)" : undefined }}
-                          className="transition-colors duration-200 group-hover:text-[var(--primary)]"
-                        />
-                        <span className="text-sm tracking-tight">{item.label}</span>
-                        <div
-                          className="ml-auto w-1.5 h-1.5 rounded-full transition-transform duration-300"
-                          style={{
-                            backgroundColor: "var(--primary)",
-                            transform: isActive ? "scale(1)" : "scale(0)",
-                          }}
-                        />
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
+        {/* User / Settings Footer */}
+        <div className="p-8 border-t border-surface-line space-y-4">
+          <Link 
+            to="/settings" 
+            onClick={onClose}
+            className={`flex items-center gap-5 px-6 py-4 rounded-2xl font-bold transition-all ${
+              isSelected("/settings") ? "bg-white/10 text-primary" : "hover:bg-white/5 opacity-60 hover:opacity-100"
+            }`}
+          >
+            <Settings size={20} />
+            <span className="text-sm">Settings</span>
+          </Link>
+        </div>
       </aside>
-
-      <nav
-        className="fixed left-3 right-3 bottom-3 z-[190] grid grid-cols-5 gap-1 rounded-[28px] p-2 shadow-2xl lg:hidden"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--bg-player) 92%, transparent)",
-          border: "1px solid var(--surface-line)",
-          backdropFilter: "blur(22px)",
-        }}
-      >
-        {navigationGroups.flatMap((group) => group.items).filter((item) => ["home", "discover", "playlists", "favorites", "recent"].includes(item.key)).map((item) => {
-          const Icon = iconMap[item.key] || LibraryBig;
-          return (
-            <NavLink
-              key={item.path}
-              end={item.path === "/"}
-              to={item.path}
-              className="flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-black"
-              style={({ isActive }) => ({
-                color: isActive ? "var(--primary)" : "var(--text-muted)",
-                backgroundColor: isActive ? "var(--bg-hover)" : "transparent",
-              })}
-            >
-              <Icon size={18} />
-              <span className="truncate max-w-full">{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {showTheme && <ThemeSettings onClose={() => setShowTheme(false)} />}
     </>
   );
 }
-
-export default Sidebar;

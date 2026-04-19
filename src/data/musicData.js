@@ -8,7 +8,7 @@ export const navigationGroups = [
   {
     title: "Menu",
     items: [
-      { key: "home", label: "Główna", path: "/", eyebrow: "Witaj w AetherPulse|Music", searchPlaceholder: "Szukaj ulubionej muzyki..." },
+      { key: "home", label: "Główna", path: "/", eyebrow: "Witaj w AetherPulseMusic", searchPlaceholder: "Szukaj ulubionej muzyki..." },
       { key: "discover", label: "Odkrywaj", path: "/discover", eyebrow: "Nowe brzmienia", searchPlaceholder: "Odkryj coś nowego..." },
     ],
   },

@@ -114,6 +114,42 @@ function AppShell() {
     localStorage.setItem("ap-player-volume", volume.toString());
   }, [volume]);
 
+  // Media Session API Support
+  useEffect(() => {
+    if ('mediaSession' in navigator && nowPlaying) {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: nowPlaying.title,
+        artist: nowPlaying.artist,
+        album: nowPlaying.album || '',
+        artwork: [
+          { src: nowPlaying.art, sizes: '96x96', type: 'image/png' },
+          { src: nowPlaying.art, sizes: '128x128', type: 'image/png' },
+          { src: nowPlaying.art, sizes: '192x192', type: 'image/png' },
+          { src: nowPlaying.art, sizes: '256x256', type: 'image/png' },
+          { src: nowPlaying.art, sizes: '384x384', type: 'image/png' },
+          { src: nowPlaying.art, sizes: '512x512', type: 'image/png' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => { togglePlay(); });
+      navigator.mediaSession.setActionHandler('pause', () => { togglePlay(); });
+      navigator.mediaSession.setActionHandler('previoustrack', () => { prevTrack(); });
+      navigator.mediaSession.setActionHandler('nexttrack', () => { nextTrack(); });
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        handleSeek(Math.max(0, currentTime - (details.seekOffset || 10)));
+      });
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        handleSeek(Math.min(audioDuration, currentTime + (details.seekOffset || 10)));
+      });
+    }
+  }, [nowPlaying, currentTime, audioDuration]);
+
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
   // Load YouTube IFrame API once on mount
   useEffect(() => {
     function initYTPlayer() {
@@ -241,12 +277,7 @@ function AppShell() {
       (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") ||
       "";
     const art = item.thumbnail || item.cover || item.art;
-    
-    // Parse duration if it's a string like "3:45"
-    let duration = typeof item.durationSeconds === "number" ? item.durationSeconds : 0;
-    if (!duration && item.duration) {
-       duration = parseDuration(item.duration);
-    }
+    const duration = typeof item.durationSeconds === "number" ? item.durationSeconds : (item.duration ? parseDuration(item.duration) : 0);
 
     const nextTrack = { ...item, title, artist, art, duration, videoId: item.videoId || null };
     setNowPlaying(nextTrack);
@@ -335,7 +366,6 @@ function AppShell() {
 
   function parseDuration(durationStr) {
     if (!durationStr) return 0;
-    if (typeof durationStr === "number") return durationStr;
     const parts = durationStr.split(':').map(Number);
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -379,42 +409,6 @@ function AppShell() {
       return "none";
     });
   }, [showToast]);
-
-  // Media Session API Support
-  useEffect(() => {
-    if ('mediaSession' in navigator && nowPlaying) {
-      navigator.mediaSession.metadata = new window.MediaMetadata({
-        title: nowPlaying.title,
-        artist: nowPlaying.artist,
-        album: nowPlaying.album || '',
-        artwork: [
-          { src: nowPlaying.art, sizes: '96x96', type: 'image/png' },
-          { src: nowPlaying.art, sizes: '128x128', type: 'image/png' },
-          { src: nowPlaying.art, sizes: '192x192', type: 'image/png' },
-          { src: nowPlaying.art, sizes: '256x256', type: 'image/png' },
-          { src: nowPlaying.art, sizes: '384x384', type: 'image/png' },
-          { src: nowPlaying.art, sizes: '512x512', type: 'image/png' },
-        ]
-      });
-
-      navigator.mediaSession.setActionHandler('play', () => { togglePlay(); });
-      navigator.mediaSession.setActionHandler('pause', () => { togglePlay(); });
-      navigator.mediaSession.setActionHandler('previoustrack', () => { prevTrack(); });
-      navigator.mediaSession.setActionHandler('nexttrack', () => { nextTrack(); });
-      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        handleSeek(Math.max(0, currentTime - (details.seekOffset || 10)));
-      });
-      navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        handleSeek(Math.min(audioDuration, currentTime + (details.seekOffset || 10)));
-      });
-    }
-  }, [nowPlaying, currentTime, audioDuration, togglePlay, prevTrack, nextTrack]);
-
-  useEffect(() => {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-    }
-  }, [isPlaying]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -850,10 +844,8 @@ function AppShell() {
         onClose={() => setShowLyricsModal(false)}
         trackTitle={nowPlaying?.title || ""}
         trackArtist={nowPlaying?.artist || ""}
-        videoId={nowPlaying?.videoId}
         currentTime={currentTime}
         isPlaying={isPlaying}
-        onSeek={handleSeek}
       />
     </div>
   );

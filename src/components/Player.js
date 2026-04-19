@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  LayoutGrid,
   Play,
   Pause,
   Repeat2,
@@ -11,8 +10,11 @@ import {
   ArrowRight,
   Heart,
   Mic,
+  LayoutGrid,
+  Maximize2
 } from "./Icons";
 import CoverArt from "./CoverArt";
+import { useTheme } from "../contexts/ThemeContext";
 
 function formatTime(seconds) {
   const safeSeconds = Number.isFinite(seconds) ? seconds : 0;
@@ -27,8 +29,7 @@ function RepeatIcon({ repeatMode, ...props }) {
       <Repeat2 {...props} />
       {repeatMode === "one" && (
         <span
-          className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none"
-          style={{ backgroundColor: "var(--primary)" }}
+          className="absolute -top-1 -right-1 w-3 h-3 text-white text-[6px] font-black rounded-full flex items-center justify-center bg-primary"
         >
           1
         </span>
@@ -37,7 +38,7 @@ function RepeatIcon({ repeatMode, ...props }) {
   );
 }
 
-function Player({
+export default function Player({
   track,
   onHide,
   isPlaying = false,
@@ -58,8 +59,8 @@ function Player({
   onShowQueue,
   onShowLyrics,
 }) {
+  const { liquidGlassEnabled, blurIntensity, transparency } = useTheme();
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
-  const elapsedSeconds = currentTime || 0;
 
   const handleProgressClick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -75,176 +76,156 @@ function Player({
     onVolumeChange?.(Math.round(pct * 100));
   };
 
-  const repeatTitle =
-    repeatMode === "none" ? "Włącz powtarzanie" :
-    repeatMode === "all" ? "Powtarzaj wszystko" :
-    "Powtarzaj jeden utwór";
-
   return (
     <footer
-      className="fixed bottom-0 left-0 right-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-6 z-[200]"
-      style={{
-        backgroundColor: "var(--bg-player)",
-        borderTop: "1px solid var(--surface-line)",
-        backdropFilter: "blur(24px)",
-        boxShadow: "0 -8px 40px rgba(0,0,0,0.3)",
-      }}
+      className={`fixed bottom-0 left-0 right-0 z-[400] transition-all duration-700 ${
+        track ? "translate-y-0" : "translate-y-full"
+      }`}
     >
-      {/* Current Track Info */}
-      <div className="flex items-center gap-3 sm:gap-5 w-full lg:w-[300px] group min-w-0">
-        <div
-          className="w-14 h-14 rounded-[18px] overflow-hidden shadow-2xl group-hover:scale-105 transition-transform duration-500 flex-shrink-0"
-          style={{ border: "1px solid var(--surface-line)", backgroundColor: "var(--bg-card)" }}
-        >
-          <CoverArt art={track?.art} compact />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p
-              className="font-black truncate text-sm tracking-tight"
-              style={{ color: "var(--text-main)" }}
-            >
-              {track?.title || "AetherPulse Mix"}
-            </p>
-            {isPlaying && (
-              <div className="wave-bars flex-shrink-0">
-                <span /><span /><span /><span />
-              </div>
-            )}
+      {/* Progress Bar (Floating Above) */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-1 cursor-pointer group z-50"
+        onClick={handleProgressClick}
+      >
+        <div className="absolute inset-0 bg-white/5 backdrop-blur-sm" />
+        <div 
+          className="absolute inset-y-0 left-0 bg-primary transition-all duration-300 group-hover:h-2"
+          style={{ width: `${progress}%`, boxShadow: "0 0 20px var(--primary)" }}
+        />
+        <div 
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-2xl scale-0 group-hover:scale-100"
+          style={{ left: `${progress}%`, border: "3px solid var(--primary)" }}
+        />
+      </div>
+
+      <div
+        className={`px-8 py-6 flex flex-col lg:flex-row items-center justify-between gap-8 ${
+          liquidGlassEnabled ? "backdrop-blur" : ""
+        }`}
+        style={{
+          backgroundColor: liquidGlassEnabled
+            ? `rgba(var(--bg-player-rgb, 7, 11, 22), ${transparency})`
+            : "var(--bg-player)",
+          backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined,
+          borderTop: "1px solid var(--surface-line)",
+          fontFamily: "var(--font-display)"
+        }}
+      >
+        {/* Track Info */}
+        <div className="flex items-center gap-6 w-full lg:w-[350px] min-w-0">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-2xl relative group flex-shrink-0">
+             <CoverArt art={track?.art} compact />
+             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Maximize2 size={20} className="text-white" />
+             </div>
           </div>
-          <p
-            className="text-[11px] font-bold truncate mt-1 uppercase tracking-wider"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {track?.artist || "AetherPulse Originals"}
-          </p>
-        </div>
-        {onToggleFavorite && (
+          <div className="min-w-0 flex-1">
+             <div className="flex items-center gap-2">
+                <h4 className="text-lg font-black truncate leading-tight group-hover:text-primary transition-colors">
+                  {track?.title || "Not Playing"}
+                </h4>
+                {isPlaying && (
+                  <div className="wave-bars">
+                    <span /><span /><span /><span />
+                  </div>
+                )}
+             </div>
+             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 truncate mt-1">
+               {track?.artist || "AetherPulse Originals"}
+             </p>
+          </div>
           <button
             onClick={onToggleFavorite}
-            className="p-2 rounded-full transition-all flex-shrink-0"
-            style={{ color: isFavorite ? "var(--primary)" : "var(--text-soft)" }}
-            title={isFavorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+            className={`p-2 rounded-full transition-all hover:scale-125 ${isFavorite ? 'text-primary' : 'opacity-20 hover:opacity-100'}`}
           >
-            <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
-          </button>
-        )}
-      </div>
-
-      {/* Controls and Progress */}
-      <div className="flex flex-col items-center gap-3 flex-1 w-full lg:max-w-2xl lg:px-8">
-        <div className="flex items-center justify-center gap-5 sm:gap-8">
-          <button
-            onClick={onToggleShuffle}
-            className="transition-all hover:scale-110"
-            style={{ color: isShuffled ? "var(--primary)" : "var(--text-soft)" }}
-            title={isShuffled ? "Wyłącz losowe" : "Włącz losowe"}
-          >
-            <Shuffle size={18} />
-          </button>
-          <button
-            onClick={() => onPrev?.()}
-            className="transition-all hover:scale-110 active:scale-90"
-            style={{ color: "var(--text-muted)" }}
-            title="Poprzedni"
-          >
-            <SkipBack size={22} fill="currentColor" />
-          </button>
-          <button
-            onClick={onTogglePlay}
-            className="w-12 h-12 flex items-center justify-center rounded-[18px] hover:scale-110 active:scale-95 transition-all shadow-xl"
-            style={{ backgroundColor: "var(--text-main)", color: "var(--bg-main)" }}
-            aria-label={isPlaying ? "Pauza" : "Odtwórz"}
-          >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
-          </button>
-          <button
-            onClick={() => onNext?.()}
-            className="transition-all hover:scale-110 active:scale-90"
-            style={{ color: "var(--text-muted)" }}
-            title="Następny"
-          >
-            <SkipForward size={22} fill="currentColor" />
-          </button>
-          <button
-            onClick={onToggleRepeat}
-            className="transition-all hover:scale-110"
-            style={{ color: repeatMode !== "none" ? "var(--primary)" : "var(--text-soft)" }}
-            title={repeatTitle}
-          >
-            <RepeatIcon repeatMode={repeatMode} size={18} />
+            <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
           </button>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 w-full text-[10px] font-black tracking-widest uppercase" style={{ color: "var(--text-soft)" }}>
-          <span className="w-9 sm:w-10 text-right">{formatTime(elapsedSeconds)}</span>
-          <div
-            onClick={handleProgressClick}
-            className="flex-1 h-1.5 rounded-full relative group cursor-pointer overflow-visible"
-            style={{ backgroundColor: "var(--bg-hover-strong)" }}
-          >
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-150"
-              style={{ width: `${progress}%`, background: "linear-gradient(to right, var(--primary), color-mix(in srgb, var(--primary) 70%, #ff9988))" }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-0 group-hover:scale-100"
-              style={{ left: `${progress}%`, marginLeft: "-7px", backgroundColor: "var(--text-main)", border: "2px solid var(--primary)" }}
-            />
+        {/* Playback Controls */}
+        <div className="flex flex-col items-center gap-4 flex-1">
+          <div className="flex items-center gap-10">
+            <button 
+              onClick={onToggleShuffle}
+              className={`transition-all hover:scale-110 ${isShuffled ? 'text-primary' : 'opacity-30 hover:opacity-100'}`}
+            >
+              <Shuffle size={18} />
+            </button>
+            <button 
+              onClick={onPrev}
+              className="opacity-60 hover:opacity-100 hover:scale-110 active:scale-90 transition-all"
+            >
+              <SkipBack size={24} fill="currentColor" />
+            </button>
+            <button
+              onClick={onTogglePlay}
+              className="w-16 h-16 rounded-[24px] bg-primary text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-primary/40"
+            >
+              {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
+            </button>
+            <button 
+              onClick={onNext}
+              className="opacity-60 hover:opacity-100 hover:scale-110 active:scale-90 transition-all"
+            >
+              <SkipForward size={24} fill="currentColor" />
+            </button>
+            <button 
+              onClick={onToggleRepeat}
+              className={`transition-all hover:scale-110 ${repeatMode !== 'none' ? 'text-primary' : 'opacity-30 hover:opacity-100'}`}
+            >
+              <RepeatIcon repeatMode={repeatMode} size={18} />
+            </button>
           </div>
-          <span className="w-9 sm:w-10">{formatTime(Math.round(audioDuration || 0))}</span>
+          
+          <div className="flex items-center gap-4 w-full max-w-md text-[10px] font-black opacity-40 uppercase tracking-widest">
+             <span className="w-12 text-right">{formatTime(currentTime)}</span>
+             <div className="flex-1 h-0.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-primary/40" style={{ width: `${progress}%` }} />
+             </div>
+             <span className="w-12">{formatTime(audioDuration)}</span>
+          </div>
         </div>
-      </div>
 
-       {/* Extras and Volume */}
-       <div className="hidden lg:flex items-center justify-end gap-5 w-[300px]">
-         {onHide && (
-           <button
-             type="button"
+        {/* Volume & Extras */}
+        <div className="hidden lg:flex items-center justify-end gap-8 w-[350px]">
+           <div className="flex items-center gap-4">
+              <button 
+                onClick={onShowLyrics}
+                className="p-2 opacity-30 hover:opacity-100 hover:text-primary transition-all hover:scale-110"
+                title="Lyrics"
+              >
+                <Mic size={20} />
+              </button>
+              <button 
+                onClick={onShowQueue}
+                className="p-2 opacity-30 hover:opacity-100 hover:text-primary transition-all hover:scale-110"
+                title="Queue"
+              >
+                <LayoutGrid size={20} />
+              </button>
+           </div>
+           
+           <div className="flex items-center gap-4 w-32 group">
+              <Volume2 size={18} className="opacity-40 group-hover:text-primary transition-colors" />
+              <div 
+                className="flex-1 h-1.5 bg-white/10 rounded-full relative cursor-pointer group/vol overflow-hidden"
+                onClick={handleVolumeClick}
+              >
+                 <div 
+                   className="absolute inset-y-0 left-0 bg-primary group-hover/vol:bg-primary transition-all"
+                   style={{ width: `${volume}%` }}
+                 />
+              </div>
+           </div>
+           
+           <button 
              onClick={onHide}
-             className="transition-all hover:rotate-90 duration-500"
-             style={{ color: "var(--text-soft)" }}
-             title="Ukryj"
+             className="p-2 opacity-30 hover:opacity-100 hover:rotate-90 transition-all duration-500"
            >
              <ArrowRight size={20} />
            </button>
-         )}
-         {onShowQueue && (
-           <button
-             onClick={onShowQueue}
-             className="transition-colors hover:scale-110"
-             style={{ color: "var(--text-soft)" }}
-             title="Kolejka"
-           >
-             <LayoutGrid size={20} />
-           </button>
-         )}
-         {onShowLyrics && (
-           <button
-             onClick={onShowLyrics}
-             className="transition-colors hover:scale-110"
-             style={{ color: "var(--text-soft)" }}
-             title="Napisy"
-           >
-             <Mic size={20} />
-           </button>
-         )}
-         <div className="flex items-center gap-3 w-36">
-           <Volume2 size={18} style={{ color: "var(--text-soft)" }} />
-           <div
-             onClick={handleVolumeClick}
-             className="flex-1 h-1.5 rounded-full cursor-pointer relative overflow-hidden"
-             style={{ backgroundColor: "var(--bg-hover-strong)" }}
-           >
-             <div
-               className="h-full transition-all"
-               style={{ width: `${volume}%`, backgroundColor: "var(--primary)" }}
-             />
-           </div>
-         </div>
-       </div>
+        </div>
+      </div>
     </footer>
   );
 }
-
-export default Player;

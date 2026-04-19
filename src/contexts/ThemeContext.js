@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 export const PRESET_THEMES = {
   dark: {
-    name: "Ciemny",
+    name: "Classic Dark",
     vars: {
       "--bg-main": "#050816",
       "--bg-sidebar": "#0b1020",
@@ -23,10 +23,13 @@ export const PRESET_THEMES = {
       "--shadow-card": "0 8px 32px rgba(0,0,0,0.5)",
       "--scrollbar-track": "rgba(255,255,255,0.05)",
       "--scrollbar-thumb": "rgba(255,255,255,0.15)",
+      "--primary": "#8b5cf6",
+      "--primary-rgb": "139, 92, 246",
+      "--radius-main": "24px",
     },
   },
   light: {
-    name: "Jasny",
+    name: "Classic Light",
     vars: {
       "--bg-main": "#f3f4f6",
       "--bg-sidebar": "#ffffff",
@@ -47,16 +50,196 @@ export const PRESET_THEMES = {
       "--shadow-card": "0 4px 24px rgba(0,0,0,0.10)",
       "--scrollbar-track": "rgba(0,0,0,0.05)",
       "--scrollbar-thumb": "rgba(0,0,0,0.15)",
+      "--primary": "#8b5cf6",
+      "--primary-rgb": "139, 92, 246",
+      "--radius-main": "24px",
     },
   },
+  cyberpunk: {
+    name: "Night City (Cyberpunk)",
+    vars: {
+      "--bg-main": "#020204",
+      "--bg-sidebar": "#020204",
+      "--bg-panel": "#050508",
+      "--bg-card": "#0a0a0f",
+      "--bg-card-hover": "#151520",
+      "--bg-input": "#08080c",
+      "--bg-player": "#000000",
+      "--bg-overlay": "#020204",
+      "--bg-hover": "rgba(0, 255, 255, 0.1)",
+      "--bg-hover-strong": "rgba(255, 0, 128, 0.15)",
+      "--text-main": "#00f3ff",
+      "--text-muted": "#ff0080",
+      "--text-soft": "#b537f2",
+      "--text-placeholder": "#444466",
+      "--surface-line": "#00f3ff33",
+      "--surface-line-strong": "#ff008066",
+      "--shadow-card": "0 0 25px rgba(0, 243, 255, 0.3)",
+      "--scrollbar-track": "#020204",
+      "--scrollbar-thumb": "#00f3ff",
+      "--primary": "#00f3ff",
+      "--primary-rgb": "0, 243, 255",
+      "--radius-main": "0px",
+      "--font-display": "'Orbitron', sans-serif",
+    },
+  },
+  kaiangel: {
+    name: "Kai Angel (Industrial)",
+    vars: {
+      "--bg-main": "#000000",
+      "--bg-sidebar": "#000000",
+      "--bg-panel": "#000000",
+      "--bg-card": "#050505",
+      "--bg-card-hover": "#0a0a0a",
+      "--bg-input": "#080808",
+      "--bg-player": "#000000",
+      "--bg-overlay": "#000000",
+      "--bg-hover": "rgba(255,255,255,0.05)",
+      "--bg-hover-strong": "rgba(255,255,255,0.1)",
+      "--text-main": "#ffffff",
+      "--text-muted": "#888888",
+      "--text-soft": "#444444",
+      "--text-placeholder": "#222222",
+      "--surface-line": "#111111",
+      "--surface-line-strong": "#222222",
+      "--shadow-card": "none",
+      "--scrollbar-track": "#000000",
+      "--scrollbar-thumb": "#ffffff",
+      "--primary": "#ffffff",
+      "--primary-rgb": "255, 255, 255",
+      "--radius-main": "0px",
+      "--font-display": "'Helvetica', sans-serif",
+    },
+  },
+  bloodborne: {
+    name: "Yharnam (Gothic)",
+    vars: {
+      "--bg-main": "#0a0807",
+      "--bg-sidebar": "#0d0b09",
+      "--bg-panel": "#120f0c",
+      "--bg-card": "#1a1612",
+      "--bg-card-hover": "#251f19",
+      "--bg-input": "#0d0b09",
+      "--bg-player": "#050403",
+      "--bg-overlay": "#0a0807",
+      "--bg-hover": "rgba(139, 0, 0, 0.1)",
+      "--bg-hover-strong": "rgba(139, 0, 0, 0.2)",
+      "--text-main": "#c4b494",
+      "--text-muted": "#8b0000",
+      "--text-soft": "#5c503d",
+      "--text-placeholder": "#3d3428",
+      "--surface-line": "#2a221a",
+      "--surface-line-strong": "#4d0000",
+      "--shadow-card": "0 10px 40px rgba(0,0,0,0.8)",
+      "--scrollbar-track": "#050403",
+      "--scrollbar-thumb": "#8b0000",
+      "--primary": "#8b0000",
+      "--primary-rgb": "139, 0, 0",
+      "--radius-main": "8px",
+      "--font-display": "'Cinzel', serif",
+    },
+  },
+  tokyo: {
+    name: "Tokyo Night",
+    vars: {
+      "--bg-main": "#1a1b26",
+      "--bg-sidebar": "#16161e",
+      "--bg-panel": "#1f2335",
+      "--bg-card": "#24283b",
+      "--bg-card-hover": "#292e42",
+      "--bg-input": "#1a1b26",
+      "--bg-player": "#16161e",
+      "--bg-overlay": "#1a1b26",
+      "--bg-hover": "rgba(122, 162, 247, 0.1)",
+      "--bg-hover-strong": "rgba(187, 154, 247, 0.15)",
+      "--text-main": "#c0caf5",
+      "--text-muted": "#7aa2f7",
+      "--text-soft": "#565f89",
+      "--text-placeholder": "#414868",
+      "--surface-line": "#292e42",
+      "--surface-line-strong": "#bb9af7",
+      "--shadow-card": "0 8px 32px rgba(0,0,0,0.4)",
+      "--scrollbar-track": "#16161e",
+      "--scrollbar-thumb": "#7aa2f7",
+      "--primary": "#bb9af7",
+      "--primary-rgb": "187, 154, 247",
+      "--radius-main": "20px",
+    },
+  },
+  amoled: {
+    name: "Pure Black (AMOLED)",
+    vars: {
+      "--bg-main": "#000000",
+      "--bg-sidebar": "#000000",
+      "--bg-panel": "#000000",
+      "--bg-card": "#050505",
+      "--bg-card-hover": "#101010",
+      "--bg-input": "#0a0a0a",
+      "--bg-player": "#000000",
+      "--bg-overlay": "#000000",
+      "--bg-hover": "rgba(255,255,255,0.05)",
+      "--bg-hover-strong": "rgba(255,255,255,0.1)",
+      "--text-main": "#ffffff",
+      "--text-muted": "#cccccc",
+      "--text-soft": "#666666",
+      "--text-placeholder": "#333333",
+      "--surface-line": "#111111",
+      "--surface-line-strong": "#222222",
+      "--shadow-card": "none",
+      "--scrollbar-track": "#000000",
+      "--scrollbar-thumb": "#333333",
+      "--primary": "#3b82f6",
+      "--primary-rgb": "59, 130, 246",
+      "--radius-main": "16px",
+    },
+  }
 };
 
 const DEFAULT_PRIMARY = "#8b5cf6";
 
+function hexToRgb(hex) {
+  const c = hex.replace("#", "");
+  return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+
+function darkenColor(hex, pct) {
+  try {
+    const [r, g, b] = hexToRgb(hex);
+    return rgbToHex(r * (1 - pct / 100), g * (1 - pct / 100), b * (1 - pct / 100));
+  } catch {
+    return hex;
+  }
+}
+
+function lightenColor(hex, pct) {
+  try {
+    const [r, g, b] = hexToRgb(hex);
+    return rgbToHex(r + (255 - r) * (pct / 100), g + (255 - g) * (pct / 100), b + (255 - b) * (pct / 100));
+  } catch {
+    return hex;
+  }
+}
+
+function isLightColor(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+
 function buildCustomVars(base, primaryColor, bgColor, textColor) {
   const baseVars = PRESET_THEMES[base]?.vars || PRESET_THEMES.dark.vars;
   const overrides = {};
-  if (primaryColor) overrides["--primary"] = primaryColor;
+  if (primaryColor) {
+    overrides["--primary"] = primaryColor;
+    const [r, g, b] = hexToRgb(primaryColor);
+    overrides["--primary-rgb"] = `${r}, ${g}, ${b}`;
+  }
   if (bgColor) {
     overrides["--bg-main"] = bgColor;
     const isLight = isLightColor(bgColor);
@@ -80,41 +263,6 @@ function buildCustomVars(base, primaryColor, bgColor, textColor) {
   return { ...baseVars, ...overrides };
 }
 
-function isLightColor(hex) {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-}
-
-function hexToRgb(hex) {
-  const c = hex.replace("#", "");
-  return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
-}
-
-function rgbToHex(r, g, b) {
-  return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
-}
-
-function lightenColor(hex, pct) {
-  try {
-    const [r, g, b] = hexToRgb(hex);
-    return rgbToHex(r + (255 - r) * (pct / 100), g + (255 - g) * (pct / 100), b + (255 - b) * (pct / 100));
-  } catch {
-    return hex;
-  }
-}
-
-function darkenColor(hex, pct) {
-  try {
-    const [r, g, b] = hexToRgb(hex);
-    return rgbToHex(r * (1 - pct / 100), g * (1 - pct / 100), b * (1 - pct / 100));
-  } catch {
-    return hex;
-  }
-}
-
 const ThemeContext = createContext(null);
 
 function loadSaved() {
@@ -133,7 +281,6 @@ export function ThemeProvider({ children }) {
   const [textColor, setTextColorState] = useState(saved?.textColor || "");
   const [customBase, setCustomBaseState] = useState(saved?.customBase || "dark");
 
-  // Ustawienia strony
   const [liquidGlassEnabled, setLiquidGlassEnabledState] = useState(() => {
     try {
       const pageSettings = JSON.parse(localStorage.getItem("bm-page-settings") || "{}");
@@ -159,24 +306,6 @@ export function ThemeProvider({ children }) {
     }
   });
 
-  // Ustawienia dźwięku
-  const [defaultVolume, setDefaultVolumeState] = useState(() => {
-    try {
-      const audioSettings = JSON.parse(localStorage.getItem("bm-audio-settings") || "{}");
-      return audioSettings.defaultVolume ?? 80;
-    } catch {
-      return 80;
-    }
-  });
-  const [audioEffects, setAudioEffectsState] = useState(() => {
-    try {
-      const audioSettings = JSON.parse(localStorage.getItem("bm-audio-settings") || "{}");
-      return audioSettings.audioEffects ?? true;
-    } catch {
-      return true;
-    }
-  });
-
   function applyVars(themeName, primary, bg, text, base) {
     let vars;
     if (themeName === "custom") {
@@ -184,16 +313,26 @@ export function ThemeProvider({ children }) {
     } else {
       vars = { ...PRESET_THEMES[themeName].vars };
     }
-    if (primary && themeName !== "custom") vars["--primary"] = primary;
-    else if (!primary) vars["--primary"] = DEFAULT_PRIMARY;
+    
+    // Support primary color overrides for presets
+    if (primary && themeName !== "custom") {
+      vars["--primary"] = primary;
+      const [r, g, b] = hexToRgb(primary);
+      vars["--primary-rgb"] = `${r}, ${g}, ${b}`;
+    }
+
     const root = document.documentElement;
+    
+    // Clear old font-display and other potentially lingering styles
+    root.style.removeProperty("--font-display");
+    root.style.removeProperty("--radius-main");
+    
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
     root.setAttribute("data-theme", themeName);
   }
 
   useEffect(() => {
     applyVars(theme, primaryColor, bgColor, textColor, customBase);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, primaryColor, bgColor, textColor, customBase]);
 
   function persist(state) {
@@ -229,22 +368,6 @@ export function ThemeProvider({ children }) {
     applyVars("custom", p, b, t, base2);
   }
 
-  // Auto-persist page settings on change
-  useEffect(() => {
-    localStorage.setItem("bm-page-settings", JSON.stringify({ liquidGlassEnabled, blurIntensity, transparency }));
-  }, [liquidGlassEnabled, blurIntensity, transparency]);
-
-  // Auto-persist audio settings on change
-  useEffect(() => {
-    localStorage.setItem("bm-audio-settings", JSON.stringify({ defaultVolume, audioEffects }));
-  }, [defaultVolume, audioEffects]);
-
-  function setLiquidGlassEnabled(val) { setLiquidGlassEnabledState(val); }
-  function setBlurIntensity(val) { setBlurIntensityState(Number(val)); }
-  function setTransparency(val) { setTransparencyState(Number(val)); }
-  function setDefaultVolume(val) { setDefaultVolumeState(Number(val)); }
-  function setAudioEffects(val) { setAudioEffectsState(val); }
-
   return (
     <ThemeContext.Provider value={{
       theme,
@@ -256,15 +379,11 @@ export function ThemeProvider({ children }) {
       textColor,
       customBase,
       liquidGlassEnabled,
-      setLiquidGlassEnabled,
+      setLiquidGlassEnabled: setLiquidGlassEnabledState,
       blurIntensity,
-      setBlurIntensity,
+      setBlurIntensity: setBlurIntensityState,
       transparency,
-      setTransparency,
-      defaultVolume,
-      setDefaultVolume,
-      audioEffects,
-      setAudioEffects
+      setTransparency: setTransparencyState
     }}>
       {children}
     </ThemeContext.Provider>

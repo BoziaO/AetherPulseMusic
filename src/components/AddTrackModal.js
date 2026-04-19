@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { fetchJson } from "../lib/api";
 import { Search, X, Plus, Music } from "./Icons";
 
-function AddTrackModal({ playlistId, isLocal, onClose, onAdded }) {
-  const [query, setQuery] = useState("");
+function AddTrackModal({ playlistId, isLocal, onClose, onAdded, initialTrack }) {
+  const [query, setQuery] = useState(initialTrack ? `${initialTrack.title} ${initialTrack.artist || initialTrack.subtitle || ""}`.trim() : "");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(null);
@@ -39,7 +39,7 @@ function AddTrackModal({ playlistId, isLocal, onClose, onAdded }) {
   }, [query]);
 
   async function handleAdd(track) {
-    if (!track.videoId) return;
+    if (!track.videoId || !playlistId) return;
     setAdding(track.videoId);
     setError("");
     try {
@@ -68,6 +68,7 @@ function AddTrackModal({ playlistId, isLocal, onClose, onAdded }) {
         });
       }
       onAdded?.(track);
+      onClose();
     } catch {
       setError("Nie udało się dodać utworu. Sprawdź połączenie.");
     } finally {

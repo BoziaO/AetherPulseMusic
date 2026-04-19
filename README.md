@@ -1,65 +1,75 @@
 # AetherPulse|Music
 
-Responsywny odtwarzacz muzyczny z YouTube Music, lokalnymi playlistami, ulubionymi utworami i historią odtwarzania. Aplikacja jest zoptymalizowana pod desktop i telefony.
+A modern, responsive music player powered by YouTube Music, featuring local playlists, favorites, and real-time synchronized lyrics. Optimized for both desktop and mobile experiences.
 
-## Funkcje
+## 🚀 Key Features
 
-- Wyszukiwanie utworów, playlist, albumów i wykonawców z YouTube Music.
-- Odtwarzacz z kolejką, przewijaniem, głośnością, losowaniem i powtarzaniem.
-- Lokalne playlisty z dodawaniem oraz usuwaniem utworów.
-- Import playlist YouTube Music do edytowalnej playlisty lokalnej.
-- Ulubione utwory zapisywane lokalnie w przeglądarce.
-- Historia ostatnio odtwarzanych utworów.
-- Motywy: ciemny, jasny i własny kolor akcentu.
-- Ergonomiczne skróty: `/` wyszukuje, `Spacja` lub `K` pauzuje, strzałki przełączają utwory.
-- Mobilne menu dolne, wysuwane menu boczne i responsywny player.
+- **Advanced Search**: Find tracks, playlists, albums, and artists directly from YouTube Music.
+- **Dynamic Player**: Full-featured playback with queue management, seeking, volume control, shuffle, and repeat modes.
+- **Synchronized Lyrics**: Real-time lyric synchronization via LRCLIB and YouTube Music, featuring karaoke-style highlighting and auto-scroll.
+- **Interactive Lyrics**: Click any lyric line to jump to that specific moment in the song.
+- **Local Playlists**: Create and manage personal playlists locally.
+- **YT Import**: Import any YouTube Music playlist into your editable local storage.
+- **Library Management**: Keep track of your favorites and recently played songs (stored in browser local storage).
+- **Customizable Themes**: Toggle between light/dark modes and pick your own primary accent color.
+- **Keyboard Shortcuts**:
+  - `/` Focus search
+  - `Space` or `K` Toggle play/pause
+  - `Arrows` Seek or change tracks
+  - `L` Toggle lyrics modal
+  - `Q` Toggle queue modal
+- **Responsive Design**: Modern UI with a mobile-friendly bottom navigation and glassmorphism effects.
 
-## Technologie
+## 🛠 Tech Stack
 
-- Frontend: React, Create React App, React Router, Tailwind CSS.
-- Backend: Node.js, Express, sesje i opcjonalny Google OAuth.
-- Dane muzyczne: integracja YouTube Music przez moduł `server/ytmusic.js`.
-- Storage: lokalny plik `localPlaylists.json` oraz `localStorage` dla ulubionych i historii.
+- **Frontend**: React, React Router, Tailwind CSS, Context API.
+- **Backend**: Node.js, Express, Google OAuth integration.
+- **Music Data**: Integrated YouTube Music via `ytmusic.js` (Innertube).
+- **Lyrics Engine**: Integration with LRCLIB.net and YouTube Music for synced and static lyrics.
+- **Storage**: Local JSON for persistent playlists and `localStorage` for user preferences.
 
-## Start lokalny
+## 🏁 Getting Started
 
 ```bash
+# Install dependencies
 npm install
+
+# Setup environment
 cp .env.example .env
+
+# Start development (client + server)
 npm run dev
 ```
 
-- Frontend: `http://localhost:5000`
-- Backend API: `http://localhost:3001`
+- **Frontend**: `http://localhost:5000`
+- **Backend API**: `http://localhost:3001`
 
-## Zmienne środowiskowe
+## ⚙️ Environment Variables
 
-| Zmienna | Opis | Wymagana |
+| Variable | Description | Required |
 |---|---|---|
-| `BACKEND_PORT` | Port backendu w development | Nie |
-| `SESSION_SECRET` | Sekret sesji Express | Tak w produkcji |
-| `GOOGLE_CLIENT_ID` | OAuth Google | Nie |
-| `GOOGLE_CLIENT_SECRET` | OAuth Google | Nie |
-| `GOOGLE_CALLBACK_URL` | Callback OAuth | Nie |
-| `REACT_APP_API_BASE_URL` | Niestandardowy adres API; domyślnie puste dla proxy | Nie |
+| `BACKEND_PORT` | Backend development port (default 3001) | No |
+| `SESSION_SECRET` | Express session secret | Yes (Prod) |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | No |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | No |
+| `GOOGLE_CALLBACK_URL` | OAuth Callback URL | No |
 
-## Struktura
+## 📂 Project Structure
 
 ```text
-server/                 Backend Express i API muzyczne
-src/components/         Komponenty UI, player, sidebar, modale
-src/screens/            Główne widoki aplikacji
-src/hooks/              Hooki danych i sesji
-src/lib/                Klient API
-src/data/               Nawigacja i fallback content
-public/                 Manifest PWA i HTML
-.github/                Szablony GitHub
+server/                 Express backend & YouTube Music integration logic
+src/components/         Reusable UI components (Player, Sidebar, Modals)
+src/screens/            Main application views
+src/hooks/              Custom data fetching and auth hooks
+src/contexts/           Theme and state management
+src/lib/                API client and utility functions
+public/                 Static assets and PWA manifest
 ```
 
-## Przygotowanie pod GitHub
+## 🤝 Contributing
 
-Repo zawiera szablon pull requesta, zgłoszenia błędu, prośby o funkcję, zasady kontrybucji i politykę bezpieczeństwa. Przed wysłaniem zmian upewnij się, że aplikacja uruchamia się przez `npm run dev`.
+Contributions are welcome! Please check our `CONTRIBUTING.md` for guidelines. Before submitting a PR, ensure that the application starts correctly using `npm run dev`.
 
-## Licencja
+## 📜 License
 
-MIT
+This project is licensed under the MIT License.

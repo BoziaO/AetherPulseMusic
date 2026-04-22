@@ -1,15 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
-  Home, 
-  Search, 
-  LayoutGrid, 
+  Home,
+  LayoutGrid,
   Heart, 
   Clock, 
   Settings, 
   Zap, 
-  Music, 
-  Disc, 
+  Disc,
   Users, 
   Sparkles,
   X
@@ -68,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <span className="text-2xl font-black tracking-tighter leading-none" style={{ color: "var(--text-main)" }}>
                 Aether<span className="text-primary">Pulse</span>
               </span>
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">Music Engine</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">Music</span>
             </div>
           </Link>
           <button onClick={onClose} className="lg:hidden p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-primary transition-colors">
@@ -127,17 +125,6 @@ export default function Sidebar({ isOpen, onClose }) {
               ))}
             </ul>
           </nav>
-
-          <div className="px-6 py-8 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 group overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-10 -rotate-12 group-hover:scale-150 transition-transform duration-1000">
-               <Music size={64} />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-primary mb-2">Upgrade Now</p>
-            <p className="text-sm font-bold opacity-60 mb-4 relative z-10">Get full access to all themes and features.</p>
-            <button className="w-full py-3 bg-white text-black text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl">
-              Go Pro
-            </button>
-          </div>
         </div>
 
         {/* User / Settings Footer */}

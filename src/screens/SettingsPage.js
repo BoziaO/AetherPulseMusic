@@ -1,6 +1,7 @@
 import React from "react";
 import { useTheme, PRESET_THEMES } from "../contexts/ThemeContext";
-import { Settings, Zap, Palette, Droplets, Monitor, Heart } from "../components/Icons";
+import { useLanguage } from "../contexts/LanguageContext";
+import { Settings, Zap, Palette, Droplets, Monitor, Heart, Languages } from "../components/Icons";
 
 export default function SettingsPage() {
   const {
@@ -16,12 +17,18 @@ export default function SettingsPage() {
     setTransparency,
   } = useTheme();
 
+  const { language, setLanguage } = useLanguage();
+
   const handleThemeChange = (themeKey) => {
     setTheme(themeKey);
   };
 
   const handlePrimaryColorChange = (color) => {
     setPrimaryColor(color);
+  };
+
+  const handleLanguageChange = (langKey) => {
+    setLanguage(langKey);
   };
 
   const themeOptions = Object.entries(PRESET_THEMES).map(([key, value]) => ({
@@ -75,7 +82,7 @@ export default function SettingsPage() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                   <div 
+                   <div
                      className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
                      style={{ backgroundColor: opt.vars["--bg-panel"], border: `1px solid ${opt.vars["--surface-line"]}` }}
                    >
@@ -121,12 +128,44 @@ export default function SettingsPage() {
             </div>
             <div className="pt-6 border-t border-surface-line">
                <label className="text-xs font-black uppercase tracking-widest opacity-40 mb-4 block">Custom Hex Code</label>
-               <input 
-                 type="color" 
+               <input
+                 type="color"
                  value={primaryColor}
                  onChange={(e) => handlePrimaryColorChange(e.target.value)}
                  className="w-full h-12 rounded-xl bg-transparent border border-surface-line p-1 cursor-pointer"
                />
+            </div>
+          </section>
+
+          {/* Language Section */}
+          <section className="glass p-10 rounded-[var(--radius-main)] space-y-10">
+            <div className="flex items-center gap-4">
+              <Languages className="text-primary" />
+              <h2 className="text-2xl font-black">Language</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => handleLanguageChange('en')}
+                className={`flex items-center justify-between p-6 rounded-2xl border transition-all text-left group ${
+                  language === 'en'
+                    ? "bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-105"
+                    : "bg-white/5 border-white/10 hover:border-primary/50"
+                }`}
+              >
+                <p className="font-bold">English</p>
+                {language === 'en' && <Zap size={18} fill="white" className="animate-pulse" />}
+              </button>
+              <button
+                onClick={() => handleLanguageChange('pl')}
+                className={`flex items-center justify-between p-6 rounded-2xl border transition-all text-left group ${
+                  language === 'pl'
+                    ? "bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-105"
+                    : "bg-white/5 border-white/10 hover:border-primary/50"
+                }`}
+              >
+                <p className="font-bold">Polski</p>
+                {language === 'pl' && <Zap size={18} fill="white" className="animate-pulse" />}
+              </button>
             </div>
           </section>
 
@@ -143,14 +182,14 @@ export default function SettingsPage() {
                   liquidGlassEnabled ? "bg-primary shadow-lg shadow-primary/30" : "bg-white/10"
                 }`}
               >
-                <div 
+                <div
                   className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all transform ${
                     liquidGlassEnabled ? "translate-x-7" : "translate-x-1"
                   } shadow-md`}
                 />
               </button>
             </div>
-            
+
             <div className={`space-y-8 transition-opacity duration-500 ${liquidGlassEnabled ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
               <div>
                 <div className="flex items-center justify-between mb-4">

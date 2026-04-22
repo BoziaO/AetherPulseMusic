@@ -10,9 +10,9 @@ const yt = require('./ytmusic');
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 5000) : (process.env.BACKEND_PORT || 3001);
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URI
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URI
 );
 
 const SCOPES = [
@@ -37,9 +37,9 @@ function isAllowedOrigin(origin) {
     const { hostname } = new URL(origin);
     const replitDomain = process.env.REPLIT_DEV_DOMAIN;
     return (
-      (replitDomain && hostname === replitDomain) ||
-      hostname.endsWith('.replit.dev') ||
-      hostname.endsWith('.replit.app')
+        (replitDomain && hostname === replitDomain) ||
+        hostname.endsWith('.replit.dev') ||
+        hostname.endsWith('.replit.app')
     );
   } catch {
     return false;
@@ -87,14 +87,14 @@ app.use(session({
 // Fix: expanded CSP to allow YouTube thumbnails, Google fonts and YouTube IFrame API
 app.use((req, res, next) => {
   res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "connect-src 'self' http://localhost:3001 http://localhost:3002 https://*.googleapis.com https://music.youtube.com; " +
-    "script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "frame-src https://www.youtube.com; " +
-    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;"
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      "connect-src 'self' http://localhost:3001 http://localhost:3002 https://*.googleapis.com https://music.youtube.com; " +
+      "script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "frame-src https://www.youtube.com; " +
+      "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;"
   );
   next();
 });
@@ -154,18 +154,23 @@ app.get('/api/youtube/playlists', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  oauth2Client.setCredentials(req.session.tokens);
-  const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+  const authHeaders = { Authorization: `Bearer ${req.session.tokens.access_token}` };
 
   try {
-    const response = await youtube.playlists.list({
-      part: 'snippet,contentDetails',
-      mine: true,
-      maxResults: 50,
-    });
-    res.json(response.data.items || []);
+    const playlists = await yt.getLibraryPlaylists(50, authHeaders);
+    // Map to similar format as YouTube API
+    const items = playlists.map(p => ({
+      id: p.browseId,
+      snippet: {
+        title: p.title,
+        description: p.author || '',
+        thumbnails: { default: { url: p.thumbnail } }
+      },
+      contentDetails: { itemCount: p.trackCount || 0 }
+    }));
+    res.json(items);
   } catch (error) {
-    console.error('Error fetching YouTube playlists:', error);
+    console.error('Error fetching YouTube Music playlists:', error);
     res.status(500).json({ error: 'Failed to fetch playlists' });
   }
 });
@@ -274,10 +279,10 @@ app.post('/api/ytmusic/playlist/:playlistId/tracks', wrap(async (req) => {
   if (!videoIds.length && !sourcePlaylistId)
     return { error: "videoIds or sourcePlaylistId required" };
   const ok = await yt.addPlaylistItems(
-    req.params.playlistId,
-    videoIds,
-    sourcePlaylistId,
-    duplicates,
+      req.params.playlistId,
+      videoIds,
+      sourcePlaylistId,
+      duplicates,
   );
   return { success: ok };
 }));
@@ -322,11 +327,11 @@ function hasYtMusicHeaders() {
 
 function pickThumbnailUrl(item) {
   return (
-    item?.thumbnail ||
-    item?.cover ||
-    item?.art ||
-    (Array.isArray(item?.thumbnails) ? item.thumbnails[item.thumbnails.length - 1]?.url : null) ||
-    null
+      item?.thumbnail ||
+      item?.cover ||
+      item?.art ||
+      (Array.isArray(item?.thumbnails) ? item.thumbnails[item.thumbnails.length - 1]?.url : null) ||
+      null
   );
 }
 
@@ -346,9 +351,9 @@ function toMediaItem(item) {
 function toQueueItem(track) {
   if (!track) return null;
   const artist =
-    track.artist ||
-    (Array.isArray(track.artists) ? track.artists.map((a) => a.name).join(", ") : "") ||
-    "";
+      track.artist ||
+      (Array.isArray(track.artists) ? track.artists.map((a) => a.name).join(", ") : "") ||
+      "";
   return {
     title: track.title,
     artist,
@@ -374,7 +379,7 @@ app.get('/api/page/:key', wrap(async (req) => {
   if (key === "home") {
     const charts = await yt.getCharts("ZZ");
     const trendingSongs = (charts?.songs || []).filter(Boolean);
-    
+
     // Personalized recommendations based on recent plays
     let recommendations = [];
     const recentIds = recent.split(",").filter(Boolean);
@@ -396,9 +401,9 @@ app.get('/api/page/:key', wrap(async (req) => {
       ...base,
       eyebrow: "Witaj w AetherPulse|Music",
       title: recommendations.length > 0 ? "Polecane dla Ciebie" : "Trending — utwory na czasie",
-      description: recommendations.length > 0 
-        ? "Na podstawie Twojej ostatniej aktywności." 
-        : "Hit dnia i trendy z YouTube Music (Innertube).",
+      description: recommendations.length > 0
+          ? "Na podstawie Twojej ostatniej aktywności."
+          : "Hit dnia i trendy z YouTube Music (Innertube).",
       chips: ["Dla Ciebie", "Trendy", "Playlisty", "Albumy"],
       spotlightTitle: "Hit dnia",
       spotlightText: hit ? `${hit.title}` : "Najczęściej odtwarzany utwór dzisiaj.",
@@ -411,16 +416,16 @@ app.get('/api/page/:key', wrap(async (req) => {
       primarySection: {
         title: recommendations.length > 0 ? "Twoje rekomendacje" : "Trending (utwory)",
         action: "Odśwież",
-        items: recommendations.length > 0 
-          ? recommendations 
-          : trendingSongs.slice(0, 18).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean),
+        items: recommendations.length > 0
+            ? recommendations
+            : trendingSongs.slice(0, 18).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean),
       },
       secondarySection: {
         title: recommendations.length > 0 ? "Trending (utwory)" : (primaryRow?.title || "Polecane playlisty"),
         action: "Odśwież",
         items: recommendations.length > 0
-          ? trendingSongs.slice(0, 12).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean)
-          : (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
+            ? trendingSongs.slice(0, 12).map((s) => toMediaItem({ ...s, resultType: "song", meta: "Trending" })).filter(Boolean)
+            : (primaryRow?.items || []).map((i) => toMediaItem({ ...i, resultType: i?.browseId?.startsWith("VL") ? "playlist" : i?.resultType })).filter(Boolean),
       },
       tertiarySection: {
         title: "Popularne utwory",
@@ -439,8 +444,8 @@ app.get('/api/page/:key', wrap(async (req) => {
       queueAction: "Odtwórz",
       queue: trendingSongs.slice(0, 12).map(toQueueItem).filter(Boolean),
       nowPlaying: hit
-        ? { title: hit.title, artist: hit.artist || "", art: hit.thumbnail, duration: 240, progress: 10, videoId: hit.videoId || null }
-        : undefined,
+          ? { title: hit.title, artist: hit.artist || "", art: hit.thumbnail, duration: 240, progress: 10, videoId: hit.videoId || null }
+          : undefined,
     };
   }
 
@@ -475,14 +480,14 @@ app.get('/api/page/:key', wrap(async (req) => {
         // Fix: primary section action for playlists should be "Nowa playlista"
         action: "Nowa playlista",
         items: merged.map((p) =>
-          toMediaItem({
-            title: p.title,
-            author: p.author || "YouTube Music",
-            thumbnail: p.thumbnail,
-            browseId: p.browseId,
-            resultType: "playlist",
-            meta: p.source === "local" ? "Lokalna" : "Biblioteka",
-          }),
+            toMediaItem({
+              title: p.title,
+              author: p.author || "YouTube Music",
+              thumbnail: p.thumbnail,
+              browseId: p.browseId,
+              resultType: "playlist",
+              meta: p.source === "local" ? "Lokalna" : "Biblioteka",
+            }),
         ),
       },
       secondarySection: {
@@ -515,13 +520,13 @@ app.get('/api/page/:key', wrap(async (req) => {
         title: "Albumy z biblioteki",
         action: "Odśwież",
         items: (libAlbums || []).map((a) =>
-          toMediaItem({
-            title: a.title,
-            thumbnail: a.thumbnail,
-            browseId: a.browseId,
-            resultType: "album",
-            meta: "Biblioteka",
-          }),
+            toMediaItem({
+              title: a.title,
+              thumbnail: a.thumbnail,
+              browseId: a.browseId,
+              resultType: "album",
+              meta: "Biblioteka",
+            }),
         ),
       },
       secondarySection: {
@@ -560,13 +565,13 @@ app.get('/api/page/:key', wrap(async (req) => {
         title: "Artyści z biblioteki",
         action: "Odśwież",
         items: (libArtists || []).map((a) =>
-          toMediaItem({
-            title: a.title,
-            thumbnail: a.thumbnail,
-            browseId: a.browseId,
-            resultType: "artist",
-            meta: "Biblioteka",
-          }),
+            toMediaItem({
+              title: a.title,
+              thumbnail: a.thumbnail,
+              browseId: a.browseId,
+              resultType: "artist",
+              meta: "Biblioteka",
+            }),
         ),
       },
       secondarySection: {
@@ -602,8 +607,8 @@ app.get('/api/page/:key', wrap(async (req) => {
       eyebrow: key === "discover" ? "Odkrywaj" : key === "chill" ? "Relaks" : "Energia",
       title: key === "discover" ? "Odkrywaj nowe brzmienia" : key === "chill" ? "Relaks — playlisty" : "Energia — playlisty",
       description: picked?.title
-        ? `Sekcja: ${picked.title} (YouTube Music moods).`
-        : "Polecane playlisty z YouTube Music (moods & genres).",
+          ? `Sekcja: ${picked.title} (YouTube Music moods).`
+          : "Polecane playlisty z YouTube Music (moods & genres).",
       chips: ["Moods", "Playlisty", "Trendy"],
       stats: [
         { label: "Kategorie moods", value: String(all.length || 0) },
@@ -614,26 +619,26 @@ app.get('/api/page/:key', wrap(async (req) => {
         title: picked?.title || "Polecane playlisty",
         action: "Odśwież",
         items: (playlists || []).slice(0, 18).map((p) =>
-          toMediaItem({
-            title: p.title,
-            thumbnail: p.thumbnail,
-            browseId: p.playlistId,
-            resultType: "playlist",
-            meta: "Playlist",
-          }),
+            toMediaItem({
+              title: p.title,
+              thumbnail: p.thumbnail,
+              browseId: p.playlistId,
+              resultType: "playlist",
+              meta: "Playlist",
+            }),
         ),
       },
       secondarySection: {
         title: "Trending (utwory)",
         action: "Odśwież",
         items: (charts?.songs || []).slice(0, 18).map((s) =>
-          toMediaItem({
-            title: s.title,
-            thumbnail: s.thumbnail,
-            videoId: s.videoId,
-            resultType: "song",
-            meta: "Trending",
-          }),
+            toMediaItem({
+              title: s.title,
+              thumbnail: s.thumbnail,
+              videoId: s.videoId,
+              resultType: "song",
+              meta: "Trending",
+            }),
         ).filter(Boolean),
       },
       chartTitle: "Trending (artyści)",
@@ -647,6 +652,36 @@ app.get('/api/page/:key', wrap(async (req) => {
       queueTitle: "Kolejka",
       queueAction: "Odtwórz",
       queue: (charts?.songs || []).slice(0, 12).map(toQueueItem).filter(Boolean),
+    };
+  }
+
+  if (key === "favorites") {
+    return {
+      ...base,
+      eyebrow: "Biblioteka",
+      title: "Ulubione",
+      description: "Twoje ulubione utwory zapisane podczas słuchania.",
+      chips: ["Zapisane"],
+      stats: [],
+      primarySection: { title: "Ulubione", action: "", items: [] },
+      secondarySection: { title: "", action: "", items: [] },
+      chartTitle: "", chartItems: [],
+      queueTitle: "Ulubione", queueAction: "Odtwórz", queue: [],
+    };
+  }
+
+  if (key === "recent") {
+    return {
+      ...base,
+      eyebrow: "Historia",
+      title: "Ostatnio grane",
+      description: "Historia odtwarzanych utworów przechowywana lokalnie w przeglądarce.",
+      chips: ["Historia"],
+      stats: [],
+      primarySection: { title: "Ostatnio grane", action: "", items: [] },
+      secondarySection: { title: "", action: "", items: [] },
+      chartTitle: "", chartItems: [],
+      queueTitle: "Ostatnio grane", queueAction: "Odtwórz", queue: [],
     };
   }
 
@@ -707,6 +742,51 @@ app.post('/api/local/playlists', (req, res) => {
   res.json(newPlaylist);
 });
 
+// Import YouTube playlist to local storage — MUST be before /:id to avoid route shadowing
+app.post('/api/local/playlists/import-yt/:playlistId', wrap(async (req) => {
+  const { playlistId } = req.params;
+  const cleanId = playlistId.replace(/^VL/, '');
+
+  const ytPlaylist = await yt.getPlaylist(cleanId, 500);
+  if (!ytPlaylist) {
+    return { error: 'Nie znaleziono playlisty YouTube Music.' };
+  }
+
+  const tracks = (ytPlaylist.tracks || []).filter(Boolean);
+  const title = ytPlaylist.title || 'Importowana playlista';
+  const description = ytPlaylist.author
+      ? `Importowane z YouTube Music — ${ytPlaylist.author}`
+      : 'Importowane z YouTube Music';
+
+  const playlists = loadLocalPlaylists();
+  const newPlaylist = {
+    id: Date.now().toString(),
+    title,
+    description,
+    tracks: tracks.map((t) => ({
+      videoId: t.videoId || '',
+      title: t.title || 'Nieznany',
+      artist:
+          t.artist ||
+          (Array.isArray(t.artists) ? t.artists.map((a) => a.name).join(', ') : '') ||
+          t.author ||
+          '',
+      thumbnail:
+          t.thumbnail ||
+          (Array.isArray(t.thumbnails) ? t.thumbnails[t.thumbnails.length - 1]?.url : null) ||
+          null,
+      duration: t.duration || '',
+    })).filter((t) => t.videoId),
+    importedFrom: playlistId,
+    createdAt: new Date().toISOString(),
+  };
+
+  playlists.push(newPlaylist);
+  saveLocalPlaylists(playlists);
+
+  return { success: true, localId: newPlaylist.id, title: newPlaylist.title, trackCount: newPlaylist.tracks.length };
+}));
+
 app.get('/api/local/playlists/:id', (req, res) => {
   const playlists = loadLocalPlaylists();
   const playlist = playlists.find((p) => p.id === req.params.id);
@@ -746,57 +826,13 @@ app.delete('/api/local/playlists/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// Import YouTube playlist to local storage
-app.post('/api/local/playlists/import-yt/:playlistId', wrap(async (req) => {
-  const { playlistId } = req.params;
-  const cleanId = playlistId.replace(/^VL/, '');
 
-  // Fetch the YouTube playlist data
-  const ytPlaylist = await yt.getPlaylist(cleanId, 500);
-  if (!ytPlaylist) {
-    return { error: 'Nie znaleziono playlisty YouTube Music.' };
-  }
 
-  const tracks = (ytPlaylist.tracks || []).filter(Boolean);
-  const title = ytPlaylist.title || 'Importowana playlista';
-  const description = ytPlaylist.author
-    ? `Importowane z YouTube Music — ${ytPlaylist.author}`
-    : 'Importowane z YouTube Music';
-
-  // Create a new local playlist
-  const playlists = loadLocalPlaylists();
-  const newPlaylist = {
-    id: Date.now().toString(),
-    title,
-    description,
-    tracks: tracks.map((t) => ({
-      videoId: t.videoId || '',
-      title: t.title || 'Nieznany',
-      artist:
-        t.artist ||
-        (Array.isArray(t.artists) ? t.artists.map((a) => a.name).join(', ') : '') ||
-        t.author ||
-        '',
-      thumbnail:
-        t.thumbnail ||
-        (Array.isArray(t.thumbnails) ? t.thumbnails[t.thumbnails.length - 1]?.url : null) ||
-        null,
-      duration: t.duration || '',
-    })).filter((t) => t.videoId),
-    importedFrom: playlistId,
-    createdAt: new Date().toISOString(),
-  };
-
-  playlists.push(newPlaylist);
-  saveLocalPlaylists(playlists);
-
-  return { success: true, localId: newPlaylist.id, title: newPlaylist.title, trackCount: newPlaylist.tracks.length };
-}));
 
 // Lyrics endpoint - search and return lyrics with timestamps
 app.get('/api/lyrics', wrap(async (req) => {
   const { q, videoId, artist, title } = req.query;
-  
+
   try {
     // 1. Try LRCLIB for synced lyrics if we have artist and title
     if (artist && title) {
@@ -815,7 +851,7 @@ app.get('/api/lyrics', wrap(async (req) => {
       const searchResults = await yt.search(q, 'songs', 1);
       if (searchResults && searchResults.length > 0) {
         const track = searchResults[0];
-        
+
         // Try LRCLIB first for the searched track
         const trackArtist = track.artists ? track.artists[0].name : '';
         const lrcLyrics = await yt.getLrclibLyrics(track.title, trackArtist);

@@ -4,7 +4,7 @@ import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Menu, Music, Search, Settings, Sparkles, X } from "./Icons";
+import { Menu, Music, Search, Settings, Sparkles, X } from "./Icons";
 import Player from "./Player";
 import Sidebar from "./Sidebar";
 import QueueModal from "./QueueModal";
@@ -232,20 +232,38 @@ function AppShell() {
       if (isShuffledRef.current) {
         setShuffledQueue(shuffleArray(newQueue));
       }
+      // Track the index of the played item within the new queue
+      const idxInNew = newQueue.findIndex(
+          (t) => (item.videoId && t.videoId === item.videoId) ||
+              (t.title === item.title && t.artist === item.artist)
+      );
+      setCurrentQueueIndex(idxInNew >= 0 ? idxInNew : 0);
+    } else {
+      // Update index within the existing queue
+      const existingQueue = isShuffledRef.current
+          ? shuffledQueueRef.current
+          : queueRef.current;
+      if (existingQueue.length > 0) {
+        const idx = existingQueue.findIndex(
+            (t) => (item.videoId && t.videoId === item.videoId) ||
+                (t.title === item.title && t.artist === item.artist)
+        );
+        if (idx >= 0) setCurrentQueueIndex(idx);
+      }
     }
 
     const title = item.title || item.name || "";
     const artist =
-      item.artist ||
-      item.subtitle ||
-      (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") ||
-      "";
+        item.artist ||
+        item.subtitle ||
+        (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") ||
+        "";
     const art = item.thumbnail || item.cover || item.art;
-    
+
     // Parse duration if it's a string like "3:45"
     let duration = typeof item.durationSeconds === "number" ? item.durationSeconds : 0;
     if (!duration && item.duration) {
-       duration = parseDuration(item.duration);
+      duration = parseDuration(item.duration);
     }
 
     const nextTrack = { ...item, title, artist, art, duration, videoId: item.videoId || null };
@@ -283,6 +301,9 @@ function AppShell() {
       }
     } catch (_) {}
   }, []);
+
+  const setCurrentQueueIndexRef = useRef(setCurrentQueueIndex);
+  useEffect(() => { setCurrentQueueIndexRef.current = setCurrentQueueIndex; }, []);
 
   const nextTrack = useCallback(() => {
     const currentQueue = isShuffledRef.current ? shuffledQueueRef.current : (queueRef.current.length ? queueRef.current : pageRequest.data?.queue || []);
@@ -493,7 +514,7 @@ function AppShell() {
       try {
         setSearchLoading(true);
         const results = await fetchJson(
-          `/api/ytmusic/search?q=${encodeURIComponent(trimmed)}&filter=${encodeURIComponent(searchFilter)}&limit=12`,
+            `/api/ytmusic/search?q=${encodeURIComponent(trimmed)}&filter=${encodeURIComponent(searchFilter)}&limit=12`,
         );
         setSearchResults(Array.isArray(results) ? results : []);
       } catch (error) {
@@ -530,11 +551,12 @@ function AppShell() {
       return;
     }
     if (item.resultType === "artist" && item.browseId) {
-      navigate(`/artist/${encodeURIComponent(item.browseId)}`);
+      // Do not double-encode — React Router decodes params automatically
+      navigate(`/artist/${item.browseId}`);
       return;
     }
     if (item.resultType === "album" && item.browseId) {
-      navigate(`/album/${encodeURIComponent(item.browseId)}`);
+      navigate(`/album/${item.browseId}`);
       return;
     }
     if (item.videoId) {
@@ -545,317 +567,310 @@ function AppShell() {
   const showSearch = searchOpen && query.trim().length >= 2;
 
   return (
-    <div
-      className="flex min-h-screen font-sans"
-      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
-    >
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <main 
-        className={`flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 overflow-x-hidden transition-all duration-500 ${
-          playerVisible && nowPlaying 
-            ? "pb-64 sm:pb-72 lg:pb-40" 
-            : "pb-24 sm:pb-28 lg:pb-12"
-        }`} 
-        style={{ backgroundColor: "var(--bg-main)" }}
+      <div
+          className="flex min-h-screen font-sans"
+          style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
       >
-        <header
-          className={`flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px] ${
-            liquidGlassEnabled ? 'backdrop-blur' : ''
-          }`}
-          style={{
-            backgroundColor: liquidGlassEnabled
-              ? `rgba(var(--bg-main-rgb, 5, 8, 22), ${transparency})`
-              : "color-mix(in srgb, var(--bg-main) 80%, transparent)",
-            backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
-          }}
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+        <main
+            className={`flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 overflow-x-hidden transition-all duration-500 ${
+                playerVisible && nowPlaying
+                    ? "pb-64 sm:pb-72 lg:pb-40"
+                    : "pb-24 sm:pb-28 lg:pb-12"
+            }`}
+            style={{ backgroundColor: "var(--bg-main)" }}
         >
-          <button
-            type="button"
-            className="lg:hidden w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)" }}
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Otwórz menu"
+          <header
+              className={`flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px] ${
+                  liquidGlassEnabled ? 'backdrop-blur' : ''
+              }`}
+              style={{
+                backgroundColor: liquidGlassEnabled
+                    ? `rgba(var(--bg-main-rgb, 5, 8, 22), ${transparency})`
+                    : "color-mix(in srgb, var(--bg-main) 80%, transparent)",
+                backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
+              }}
           >
-            <Menu size={22} />
-          </button>
-          <div className="flex-1 max-w-2xl relative min-w-0" ref={searchRef}>
-            <div className="relative group">
-              <Search
-                size={20}
-                className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors"
-                style={{ color: "var(--text-soft)" }}
-              />
-              <input
-                type="text"
-                placeholder={currentPage.searchPlaceholder || "Szukaj..."}
-                ref={searchInputRef}
-                className="w-full rounded-2xl py-3.5 sm:py-4 pl-12 sm:pl-14 pr-11 sm:pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
-                style={{
-                  backgroundColor: "var(--bg-input)",
-                  border: "1px solid var(--surface-line)",
-                  color: "var(--text-main)",
-                }}
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSearchOpen(true);
-                }}
-                onFocus={() => setSearchOpen(true)}
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  <X size={16} />
-                </button>
+            <button
+                type="button"
+                className="lg:hidden w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)" }}
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Otwórz menu"
+            >
+              <Menu size={22} />
+            </button>
+            <div className="flex-1 max-w-2xl relative min-w-0" ref={searchRef}>
+              <div className="relative group">
+                <Search
+                    size={20}
+                    className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors"
+                    style={{ color: "var(--text-soft)" }}
+                />
+                <input
+                    type="text"
+                    placeholder={currentPage.searchPlaceholder || "Szukaj..."}
+                    ref={searchInputRef}
+                    className="w-full rounded-2xl py-3.5 sm:py-4 pl-12 sm:pl-14 pr-11 sm:pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
+                    style={{
+                      backgroundColor: "var(--bg-input)",
+                      border: "1px solid var(--surface-line)",
+                      color: "var(--text-main)",
+                    }}
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setSearchOpen(true);
+                    }}
+                    onFocus={() => setSearchOpen(true)}
+                />
+                {query && (
+                    <button
+                        onClick={() => setQuery("")}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all"
+                        style={{ color: "var(--text-muted)" }}
+                    >
+                      <X size={16} />
+                    </button>
+                )}
+              </div>
+
+              {showSearch && (
+                  <div
+                      className={`absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110] ${
+                          liquidGlassEnabled ? 'backdrop-blur' : ''
+                      }`}
+                      style={{
+                        backgroundColor: liquidGlassEnabled
+                            ? `rgba(var(--bg-panel-rgb, 16, 23, 42), ${transparency})`
+                            : "var(--bg-panel)",
+                        border: "1px solid var(--surface-line)",
+                        boxShadow: "var(--shadow-card)",
+                        backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
+                      }}
+                  >
+                    <div className="p-3 sm:p-4 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
+                      {SEARCH_FILTERS.map((f) => (
+                          <button
+                              key={f}
+                              onClick={() => setSearchFilter(f)}
+                              className="px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all"
+                              style={searchFilter === f
+                                  ? { backgroundColor: "var(--primary)", color: "#fff" }
+                                  : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
+                              }
+                          >
+                            {FILTER_LABELS[f]}
+                          </button>
+                      ))}
+                    </div>
+
+                    <div className="max-h-[65vh] sm:max-h-[480px] overflow-y-auto p-3 space-y-1">
+                      {searchLoading ? (
+                          <div className="p-12 flex flex-col items-center justify-center gap-4">
+                            <div className="w-8 h-8 border-4 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }}></div>
+                            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>Przeszukiwanie bazy...</p>
+                          </div>
+                      ) : searchResults.length > 0 ? (
+                          searchResults.map((item, idx) => (
+                              <button
+                                  key={idx}
+                                  className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-left group"
+                                  style={{ color: "var(--text-main)" }}
+                                  onClick={() => handleSearchResultClick(item)}
+                                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                              >
+                                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform" style={{ backgroundColor: "var(--bg-card)" }}>
+                                  {(item.thumbnail || item.cover || item.art) && <img src={item.thumbnail || item.cover || item.art} alt="" className="w-full h-full object-cover" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold truncate" style={{ color: "var(--text-main)" }}>{item.title}</p>
+                                  <p className="text-xs truncate mt-1" style={{ color: "var(--text-muted)" }}>
+                                    {item.artists?.map((a) => a.name).join(", ") || item.author || "YouTube Music"}
+                                  </p>
+                                </div>
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md" style={{ color: "var(--text-soft)", backgroundColor: "var(--bg-hover)" }}>
+                          {item.resultType}
+                        </span>
+                              </button>
+                          ))
+                      ) : (
+                          <div className="p-12 text-center">
+                            <p className="font-medium" style={{ color: "var(--text-muted)" }}>Brak wyników dla tej kategorii.</p>
+                          </div>
+                      )}
+                    </div>
+                  </div>
               )}
             </div>
 
-            {showSearch && (
-              <div
-                className={`absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110] ${
-                  liquidGlassEnabled ? 'backdrop-blur' : ''
-                }`}
-                style={{
-                  backgroundColor: liquidGlassEnabled
-                    ? `rgba(var(--bg-panel-rgb, 16, 23, 42), ${transparency})`
-                    : "var(--bg-panel)",
-                  border: "1px solid var(--surface-line)",
-                  boxShadow: "var(--shadow-card)",
-                  backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
-                }}
+            <div className="flex items-center gap-2 sm:gap-5 sm:ml-4 lg:ml-8">
+              <button
+                  onClick={() => navigate("/settings")}
+                  className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
+                  style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
+                  title="Ustawienia"
               >
-                <div className="p-3 sm:p-4 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
-                  {SEARCH_FILTERS.map((f) => (
+                <Settings size={22} />
+              </button>
+              <div className="h-7 w-px mx-1" style={{ backgroundColor: "var(--surface-line)" }}></div>
+              {authSession.data?.auth?.connected ? (
+                  <div className="flex items-center gap-4">
                     <button
-                      key={f}
-                      onClick={() => setSearchFilter(f)}
-                      className="px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all"
-                      style={searchFilter === f
-                        ? { backgroundColor: "var(--primary)", color: "#fff" }
-                        : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
-                      }
+                        onClick={handleLogout}
+                        className="text-xs font-black uppercase tracking-widest transition-colors"
+                        style={{ color: "var(--text-muted)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                     >
-                      {FILTER_LABELS[f]}
+                      Wyloguj
                     </button>
-                  ))}
-                </div>
-
-                <div className="max-h-[65vh] sm:max-h-[480px] overflow-y-auto p-3 space-y-1">
-                  {searchLoading ? (
-                    <div className="p-12 flex flex-col items-center justify-center gap-4">
-                      <div className="w-8 h-8 border-4 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }}></div>
-                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>Przeszukiwanie bazy...</p>
+                    <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform cursor-pointer" style={{ border: "2px solid var(--surface-line)" }}>
+                      {resolvedUser.picture && <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />}
                     </div>
-                  ) : searchResults.length > 0 ? (
-                    searchResults.map((item, idx) => (
-                      <button
-                        key={idx}
-                        className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-left group"
-                        style={{ color: "var(--text-main)" }}
-                        onClick={() => handleSearchResultClick(item)}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                      >
-                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform" style={{ backgroundColor: "var(--bg-card)" }}>
-                          {item.thumbnail && <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold truncate" style={{ color: "var(--text-main)" }}>{item.title}</p>
-                          <p className="text-xs truncate mt-1" style={{ color: "var(--text-muted)" }}>
-                            {item.artists?.map((a) => a.name).join(", ") || item.author || "YouTube Music"}
-                          </p>
-                        </div>
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md" style={{ color: "var(--text-soft)", backgroundColor: "var(--bg-hover)" }}>
-                          {item.resultType}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-12 text-center">
-                      <p className="font-medium" style={{ color: "var(--text-muted)" }}>Brak wyników dla tej kategorii.</p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+              ) : (
+                  <a
+                      href={loginUrl}
+                      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
+                      style={{ backgroundColor: "var(--primary)", color: "#fff" }}
+                  >
+                    <Sparkles size={16} fill="white" />
+                    Zaloguj
+                  </a>
+              )}
+            </div>
+          </header>
+
+          {pageRequest.error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-medium">
+                ⚠️ Błąd ładowania danych: {pageRequest.error}. Upewnij się, że backend działa (<code>npm run dev</code>).
               </div>
-            )}
-          </div>
+          )}
 
-          <div className="flex items-center gap-2 sm:gap-5 sm:ml-4 lg:ml-8">
+          <Outlet
+              context={{
+                pageData: pageRequest.data,
+                pageLoading: pageRequest.loading,
+                play,
+                query,
+                searchFilter,
+                searchResults,
+                searchLoading,
+                authSession,
+                favorites,
+                favoriteItems: Object.values(favoriteTracks),
+                recentPlays,
+                toggleFavoriteTrack: (track) => {
+                  const id = getTrackKey(track);
+                  const next = new Set(favorites);
+                  const nextTracks = { ...favoriteTracks };
+                  if (next.has(id)) {
+                    next.delete(id);
+                    delete nextTracks[id];
+                  } else {
+                    next.add(id);
+                    nextTracks[id] = track;
+                  }
+                  setFavorites(next);
+                  setFavoriteTracks(nextTracks);
+                },
+              }}
+          />
+        </main>
+
+        {/* Hidden YouTube Player */}
+        <div id="yt-hidden-player" className="hidden"></div>
+
+        {playerVisible && nowPlaying ? (
+            <Player
+                track={nowPlaying}
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlay}
+                onSeek={handleSeek}
+                currentTime={currentTime}
+                audioDuration={audioDuration}
+                volume={volume}
+                onVolumeChange={handleVolumeChange}
+                onPrev={prevTrack}
+                onNext={nextTrack}
+                isShuffled={isShuffled}
+                repeatMode={repeatMode}
+                onToggleShuffle={toggleShuffle}
+                onToggleRepeat={toggleRepeat}
+                isFavorite={favorites.has(getTrackKey(nowPlaying))}
+                onToggleFavorite={() => {
+                  const id = getTrackKey(nowPlaying);
+                  const next = new Set(favorites);
+                  const nextTracks = { ...favoriteTracks };
+                  if (next.has(id)) {
+                    next.delete(id);
+                    delete nextTracks[id];
+                  } else {
+                    next.add(id);
+                    nextTracks[id] = nowPlaying;
+                  }
+                  setFavorites(next);
+                  setFavoriteTracks(nextTracks);
+                }}
+                onHide={() => setPlayerVisible(false)}
+                onShowQueue={() => setShowQueueModal(true)}
+                onShowLyrics={() => setShowLyricsModal(true)}
+            />
+        ) : nowPlaying ? (
             <button
-              onClick={() => navigate("/settings")}
-              className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
-              style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
-              title="Ustawienia"
+                onClick={() => setPlayerVisible(true)}
+                className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl animate-bounce-slow z-[180] group transition-all hover:scale-110 active:scale-95"
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "#fff",
+                  boxShadow: "0 0 30px var(--primary)"
+                }}
+                title="Pokaż odtwarzacz"
             >
-              <Settings size={22} />
+              <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping"></div>
+              <Music size={24} className="relative z-10" />
             </button>
-            <button
-              className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
-              style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
-            >
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ backgroundColor: "var(--primary)" }}></span>
-            </button>
-            <div className="h-7 w-px mx-1" style={{ backgroundColor: "var(--surface-line)" }}></div>
-            {authSession.data?.auth?.connected ? (
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleLogout}
-                  className="text-xs font-black uppercase tracking-widest transition-colors"
-                  style={{ color: "var(--text-muted)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                >
-                  Wyloguj
-                </button>
-                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform cursor-pointer" style={{ border: "2px solid var(--surface-line)" }}>
-                  {resolvedUser.picture && <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />}
-                </div>
-              </div>
-            ) : (
-              <a
-                href={loginUrl}
-                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
-                style={{ backgroundColor: "var(--primary)", color: "#fff" }}
-              >
-                <Sparkles size={16} fill="white" />
-                Zaloguj
-              </a>
-            )}
-          </div>
-        </header>
+        ) : null}
 
-        {pageRequest.error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-medium">
-            ⚠️ Błąd ładowania danych: {pageRequest.error}. Upewnij się, że backend działa (<code>npm run dev</code>).
-          </div>
-        )}
-
-        <Outlet
-          context={{
-            pageData: pageRequest.data,
-            pageLoading: pageRequest.loading,
-            play,
-            query,
-            searchFilter,
-            searchResults,
-            searchLoading,
-            authSession,
-            favorites,
-            favoriteItems: Object.values(favoriteTracks),
-            recentPlays,
-            toggleFavoriteTrack: (track) => {
-              const id = getTrackKey(track);
-              const next = new Set(favorites);
-              const nextTracks = { ...favoriteTracks };
-              if (next.has(id)) {
-                next.delete(id);
-                delete nextTracks[id];
-              } else {
-                next.add(id);
-                nextTracks[id] = track;
+        <QueueModal
+            isOpen={showQueueModal}
+            onClose={() => setShowQueueModal(false)}
+            queue={isShuffled ? shuffledQueue : (queue.length ? queue : pageRequest.data?.queue || [])}
+            currentTrackIndex={currentQueueIndex}
+            onSelectTrack={(index) => {
+              const currentQueue = isShuffled ? shuffledQueue : (queue.length ? queue : pageRequest.data?.queue || []);
+              if (currentQueue[index]) {
+                play(currentQueue[index]);
+                setCurrentQueueIndex(index);
               }
-              setFavorites(next);
-              setFavoriteTracks(nextTracks);
-            },
-          }}
+            }}
+            onRemoveTrack={(index) => {
+              if (isShuffled) {
+                const next = [...shuffledQueue];
+                next.splice(index, 1);
+                setShuffledQueue(next);
+              } else {
+                const next = [...queue];
+                next.splice(index, 1);
+                setQueue(next);
+              }
+            }}
         />
-      </main>
 
-      {/* Hidden YouTube Player */}
-      <div id="yt-hidden-player" className="hidden"></div>
-
-      {playerVisible && nowPlaying ? (
-        <Player
-          track={nowPlaying}
-          isPlaying={isPlaying}
-          onTogglePlay={togglePlay}
-          onSeek={handleSeek}
-          currentTime={currentTime}
-          audioDuration={audioDuration}
-          volume={volume}
-          onVolumeChange={handleVolumeChange}
-          onPrev={prevTrack}
-          onNext={nextTrack}
-          isShuffled={isShuffled}
-          repeatMode={repeatMode}
-          onToggleShuffle={toggleShuffle}
-          onToggleRepeat={toggleRepeat}
-          isFavorite={favorites.has(getTrackKey(nowPlaying))}
-          onToggleFavorite={() => {
-            const id = getTrackKey(nowPlaying);
-            const next = new Set(favorites);
-            const nextTracks = { ...favoriteTracks };
-            if (next.has(id)) {
-              next.delete(id);
-              delete nextTracks[id];
-            } else {
-              next.add(id);
-              nextTracks[id] = nowPlaying;
-            }
-            setFavorites(next);
-            setFavoriteTracks(nextTracks);
-          }}
-          onHide={() => setPlayerVisible(false)}
-          onShowQueue={() => setShowQueueModal(true)}
-          onShowLyrics={() => setShowLyricsModal(true)}
+        <LyricsModal
+            isOpen={showLyricsModal}
+            onClose={() => setShowLyricsModal(false)}
+            trackTitle={nowPlaying?.title || ""}
+            trackArtist={nowPlaying?.artist || ""}
+            videoId={nowPlaying?.videoId}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onSeek={handleSeek}
         />
-      ) : nowPlaying ? (
-        <button
-          onClick={() => setPlayerVisible(true)}
-          className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl animate-bounce-slow z-[180] group transition-all hover:scale-110 active:scale-95"
-          style={{ 
-            backgroundColor: "var(--primary)", 
-            color: "#fff",
-            boxShadow: "0 0 30px var(--primary)"
-          }}
-          title="Pokaż odtwarzacz"
-        >
-          <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping"></div>
-          <Music size={24} className="relative z-10" />
-        </button>
-      ) : null}
-
-      <QueueModal
-        isOpen={showQueueModal}
-        onClose={() => setShowQueueModal(false)}
-        queue={isShuffled ? shuffledQueue : (queue.length ? queue : pageRequest.data?.queue || [])}
-        currentTrackIndex={currentQueueIndex}
-        onSelectTrack={(index) => {
-          const currentQueue = isShuffled ? shuffledQueue : (queue.length ? queue : pageRequest.data?.queue || []);
-          if (currentQueue[index]) {
-            play(currentQueue[index]);
-            setCurrentQueueIndex(index);
-          }
-        }}
-        onRemoveTrack={(index) => {
-          if (isShuffled) {
-             const next = [...shuffledQueue];
-             next.splice(index, 1);
-             setShuffledQueue(next);
-          } else {
-             const next = [...queue];
-             next.splice(index, 1);
-             setQueue(next);
-          }
-        }}
-      />
-
-      <LyricsModal
-        isOpen={showLyricsModal}
-        onClose={() => setShowLyricsModal(false)}
-        trackTitle={nowPlaying?.title || ""}
-        trackArtist={nowPlaying?.artist || ""}
-        videoId={nowPlaying?.videoId}
-        currentTime={currentTime}
-        isPlaying={isPlaying}
-        onSeek={handleSeek}
-      />
-    </div>
+      </div>
   );
 }
 

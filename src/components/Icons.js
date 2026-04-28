@@ -34,6 +34,30 @@ export function ArrowRight(props) {
   );
 }
 
+export function ChevronDown(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </IconBase>
+  );
+}
+
+export function ChevronUp(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m18 15-6-6-6 6" />
+    </IconBase>
+  );
+}
+
+export function ArrowUp(props) {
+  return (
+    <IconBase {...props}>
+      <path d="m18 15-6-6-6 6" />
+    </IconBase>
+  );
+}
+
 export function BadgeCheck(props) {
   return (
     <IconBase {...props}>
@@ -536,6 +560,17 @@ export function Languages(props) {
       <path d="M7 2h1" />
       <path d="m22 22-5-10-5 10" />
       <path d="M14 18h6" />
+    </IconBase>
+  );
+}
+
+export function BarChart3(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 3v18h18" />
+      <path d="M18 17V9" />
+      <path d="M13 17V5" />
+      <path d="M8 17v-3" />
     </IconBase>
   );
 }

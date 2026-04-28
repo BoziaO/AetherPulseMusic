@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useLanguage } from "../contexts/LanguageContext";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { X, Palette, Moon, Sun, Sparkles } from "./Icons";
 
 const PRESET_PRIMARIES = [
@@ -25,7 +27,9 @@ const PRESET_BACKGROUNDS = [
 ];
 
 export default function ThemeSettings({ onClose }) {
-  const { theme, setTheme, primaryColor, applyCustomTheme, bgColor, customBase } = useTheme();
+  const { theme, setTheme, primaryColor, applyCustomTheme, bgColor, customBase, dynamicColors, setDynamicColors } = useTheme();
+  const { t } = useLanguage();
+  const trapRef = useFocusTrap(true);
   const [localPrimary, setLocalPrimary] = useState(primaryColor || "#8b5cf6");
   const [localBg, setLocalBg] = useState(bgColor || "#050816");
   const [localBase, setLocalBase] = useState(customBase || "dark");
@@ -36,9 +40,13 @@ export default function ThemeSettings({ onClose }) {
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("settings")}
     >
       <div
         className="relative w-full max-w-lg rounded-[28px] p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
@@ -59,10 +67,32 @@ export default function ThemeSettings({ onClose }) {
             onClick={onClose}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
             style={{ backgroundColor: "var(--bg-hover-strong)", color: "var(--text-muted)" }}
+            aria-label={t("close")}
           >
             <X size={18} />
           </button>
         </div>
+
+        {/* Dynamic Colors Toggle */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between p-4 rounded-2xl" style={{ backgroundColor: "var(--bg-card)" }}>
+            <div>
+              <p className="text-sm font-black" style={{ color: "var(--text-main)" }}>Dynamiczne kolory</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-soft)" }}>Dostosuj akcent do okładki albumu</p>
+            </div>
+            <button
+              onClick={() => setDynamicColors(!dynamicColors)}
+              className="relative w-12 h-7 rounded-full transition-colors"
+              style={{ backgroundColor: dynamicColors ? "var(--primary)" : "var(--bg-hover-strong)" }}
+              aria-pressed={dynamicColors}
+            >
+              <span
+                className="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform"
+                style={{ transform: dynamicColors ? "translateX(20px)" : "translateX(0)" }}
+              />
+            </button>
+          </div>
+        </section>
 
         {/* Preset themes */}
         <section className="mb-8">

@@ -8,6 +8,9 @@ export default function usePageData(pageKey, queryParams = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(!CLIENT_ONLY_PAGES.has(pageKey));
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     // Skip API call for pages driven purely by local state
@@ -38,11 +41,12 @@ export default function usePageData(pageKey, queryParams = {}) {
 
     fetchPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageKey, JSON.stringify(queryParams)]);
+  }, [pageKey, JSON.stringify(queryParams), refreshKey]);
 
   return {
     data,
     loading,
     error,
+    refresh,
   };
 }

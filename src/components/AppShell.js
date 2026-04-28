@@ -1,19 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Menu, Music, Search, Settings, Sparkles, X } from "./Icons";
+import { Bell, Menu, Music, Search, Settings, Sparkles, X, ArrowUp } from "./Icons";
 import Player from "./Player";
+import MiniPlayer from "./MiniPlayer";
 import Sidebar from "./Sidebar";
 import QueueModal from "./QueueModal";
 import LyricsModal from "./LyricsModal";
-import { useToast } from "./Toast";
+import { useToast, useToastCenter } from "./Toast";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useTheme } from "../contexts/ThemeContext";
+import { extractColors, applyDynamicColors, clearDynamicColors } from "../lib/colorExtractor";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
-const FILTER_LABELS = { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" };
 
 function getTrackKey(track) {
   return track?.videoId || `${track?.title || "track"}-${track?.artist || track?.subtitle || ""}`;
@@ -31,10 +33,18 @@ function AppShell() {
       return [];
     }
   });
-  const recentIds = recentPlays.map(p => p.videoId).filter(Boolean).slice(0, 5).join(',');
+  const recentIds = useMemo(
+    () => recentPlays.map((p) => p.videoId).filter(Boolean).slice(0, 5).join(","),
+    [recentPlays],
+  );
   const pageRequest = usePageData(currentPage.key, currentPage.key === "home" ? { recent: recentIds } : {});
   const showToast = useToast();
-  const { liquidGlassEnabled, blurIntensity, transparency } = useTheme();
+  const toastCenter = useToastCenter();
+  const { language, t } = useLanguage();
+  const { dynamicColors } = useTheme();
+  const filterLabels = language === "pl"
+    ? { songs: "Piosenki", playlists: "Playlisty", albums: "Albumy", artists: "Wykonawcy" }
+    : { songs: "Songs", playlists: "Playlists", albums: "Albums", artists: "Artists" };
 
   const resolvedUser = authSession.data?.auth?.user || userProfile;
 
@@ -63,9 +73,18 @@ function AppShell() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const searchRef = useRef(null);
   const searchInputRef = useRef(null);
+  const notificationsRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Search history
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ap:search-history") || "[]"); }
+    catch { return []; }
+  });
 
   // YouTube IFrame API refs
   const ytPlayerRef = useRef(null);
@@ -101,6 +120,9 @@ function AppShell() {
   useEffect(() => { nowPlayingRef.current = nowPlaying; }, [nowPlaying]);
   useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
 
+  const currentQueueIndexRef = useRef(currentQueueIndex);
+  useEffect(() => { currentQueueIndexRef.current = currentQueueIndex; }, [currentQueueIndex]);
+
   useEffect(() => {
     window.localStorage.setItem("boziamusic:favorites", JSON.stringify(Array.from(favorites)));
     window.localStorage.setItem("boziamusic:favoriteTracks", JSON.stringify(favoriteTracks));
@@ -113,6 +135,46 @@ function AppShell() {
   useEffect(() => {
     localStorage.setItem("ap-player-volume", volume.toString());
   }, [volume]);
+
+  useEffect(() => {
+    localStorage.setItem("ap:search-history", JSON.stringify(searchHistory.slice(0, 10)));
+  }, [searchHistory]);
+
+  useEffect(() => {
+    function handleScroll() {
+      setShowScrollTop(window.scrollY > 400);
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (nowPlaying) {
+      document.title = `${nowPlaying.title} \u2014 ${nowPlaying.artist} | AetherPulse`;
+    } else {
+      document.title = "AetherPulse Music";
+    }
+  }, [nowPlaying]);
+
+  // Extract dynamic colors from album art when track changes
+  useEffect(() => {
+    if (!dynamicColors || !nowPlaying?.art) {
+      clearDynamicColors();
+      return;
+    }
+    let cancelled = false;
+    const artUrl = typeof nowPlaying.art === "string" ? nowPlaying.art : nowPlaying.art?.image;
+    if (!artUrl) {
+      clearDynamicColors();
+      return;
+    }
+    extractColors(artUrl).then((colors) => {
+      if (!cancelled) {
+        applyDynamicColors(colors);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [nowPlaying, dynamicColors]);
 
   // Load YouTube IFrame API once on mount
   useEffect(() => {
@@ -401,6 +463,21 @@ function AppShell() {
     });
   }, [showToast]);
 
+  const playNext = useCallback((track) => {
+    const currentQueue = queueRef.current;
+    const idx = currentQueueIndexRef.current;
+    const insertIndex = idx >= 0 ? idx + 1 : currentQueue.length;
+    const nextQueue = [...currentQueue];
+    nextQueue.splice(insertIndex, 0, track);
+    setQueue(nextQueue);
+    showToast(language === "pl" ? "Dodano do kolejki" : "Added to queue", "success");
+  }, [showToast, language]);
+
+  const addToQueue = useCallback((track) => {
+    setQueue((prev) => [...prev, track]);
+    showToast(language === "pl" ? "Dodano na koniec kolejki" : "Added to end of queue", "info");
+  }, [showToast, language]);
+
   // Media Session API Support
   useEffect(() => {
     if ('mediaSession' in navigator && nowPlaying) {
@@ -489,6 +566,7 @@ function AppShell() {
     setQuery("");
     setSearchResults([]);
     setSearchOpen(false);
+    setNotificationsOpen(false);
     setSidebarOpen(false);
   }, [location.pathname]);
 
@@ -496,6 +574,9 @@ function AppShell() {
     function handleClickOutside(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setSearchOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+        setNotificationsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -541,8 +622,15 @@ function AppShell() {
     }
   }
 
+  function saveSearchToHistory(q) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setSearchHistory((prev) => [trimmed, ...prev.filter((p) => p !== trimmed)].slice(0, 10));
+  }
+
   function handleSearchResultClick(item) {
     setSearchOpen(false);
+    saveSearchToHistory(query);
     setQuery("");
     if (!item) return;
 
@@ -564,7 +652,70 @@ function AppShell() {
     }
   }
 
-  const showSearch = searchOpen && query.trim().length >= 2;
+  const showSearch = searchOpen;
+  const favoriteItems = useMemo(() => Object.values(favoriteTracks), [favoriteTracks]);
+
+  const toggleFavoriteTrack = useCallback((track) => {
+    const id = getTrackKey(track);
+    setFavorites((prevFavorites) => {
+      const next = new Set(prevFavorites);
+      const alreadyFavorite = next.has(id);
+      if (alreadyFavorite) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      setFavoriteTracks((prevTracks) => {
+        const nextTracks = { ...prevTracks };
+        if (alreadyFavorite) {
+          delete nextTracks[id];
+        } else {
+          nextTracks[id] = track;
+        }
+        return nextTracks;
+      });
+
+      return next;
+    });
+  }, []);
+
+  const outletContext = useMemo(
+    () => ({
+      pageData: pageRequest.data,
+      pageLoading: pageRequest.loading,
+      play,
+      playNext,
+      addToQueue,
+      nowPlaying,
+      query,
+      searchFilter,
+      searchResults,
+      searchLoading,
+      authSession,
+      favorites,
+      favoriteItems,
+      recentPlays,
+      toggleFavoriteTrack,
+    }),
+    [
+      pageRequest.data,
+      pageRequest.loading,
+      play,
+      playNext,
+      addToQueue,
+      nowPlaying,
+      query,
+      searchFilter,
+      searchResults,
+      searchLoading,
+      authSession,
+      favorites,
+      favoriteItems,
+      recentPlays,
+      toggleFavoriteTrack,
+    ],
+  );
 
   return (
       <div
@@ -582,24 +733,20 @@ function AppShell() {
             style={{ backgroundColor: "var(--bg-main)" }}
         >
           <header
-              className={`flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-[28px] lg:rounded-b-[32px] ${
-                  liquidGlassEnabled ? 'backdrop-blur' : ''
-              }`}
+              className="flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-2xl"
               style={{
-                backgroundColor: liquidGlassEnabled
-                    ? `rgba(var(--bg-main-rgb, 5, 8, 22), ${transparency})`
-                    : "color-mix(in srgb, var(--bg-main) 80%, transparent)",
-                backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
+                backgroundColor: "var(--bg-main)",
+                borderBottom: "1px solid var(--surface-line)",
               }}
           >
             <button
                 type="button"
-                className="lg:hidden w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                className="lg:hidden w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
                 style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-main)" }}
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Otwórz menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
             <div className="flex-1 max-w-2xl relative min-w-0" ref={searchRef}>
               <div className="relative group">
@@ -610,9 +757,9 @@ function AppShell() {
                 />
                 <input
                     type="text"
-                    placeholder={currentPage.searchPlaceholder || "Szukaj..."}
+                    placeholder={`${currentPage.searchPlaceholder || (language === "pl" ? "Szukaj" : "Search")} (/)`}
                     ref={searchInputRef}
-                    className="w-full rounded-2xl py-3.5 sm:py-4 pl-12 sm:pl-14 pr-11 sm:pr-12 focus:outline-none transition-all text-sm font-medium shadow-md"
+                    className="w-full rounded-xl py-3 pl-11 pr-10 focus:outline-none text-sm font-medium transition-colors"
                     style={{
                       backgroundColor: "var(--bg-input)",
                       border: "1px solid var(--surface-line)",
@@ -624,12 +771,18 @@ function AppShell() {
                       setSearchOpen(true);
                     }}
                     onFocus={() => setSearchOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && query.trim()) {
+                        saveSearchToHistory(query);
+                      }
+                    }}
                 />
                 {query && (
                     <button
                         onClick={() => setQuery("")}
                         className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all"
                         style={{ color: "var(--text-muted)" }}
+                        aria-label={language === "pl" ? "Wyczyść wyszukiwanie" : "Clear search"}
                     >
                       <X size={16} />
                     </button>
@@ -638,67 +791,89 @@ function AppShell() {
 
               {showSearch && (
                   <div
-                      className={`absolute top-full left-0 right-0 mt-3 sm:mt-4 rounded-[24px] sm:rounded-[32px] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 z-[110] ${
-                          liquidGlassEnabled ? 'backdrop-blur' : ''
-                      }`}
+                      className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-[110] animate-fade"
                       style={{
-                        backgroundColor: liquidGlassEnabled
-                            ? `rgba(var(--bg-panel-rgb, 16, 23, 42), ${transparency})`
-                            : "var(--bg-panel)",
+                        backgroundColor: "var(--bg-panel)",
                         border: "1px solid var(--surface-line)",
-                        boxShadow: "var(--shadow-card)",
-                        backdropFilter: liquidGlassEnabled ? `blur(${blurIntensity}px)` : undefined
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                       }}
                   >
-                    <div className="p-3 sm:p-4 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
+                    <div className="p-3 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
                       {SEARCH_FILTERS.map((f) => (
                           <button
                               key={f}
                               onClick={() => setSearchFilter(f)}
-                              className="px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all"
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                               style={searchFilter === f
                                   ? { backgroundColor: "var(--primary)", color: "#fff" }
                                   : { backgroundColor: "var(--bg-hover)", color: "var(--text-muted)" }
                               }
                           >
-                            {FILTER_LABELS[f]}
+                            {filterLabels[f]}
                           </button>
                       ))}
                     </div>
 
-                    <div className="max-h-[65vh] sm:max-h-[480px] overflow-y-auto p-3 space-y-1">
-                      {searchLoading ? (
-                          <div className="p-12 flex flex-col items-center justify-center gap-4">
-                            <div className="w-8 h-8 border-4 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }}></div>
-                            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>Przeszukiwanie bazy...</p>
+                    <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto p-2 space-y-0.5">
+                      {query.trim().length === 0 && searchHistory.length > 0 ? (
+                        <div>
+                          <div className="flex items-center justify-between px-2 py-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider opacity-40">
+                              {language === "pl" ? "Ostatnie wyszukiwania" : "Recent searches"}
+                            </span>
+                            <button onClick={() => setSearchHistory([])} className="text-[10px] font-semibold" style={{ color: "var(--primary)" }}>
+                              {language === "pl" ? "Wyczyść" : "Clear"}
+                            </button>
+                          </div>
+                          {searchHistory.map((h, i) => (
+                            <button key={i} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors hover:bg-[var(--bg-hover)]"
+                              style={{ color: "var(--text-main)" }}
+                              onClick={() => { setQuery(h); }}>
+                              <Search size={14} className="opacity-30 flex-shrink-0" />
+                              <span className="text-sm truncate">{h}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : query.trim().length > 0 && query.trim().length < 2 ? (
+                        <div className="p-10 text-center">
+                          <p className="text-sm font-medium opacity-50">
+                            {language === "pl" ? "Wpisz co najmniej 2 znaki..." : "Type at least 2 characters..."}
+                          </p>
+                        </div>
+                      ) : searchLoading ? (
+                          <div className="p-10 flex flex-col items-center justify-center gap-3">
+                            <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)", borderTopColor: "var(--primary)" }} />
+                            <p className="text-xs font-medium opacity-50">
+                              {language === "pl" ? "Szukam..." : "Searching..."}
+                            </p>
                           </div>
                       ) : searchResults.length > 0 ? (
                           searchResults.map((item, idx) => (
                               <button
                                   key={idx}
-                                  className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-left group"
+                                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors hover:bg-[var(--bg-hover)]"
                                   style={{ color: "var(--text-main)" }}
                                   onClick={() => handleSearchResultClick(item)}
-                                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                               >
-                                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform" style={{ backgroundColor: "var(--bg-card)" }}>
-                                  {(item.thumbnail || item.cover || item.art) && <img src={item.thumbnail || item.cover || item.art} alt="" className="w-full h-full object-cover" />}
+                                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: "var(--bg-card)" }}>
+                                  {(item.thumbnail || item.cover || item.art) && <img src={item.thumbnail || item.cover || item.art} alt="" className="w-full h-full object-cover" loading="lazy" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-bold truncate" style={{ color: "var(--text-main)" }}>{item.title}</p>
-                                  <p className="text-xs truncate mt-1" style={{ color: "var(--text-muted)" }}>
+                                  <p className="text-sm font-semibold truncate">{item.title}</p>
+                                  <p className="text-xs truncate opacity-50">
                                     {item.artists?.map((a) => a.name).join(", ") || item.author || "YouTube Music"}
                                   </p>
                                 </div>
-                                <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md" style={{ color: "var(--text-soft)", backgroundColor: "var(--bg-hover)" }}>
-                          {item.resultType}
-                        </span>
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md opacity-40" style={{ backgroundColor: "var(--bg-hover)" }}>
+                                  {item.resultType}
+                                </span>
                               </button>
                           ))
                       ) : (
-                          <div className="p-12 text-center">
-                            <p className="font-medium" style={{ color: "var(--text-muted)" }}>Brak wyników dla tej kategorii.</p>
+                          <div className="p-10 text-center">
+                            <p className="text-sm font-medium opacity-50">
+                              {language === "pl" ? "Brak wyników." : "No results."}
+                            </p>
                           </div>
                       )}
                     </div>
@@ -707,78 +882,135 @@ function AppShell() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-5 sm:ml-4 lg:ml-8">
+              <div className="relative" ref={notificationsRef}>
+                <button
+                    onClick={() => {
+                      const opening = !notificationsOpen;
+                      setNotificationsOpen(opening);
+                      if (opening) toastCenter?.markAllNotificationsRead?.();
+                    }}
+                    className="relative p-2 rounded-xl transition-colors"
+                    style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
+                    title={t("notifications")}
+                    aria-label={t("notifications")}
+                    aria-expanded={notificationsOpen}
+                >
+                  <Bell size={18} />
+                  {toastCenter?.unreadCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                      style={{ backgroundColor: "var(--primary)", color: "#fff" }}
+                    >
+                      {toastCenter.unreadCount > 9 ? "9+" : toastCenter.unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-72 max-h-96 rounded-2xl overflow-hidden z-[120] animate-fade"
+                    style={{
+                      backgroundColor: "var(--bg-panel)",
+                      border: "1px solid var(--surface-line)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    <div
+                      className="p-3 flex items-center justify-between"
+                      style={{ borderBottom: "1px solid var(--surface-line)" }}
+                    >
+                      <span className="text-xs font-semibold opacity-50">{t("notifications")}</span>
+                      <button
+                        type="button"
+                        onClick={() => toastCenter?.clearNotifications?.()}
+                        className="text-xs font-semibold"
+                        style={{ color: "var(--primary)" }}
+                      >
+                        {t("clear")}
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto max-h-80 p-2 space-y-1">
+                      {toastCenter?.notifications?.length ? (
+                        toastCenter.notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className="p-3 rounded-xl"
+                            style={{
+                              backgroundColor: n.read ? "transparent" : "var(--bg-hover)",
+                              border: "1px solid var(--surface-line)",
+                            }}
+                          >
+                            <p className="text-sm font-medium">{n.message}</p>
+                            <p className="mt-1 text-[10px] opacity-40">
+                              {new Date(n.createdAt).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-sm font-medium opacity-50">
+                          {t("noNotifications")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                   onClick={() => navigate("/settings")}
-                  className="relative hidden sm:flex p-2.5 rounded-full transition-all hover:scale-110 active:scale-90"
+                  className="relative hidden sm:flex p-2 rounded-xl transition-colors"
                   style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
-                  title="Ustawienia"
+                  title={t("settings")}
+                  aria-label={t("settings")}
               >
-                <Settings size={22} />
+                <Settings size={18} />
               </button>
               <div className="h-7 w-px mx-1" style={{ backgroundColor: "var(--surface-line)" }}></div>
               {authSession.data?.auth?.connected ? (
                   <div className="flex items-center gap-4">
                     <button
                         onClick={handleLogout}
-                        className="text-xs font-black uppercase tracking-widest transition-colors"
-                        style={{ color: "var(--text-muted)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                        className="text-xs font-semibold opacity-50 hover:opacity-100 transition-opacity"
+                        style={{ color: "var(--text-main)" }}
                     >
-                      Wyloguj
+                      {language === "pl" ? "Wyloguj" : "Logout"}
                     </button>
-                    <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform cursor-pointer" style={{ border: "2px solid var(--surface-line)" }}>
+                    <div className="w-9 h-9 rounded-xl overflow-hidden cursor-pointer" style={{ border: "1px solid var(--surface-line)" }}>
                       {resolvedUser.picture && <img src={resolvedUser.picture} alt="" className="w-full h-full object-cover" />}
                     </div>
                   </div>
               ) : (
                   <a
                       href={loginUrl}
-                      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors"
                       style={{ backgroundColor: "var(--primary)", color: "#fff" }}
                   >
-                    <Sparkles size={16} fill="white" />
-                    Zaloguj
+                    <Sparkles size={14} />
+                    {language === "pl" ? "Zaloguj" : "Sign in"}
                   </a>
               )}
             </div>
           </header>
 
           {pageRequest.error && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-medium">
-                ⚠️ Błąd ładowania danych: {pageRequest.error}. Upewnij się, że backend działa (<code>npm run dev</code>).
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm">
+                <p className="font-medium mb-2">⚠️ {language === "pl" ? "Błąd ładowania danych" : "Data loading error"}: {pageRequest.error}.</p>
+                <p className="opacity-70 mb-3">{language === "pl" ? "Upewnij się, że backend działa" : "Make sure backend is running"} (<code>npm run dev</code>).</p>
+                <button
+                  onClick={() => {
+                    pageRequest.refresh?.();
+                  }}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#ef4444" }}
+                >
+                  {language === "pl" ? "Spróbuj ponownie" : "Try again"}
+                </button>
               </div>
           )}
 
-          <Outlet
-              context={{
-                pageData: pageRequest.data,
-                pageLoading: pageRequest.loading,
-                play,
-                query,
-                searchFilter,
-                searchResults,
-                searchLoading,
-                authSession,
-                favorites,
-                favoriteItems: Object.values(favoriteTracks),
-                recentPlays,
-                toggleFavoriteTrack: (track) => {
-                  const id = getTrackKey(track);
-                  const next = new Set(favorites);
-                  const nextTracks = { ...favoriteTracks };
-                  if (next.has(id)) {
-                    next.delete(id);
-                    delete nextTracks[id];
-                  } else {
-                    next.add(id);
-                    nextTracks[id] = track;
-                  }
-                  setFavorites(next);
-                  setFavoriteTracks(nextTracks);
-                },
-              }}
-          />
+          <div key={location.pathname + location.search} className="page-transition">
+            <Outlet context={outletContext} />
+          </div>
         </main>
 
         {/* Hidden YouTube Player */}
@@ -801,39 +1033,33 @@ function AppShell() {
                 onToggleShuffle={toggleShuffle}
                 onToggleRepeat={toggleRepeat}
                 isFavorite={favorites.has(getTrackKey(nowPlaying))}
-                onToggleFavorite={() => {
-                  const id = getTrackKey(nowPlaying);
-                  const next = new Set(favorites);
-                  const nextTracks = { ...favoriteTracks };
-                  if (next.has(id)) {
-                    next.delete(id);
-                    delete nextTracks[id];
-                  } else {
-                    next.add(id);
-                    nextTracks[id] = nowPlaying;
-                  }
-                  setFavorites(next);
-                  setFavoriteTracks(nextTracks);
-                }}
+                onToggleFavorite={() => toggleFavoriteTrack(nowPlaying)}
                 onHide={() => setPlayerVisible(false)}
                 onShowQueue={() => setShowQueueModal(true)}
                 onShowLyrics={() => setShowLyricsModal(true)}
             />
         ) : nowPlaying ? (
-            <button
-                onClick={() => setPlayerVisible(true)}
-                className="fixed bottom-24 lg:bottom-8 right-6 w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl animate-bounce-slow z-[180] group transition-all hover:scale-110 active:scale-95"
-                style={{
-                  backgroundColor: "var(--primary)",
-                  color: "#fff",
-                  boxShadow: "0 0 30px var(--primary)"
-                }}
-                title="Pokaż odtwarzacz"
-            >
-              <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping"></div>
-              <Music size={24} className="relative z-10" />
-            </button>
+            <MiniPlayer
+                track={nowPlaying}
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlay}
+                onNext={nextTrack}
+                onExpand={() => setPlayerVisible(true)}
+                progress={audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0}
+            />
         ) : null}
+
+        {showScrollTop && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-24 lg:bottom-8 left-6 w-10 h-10 rounded-xl flex items-center justify-center z-[180] transition-transform active:scale-95 animate-fade"
+            style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--surface-line)", color: "var(--text-main)" }}
+            title={language === "pl" ? "Wróć na górę" : "Back to top"}
+            aria-label={language === "pl" ? "Wróć na górę" : "Back to top"}
+          >
+            <ArrowUp size={18} />
+          </button>
+        )}
 
         <QueueModal
             isOpen={showQueueModal}

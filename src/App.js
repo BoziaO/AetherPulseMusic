@@ -3,6 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import ErrorBoundary from "./components/ErrorBoundary";
 import MusicPage from "./screens/MusicPage";
+import ArtistDetailPage from "./screens/ArtistDetailPage";
+import AlbumDetailPage from "./screens/AlbumDetailPage";
+import InsightsPage from "./screens/InsightsPage";
 import SettingsPage from "./screens/SettingsPage";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
@@ -56,7 +59,7 @@ function App() {
               } />
               <Route path="artist/:artistId" element={
                 <ErrorBoundary>
-                  <MusicPage pageKey="artist" />
+                  <ArtistDetailPage />
                 </ErrorBoundary>
               } />
               <Route path="albums" element={
@@ -66,7 +69,12 @@ function App() {
               } />
               <Route path="album/:albumId" element={
                 <ErrorBoundary>
-                  <MusicPage pageKey="album" />
+                  <AlbumDetailPage />
+                </ErrorBoundary>
+              } />
+              <Route path="insights" element={
+                <ErrorBoundary>
+                  <InsightsPage />
                 </ErrorBoundary>
               } />
               <Route path="settings" element={

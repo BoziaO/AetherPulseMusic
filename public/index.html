@@ -137,6 +137,19 @@
         });
         observer.observe(document.getElementById('root'), { childList: true });
       })();
+
+      // Register Service Worker for offline support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration.scope);
+            })
+            .catch(function(error) {
+              console.log('SW registration failed: ', error);
+            });
+        });
+      }
     </script>
   </body>
 </html>

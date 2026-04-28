@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { clearDynamicColors } from "../lib/colorExtractor";
 
 export const PRESET_THEMES = {
   dark: {
@@ -202,6 +203,17 @@ function hexToRgb(hex) {
   return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
 }
 
+function cssVarToRgb(value) {
+  // If already rgb format like "139, 92, 246"
+  if (value.includes(",")) return value;
+  // If hex
+  if (value.startsWith("#")) {
+    const [r, g, b] = hexToRgb(value);
+    return `${r}, ${g}, ${b}`;
+  }
+  return "139, 92, 246";
+}
+
 function rgbToHex(r, g, b) {
   return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
 }
@@ -280,6 +292,7 @@ export function ThemeProvider({ children }) {
   const [bgColor, setBgColorState] = useState(saved?.bgColor || "");
   const [textColor, setTextColorState] = useState(saved?.textColor || "");
   const [customBase, setCustomBaseState] = useState(saved?.customBase || "dark");
+  const [dynamicColors, setDynamicColorsState] = useState(saved?.dynamicColors ?? false);
 
   const [liquidGlassEnabled, setLiquidGlassEnabledState] = useState(() => {
     try {
@@ -313,7 +326,7 @@ export function ThemeProvider({ children }) {
     } else {
       vars = { ...PRESET_THEMES[themeName].vars };
     }
-    
+
     // Support primary color overrides for presets
     if (primary && themeName !== "custom") {
       vars["--primary"] = primary;
@@ -322,33 +335,67 @@ export function ThemeProvider({ children }) {
     }
 
     const root = document.documentElement;
-    
+
     // Clear old font-display and other potentially lingering styles
     root.style.removeProperty("--font-display");
     root.style.removeProperty("--radius-main");
-    
+
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+
+    // Auto-generate RGB variants for glass effects
+    const bgPanel = vars["--bg-panel"] || "#10172a";
+    const bgPlayer = vars["--bg-player"] || "#070b16";
+    const primaryCol = vars["--primary"] || DEFAULT_PRIMARY;
+    root.style.setProperty("--bg-panel-rgb", cssVarToRgb(bgPanel));
+    root.style.setProperty("--bg-player-rgb", cssVarToRgb(bgPlayer));
+    root.style.setProperty("--primary-rgb", cssVarToRgb(primaryCol));
+
     root.setAttribute("data-theme", themeName);
+
+    // If dynamic colors were previously enabled but theme changed, clear them
+    if (!dynamicColors) {
+      clearDynamicColors();
+    }
   }
 
   useEffect(() => {
     applyVars(theme, primaryColor, bgColor, textColor, customBase);
-  }, [theme, primaryColor, bgColor, textColor, customBase]);
+  }, [theme, primaryColor, bgColor, textColor, customBase, dynamicColors]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "bm-page-settings",
+      JSON.stringify({
+        liquidGlassEnabled,
+        blurIntensity: Number(blurIntensity),
+        transparency: Number(transparency),
+      }),
+    );
+  }, [liquidGlassEnabled, blurIntensity, transparency]);
 
   function persist(state) {
     localStorage.setItem("bm-theme-state", JSON.stringify(state));
   }
 
+  function setDynamicColors(enabled) {
+    setDynamicColorsState(enabled);
+    const state = { theme, primaryColor, bgColor, textColor, customBase, dynamicColors: enabled };
+    persist(state);
+    if (!enabled) {
+      clearDynamicColors();
+    }
+  }
+
   function setTheme(name) {
     setThemeState(name);
-    const state = { theme: name, primaryColor, bgColor, textColor, customBase };
+    const state = { theme: name, primaryColor, bgColor, textColor, customBase, dynamicColors };
     persist(state);
     applyVars(name, primaryColor, bgColor, textColor, customBase);
   }
 
   function setPrimaryColor(color) {
     setPrimaryColorState(color);
-    const state = { theme, primaryColor: color, bgColor, textColor, customBase };
+    const state = { theme, primaryColor: color, bgColor, textColor, customBase, dynamicColors };
     persist(state);
     applyVars(theme, color, bgColor, textColor, customBase);
   }
@@ -363,7 +410,7 @@ export function ThemeProvider({ children }) {
     setTextColorState(t);
     setCustomBaseState(base2);
     setThemeState("custom");
-    const state = { theme: "custom", primaryColor: p, bgColor: b, textColor: t, customBase: base2 };
+    const state = { theme: "custom", primaryColor: p, bgColor: b, textColor: t, customBase: base2, dynamicColors };
     persist(state);
     applyVars("custom", p, b, t, base2);
   }
@@ -383,7 +430,9 @@ export function ThemeProvider({ children }) {
       blurIntensity,
       setBlurIntensity: setBlurIntensityState,
       transparency,
-      setTransparency: setTransparencyState
+      setTransparency: setTransparencyState,
+      dynamicColors,
+      setDynamicColors,
     }}>
       {children}
     </ThemeContext.Provider>

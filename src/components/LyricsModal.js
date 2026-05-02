@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Music, Settings } from "./Icons";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { fetchJson } from "../lib/api";
 
 export default function LyricsModal({
   isOpen,
@@ -33,11 +34,34 @@ export default function LyricsModal({
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef(null);
   const lastScrollRef = useRef(0);
+  const backendHydratedRef = useRef(false);
 
   const mergedSettings = { fontSize: 22, lineSpacing: 1.7, autoScroll: true, ...settings };
 
   useEffect(() => {
+    let cancelled = false;
+    fetchJson("/api/user/state", { timeout: 4000 })
+      .then((state) => {
+        if (!cancelled && state?.lyricsSettings && typeof state.lyricsSettings === "object") {
+          setSettings(state.lyricsSettings);
+        }
+      })
+      .catch((err) => console.warn("Could not hydrate lyrics settings:", err.message))
+      .finally(() => {
+        if (!cancelled) backendHydratedRef.current = true;
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("lyrics-settings", JSON.stringify(settings));
+    if (!backendHydratedRef.current) return;
+    fetchJson("/api/user/state", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lyricsSettings: settings }),
+      timeout: 4000,
+    }).catch((err) => console.warn("Could not persist lyrics settings:", err.message));
   }, [settings]);
 
   const scrollToLine = useCallback((index) => {
@@ -106,7 +130,7 @@ export default function LyricsModal({
     if (best !== -1 && best !== currentLineIndex) {
       setCurrentLineIndex(best);
     }
-  }, [currentTime, lyrics]);
+  }, [currentTime, currentLineIndex, lyrics]);
 
   const handleScroll = useCallback(() => {
     const now = Date.now();

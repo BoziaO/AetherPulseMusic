@@ -4,7 +4,7 @@ import { getPageByPath, userProfile } from "../data/musicData";
 import useAuthSession from "../hooks/useAuthSession";
 import usePageData from "../hooks/usePageData";
 import { buildApiUrl, fetchJson } from "../lib/api";
-import { Bell, Menu, Music, Search, Settings, Sparkles, X, ArrowUp } from "./Icons";
+import { Bell, Menu, Search, Settings, Sparkles, X, ArrowUp } from "./Icons";
 import Player from "./Player";
 import MiniPlayer from "./MiniPlayer";
 import Sidebar from "./Sidebar";
@@ -16,6 +16,11 @@ import { useTheme } from "../contexts/ThemeContext";
 import { extractColors, applyDynamicColors, clearDynamicColors } from "../lib/colorExtractor";
 
 const SEARCH_FILTERS = ["songs", "playlists", "albums", "artists"];
+const USER_STATE_SAVE_DELAY_MS = 500;
+
+function stableStringify(value) {
+  return JSON.stringify(value);
+}
 
 function getTrackKey(track) {
   return track?.videoId || `${track?.title || "track"}-${track?.artist || track?.subtitle || ""}`;
@@ -90,6 +95,9 @@ function AppShell() {
   const ytPlayerRef = useRef(null);
   const ytReadyRef = useRef(false);
   const intervalRef = useRef(null);
+  const userStateHydratedRef = useRef(false);
+  const lastPersistedUserStateRef = useRef("");
+  const userStateSaveTimerRef = useRef(null);
 
   // Favorites state
   const [favorites, setFavorites] = useState(() => {
@@ -124,21 +132,81 @@ function AppShell() {
   useEffect(() => { currentQueueIndexRef.current = currentQueueIndex; }, [currentQueueIndex]);
 
   useEffect(() => {
-    window.localStorage.setItem("boziamusic:favorites", JSON.stringify(Array.from(favorites)));
+    let cancelled = false;
+
+    async function hydrateUserState() {
+      try {
+        const state = await fetchJson("/api/user/state", { timeout: 4000 });
+        if (cancelled || !state) return;
+
+        const fallbackRecent = JSON.parse(window.localStorage.getItem("boziamusic:recent") || "[]");
+        const fallbackHistory = JSON.parse(window.localStorage.getItem("ap:search-history") || "[]");
+        const fallbackFavorites = JSON.parse(window.localStorage.getItem("boziamusic:favorites") || "[]");
+        const fallbackFavoriteTracks = JSON.parse(window.localStorage.getItem("boziamusic:favoriteTracks") || "{}");
+        const fallbackVolume = parseInt(localStorage.getItem("ap-player-volume") || "80", 10);
+
+        const hydratedState = {
+          recentPlays: Array.isArray(state.recentPlays) ? state.recentPlays : fallbackRecent,
+          searchHistory: Array.isArray(state.searchHistory) ? state.searchHistory : fallbackHistory,
+          favorites: Array.isArray(state.favorites) ? state.favorites : fallbackFavorites,
+          favoriteTracks: state.favoriteTracks && typeof state.favoriteTracks === "object" ? state.favoriteTracks : fallbackFavoriteTracks,
+          volume: Number.isFinite(Number(state.volume)) ? Number(state.volume) : fallbackVolume,
+        };
+
+        lastPersistedUserStateRef.current = stableStringify(hydratedState);
+        setRecentPlays(hydratedState.recentPlays);
+        setSearchHistory(hydratedState.searchHistory);
+        setFavorites(new Set(hydratedState.favorites));
+        setFavoriteTracks(hydratedState.favoriteTracks);
+        setVolume(hydratedState.volume);
+      } catch (err) {
+        console.warn("Could not hydrate backend user state:", err.message);
+      } finally {
+        if (!cancelled) userStateHydratedRef.current = true;
+      }
+    }
+
+    hydrateUserState();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const favoritesList = Array.from(favorites);
+    const trimmedHistory = searchHistory.slice(0, 10);
+    const nextState = {
+      recentPlays,
+      searchHistory: trimmedHistory,
+      favorites: favoritesList,
+      favoriteTracks,
+      volume,
+    };
+
+    window.localStorage.setItem("boziamusic:favorites", JSON.stringify(favoritesList));
     window.localStorage.setItem("boziamusic:favoriteTracks", JSON.stringify(favoriteTracks));
-  }, [favorites, favoriteTracks]);
-
-  useEffect(() => {
     window.localStorage.setItem("boziamusic:recent", JSON.stringify(recentPlays));
-  }, [recentPlays]);
-
-  useEffect(() => {
     localStorage.setItem("ap-player-volume", volume.toString());
-  }, [volume]);
+    localStorage.setItem("ap:search-history", JSON.stringify(trimmedHistory));
 
-  useEffect(() => {
-    localStorage.setItem("ap:search-history", JSON.stringify(searchHistory.slice(0, 10)));
-  }, [searchHistory]);
+    if (!userStateHydratedRef.current) return undefined;
+
+    const serialized = stableStringify(nextState);
+    if (serialized === lastPersistedUserStateRef.current) return undefined;
+
+    if (userStateSaveTimerRef.current) window.clearTimeout(userStateSaveTimerRef.current);
+    userStateSaveTimerRef.current = window.setTimeout(() => {
+      lastPersistedUserStateRef.current = serialized;
+      fetchJson("/api/user/state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nextState),
+        timeout: 4000,
+      }).catch((err) => console.warn("Could not persist user state:", err.message));
+    }, USER_STATE_SAVE_DELAY_MS);
+
+    return () => {
+      if (userStateSaveTimerRef.current) window.clearTimeout(userStateSaveTimerRef.current);
+    };
+  }, [favorites, favoriteTracks, recentPlays, searchHistory, volume]);
 
   useEffect(() => {
     function handleScroll() {
@@ -334,6 +402,12 @@ function AppShell() {
       const key = getTrackKey(nextTrack);
       return [nextTrack, ...current.filter((track) => getTrackKey(track) !== key)].slice(0, 25);
     });
+    fetchJson("/api/user/recent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ track: nextTrack }),
+      timeout: 4000,
+    }).catch((err) => console.warn("Could not save recent track:", err.message));
     setCurrentTime(0);
     setAudioDuration(duration || 0);
     setPlayerVisible(true);
@@ -719,25 +793,20 @@ function AppShell() {
 
   return (
       <div
-          className="flex min-h-screen font-sans"
-          style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+          className="app-ambient flex min-h-screen font-sans"
+          style={{ color: "var(--text-main)" }}
       >
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <main
-            className={`flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 overflow-x-hidden transition-all duration-500 ${
+            className={`relative z-10 flex-1 lg:ml-[260px] px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 lg:pt-10 overflow-x-hidden transition-all duration-500 ${
                 playerVisible && nowPlaying
                     ? "pb-64 sm:pb-72 lg:pb-40"
                     : "pb-24 sm:pb-28 lg:pb-12"
             }`}
-            style={{ backgroundColor: "var(--bg-main)" }}
         >
           <header
-              className="flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-0 z-[100] py-3 lg:py-4 -mx-2 px-2 lg:-mt-4 lg:px-4 rounded-b-2xl"
-              style={{
-                backgroundColor: "var(--bg-main)",
-                borderBottom: "1px solid var(--surface-line)",
-              }}
+              className="glass-panel flex items-center gap-3 lg:gap-5 justify-between mb-8 lg:mb-12 sticky top-3 z-[100] py-3 lg:py-4 -mx-1 px-2 sm:px-3 lg:-mt-4 lg:px-4 rounded-2xl"
           >
             <button
                 type="button"
@@ -761,9 +830,10 @@ function AppShell() {
                     ref={searchInputRef}
                     className="w-full rounded-xl py-3 pl-11 pr-10 focus:outline-none text-sm font-medium transition-colors"
                     style={{
-                      backgroundColor: "var(--bg-input)",
+                      backgroundColor: "color-mix(in srgb, var(--bg-input) 88%, transparent)",
                       border: "1px solid var(--surface-line)",
                       color: "var(--text-main)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
                     }}
                     value={query}
                     onChange={(e) => {
@@ -791,12 +861,7 @@ function AppShell() {
 
               {showSearch && (
                   <div
-                      className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-[110] animate-fade"
-                      style={{
-                        backgroundColor: "var(--bg-panel)",
-                        border: "1px solid var(--surface-line)",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-                      }}
+                      className="glass-panel absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-[110] animate-fade"
                   >
                     <div className="p-3 flex gap-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--surface-line)" }}>
                       {SEARCH_FILTERS.map((f) => (
@@ -889,7 +954,7 @@ function AppShell() {
                       setNotificationsOpen(opening);
                       if (opening) toastCenter?.markAllNotificationsRead?.();
                     }}
-                    className="relative p-2 rounded-xl transition-colors"
+                    className="interactive-lift relative p-2 rounded-xl transition-colors"
                     style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
                     title={t("notifications")}
                     aria-label={t("notifications")}
@@ -908,12 +973,7 @@ function AppShell() {
 
                 {notificationsOpen && (
                   <div
-                    className="absolute right-0 mt-2 w-72 max-h-96 rounded-2xl overflow-hidden z-[120] animate-fade"
-                    style={{
-                      backgroundColor: "var(--bg-panel)",
-                      border: "1px solid var(--surface-line)",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-                    }}
+                    className="glass-panel absolute right-0 mt-2 w-72 max-h-96 rounded-2xl overflow-hidden z-[120] animate-fade"
                   >
                     <div
                       className="p-3 flex items-center justify-between"
@@ -958,7 +1018,7 @@ function AppShell() {
 
               <button
                   onClick={() => navigate("/settings")}
-                  className="relative hidden sm:flex p-2 rounded-xl transition-colors"
+                  className="interactive-lift relative hidden sm:flex p-2 rounded-xl transition-colors"
                   style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-hover)" }}
                   title={t("settings")}
                   aria-label={t("settings")}
@@ -982,7 +1042,7 @@ function AppShell() {
               ) : (
                   <a
                       href={loginUrl}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors"
+                      className="glow-button interactive-lift flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors"
                       style={{ backgroundColor: "var(--primary)", color: "#fff" }}
                   >
                     <Sparkles size={14} />
@@ -1052,7 +1112,7 @@ function AppShell() {
         {showScrollTop && (
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed bottom-24 lg:bottom-8 left-6 w-10 h-10 rounded-xl flex items-center justify-center z-[180] transition-transform active:scale-95 animate-fade"
+            className="glass-panel interactive-lift fixed bottom-24 lg:bottom-8 left-6 w-10 h-10 rounded-xl flex items-center justify-center z-[180] transition-transform active:scale-95 animate-fade"
             style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--surface-line)", color: "var(--text-main)" }}
             title={language === "pl" ? "Wróć na górę" : "Back to top"}
             aria-label={language === "pl" ? "Wróć na górę" : "Back to top"}
@@ -1072,6 +1132,14 @@ function AppShell() {
                 play(currentQueue[index]);
                 setCurrentQueueIndex(index);
               }
+            }}
+            onSaveQueue={async (title, tracksToSave) => {
+              await fetchJson("/api/user/queues", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, tracks: tracksToSave }),
+                timeout: 4000,
+              });
             }}
             onRemoveTrack={(index) => {
               if (isShuffled) {

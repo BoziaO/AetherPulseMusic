@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { fetchJson } from '../lib/api';
 
 const LanguageContext = createContext();
 const translations = {
@@ -147,13 +148,40 @@ const translations = {
 };
 
 export const LanguageProvider = ({ children }) => {
+  const backendHydratedRef = useRef(false);
+  const lastPersistedLanguageRef = useRef("");
   const [language, setLanguage] = useState(() => {
     return localStorage.getItem('app-language') || 'en'; // Default to English
   });
 
   useEffect(() => {
+    let cancelled = false;
+    fetchJson('/api/user/state', { timeout: 4000 })
+      .then((state) => {
+        if (!cancelled && (state?.language === 'en' || state?.language === 'pl')) {
+          lastPersistedLanguageRef.current = state.language;
+          setLanguage(state.language);
+        }
+      })
+      .catch((err) => console.warn('Could not hydrate language:', err.message))
+      .finally(() => {
+        if (!cancelled) backendHydratedRef.current = true;
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('app-language', language);
     document.documentElement.lang = language;
+    if (!backendHydratedRef.current || language === lastPersistedLanguageRef.current) return;
+    lastPersistedLanguageRef.current = language;
+    fetchJson('/api/user/state', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language }),
+      timeout: 4000,
+    }).catch((err) => console.warn('Could not persist language:', err.message));
   }, [language]);
 
   const t = (key) => {

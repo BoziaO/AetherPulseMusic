@@ -9,6 +9,29 @@
   --radius-main: 16px;
   --radius-soft: 12px;
   --radius-full: 9999px;
+  --bg-main: #050816;
+  --bg-sidebar: #0b1020;
+  --bg-panel: #10172a;
+  --bg-card: #151f35;
+  --bg-card-hover: #1d2a45;
+  --bg-input: #111a2e;
+  --bg-player: #070b16;
+  --bg-overlay: #0b1020;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-hover-strong: rgba(255, 255, 255, 0.1);
+  --text-main: #ffffff;
+  --text-muted: #a0a0a0;
+  --text-soft: #606060;
+  --text-placeholder: #555555;
+  --surface-line: rgba(255, 255, 255, 0.07);
+  --surface-line-strong: rgba(255, 255, 255, 0.12);
+  --primary: #8b5cf6;
+  --primary-rgb: 139, 92, 246;
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.24);
+  --shadow-glow: 0 24px 80px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 * {
@@ -25,9 +48,17 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-display);
-  background: var(--bg-main);
+  background:
+    radial-gradient(circle at 18% -12%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 34rem),
+    radial-gradient(circle at 105% 4%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 30rem),
+    var(--bg-main);
+  background-attachment: fixed;
   color: var(--text-main);
   overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 /* Minimal focus states */
@@ -54,10 +85,173 @@ input:focus-visible {
   background: var(--text-muted);
 }
 
-/* Surface styles - solid, no backdrop-filter by default for 60fps */
+/* Surface styles */
 .surface {
   background: var(--bg-panel);
   border: 1px solid var(--surface-line);
+}
+
+.app-ambient {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+
+.app-ambient::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--primary) 10%, transparent), transparent 36%),
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 26rem),
+    radial-gradient(circle at 18% 88%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 24rem);
+  opacity: 0.85;
+}
+
+.glass-panel {
+  background: color-mix(in srgb, var(--bg-panel) 86%, transparent);
+  border: 1px solid var(--surface-line);
+  box-shadow: var(--shadow-soft);
+}
+
+@supports (backdrop-filter: blur(18px)) {
+  .glass-panel {
+    backdrop-filter: blur(18px) saturate(130%);
+  }
+}
+
+.section-surface {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, var(--primary) 6%), var(--bg-card));
+  border: 1px solid var(--surface-line);
+  border-radius: calc(var(--radius-main) + 4px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
+}
+
+.premium-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--surface-line);
+  border-radius: calc(var(--radius-main) + 10px);
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 18%, color-mix(in srgb, var(--primary) 18%, transparent), transparent),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 92%, var(--primary) 8%), var(--bg-panel));
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+}
+
+.premium-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 34%, rgba(255, 255, 255, 0.03));
+  opacity: 0.45;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  filter: blur(24px);
+  opacity: 0.45;
+  animation: floatOrb 10s ease-in-out infinite;
+}
+
+.brand-mark {
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 48%, #ffffff));
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--primary) 32%, transparent);
+}
+
+.interactive-lift {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
+}
+
+.glow-button {
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.glow-button:hover {
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--primary) 38%, transparent);
+}
+
+.nav-link {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 14%, transparent), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-link:hover::before,
+.nav-link-active::before {
+  opacity: 1;
+}
+
+.nav-link > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-link-active {
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.nav-link-dot {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-link-active .nav-link-dot {
+  opacity: 1;
+}
+
+.track-row {
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.track-row:hover,
+.track-row:focus-visible {
+  border-color: var(--surface-line);
+  background: var(--bg-hover);
+}
+
+.track-row-current {
+  border-color: color-mix(in srgb, var(--primary) 32%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.media-card {
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.media-card:hover,
+.media-card:focus-visible {
+  border-color: var(--surface-line);
+  background: var(--bg-hover);
+}
+
+.empty-state {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 20rem),
+    var(--bg-card);
+  border: 1px dashed color-mix(in srgb, var(--primary) 24%, var(--surface-line));
+  border-radius: calc(var(--radius-main) + 8px);
 }
 
 .card {
@@ -142,6 +336,11 @@ input[type="range"]::-webkit-slider-thumb:hover {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(12px, -14px, 0) scale(1.08); }
 }
 
 @keyframes pulse-dot {

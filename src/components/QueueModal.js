@@ -4,7 +4,7 @@ import { useToast } from "./Toast";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
-export default function QueueModal({ isOpen, onClose, queue, currentTrackIndex, onSelectTrack, onRemoveTrack }) {
+export default function QueueModal({ isOpen, onClose, queue, currentTrackIndex, onSelectTrack, onRemoveTrack, onSaveQueue }) {
   const [newQueueTitle, setNewQueueTitle] = useState("");
   const showToast = useToast();
   const { t } = useLanguage();
@@ -12,21 +12,28 @@ export default function QueueModal({ isOpen, onClose, queue, currentTrackIndex, 
 
   if (!isOpen) return null;
 
-  const handleSaveQueue = () => {
-    if (newQueueTitle.trim()) {
-      // Save current queue with title
+  const handleSaveQueue = async () => {
+    const title = newQueueTitle.trim();
+    if (!title) return;
+
+    try {
+      if (onSaveQueue) {
+        await onSaveQueue(title, queue);
+      } else {
+        throw new Error("No backend queue saver provided");
+      }
+    } catch (err) {
+      console.warn("Could not save queue to backend, using local fallback:", err.message);
       const queueData = {
-        title: newQueueTitle,
+        title,
         tracks: queue,
         createdAt: new Date().toISOString(),
       };
-      localStorage.setItem(
-        `queue-${Date.now()}`,
-        JSON.stringify(queueData)
-      );
-      setNewQueueTitle("");
-      showToast(t("queueSaved"), "success");
+      localStorage.setItem(`queue-${Date.now()}`, JSON.stringify(queueData));
     }
+
+    setNewQueueTitle("");
+    showToast(t("queueSaved"), "success");
   };
 
   return (

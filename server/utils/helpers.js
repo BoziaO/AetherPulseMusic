@@ -1,27 +1,99 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const LOCAL_PLAYLISTS_FILE = path.join(__dirname, '..', '..', 'localPlaylists.json');
+const DATA_DIR = process.env.AETHERPULSE_DATA_DIR || path.join(os.tmpdir(), 'aetherpulse-music-data');
+const LEGACY_SERVER_DATA_DIR = path.join(__dirname, '..', 'data');
+const LEGACY_LOCAL_PLAYLISTS_FILE = path.join(__dirname, '..', '..', 'localPlaylists.json');
+const LEGACY_USER_STATE_FILE = path.join(__dirname, '..', '..', 'userState.json');
+const LEGACY_SERVER_LOCAL_PLAYLISTS_FILE = path.join(LEGACY_SERVER_DATA_DIR, 'localPlaylists.json');
+const LEGACY_SERVER_USER_STATE_FILE = path.join(LEGACY_SERVER_DATA_DIR, 'userState.json');
+const LOCAL_PLAYLISTS_FILE = path.join(DATA_DIR, 'localPlaylists.json');
+const USER_STATE_FILE = path.join(DATA_DIR, 'userState.json');
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function readJsonFile(filePath, fallback) {
+  if (!fs.existsSync(filePath)) return fallback;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
 
 function loadLocalPlaylists() {
-  if (!fs.existsSync(LOCAL_PLAYLISTS_FILE)) {
-    return [];
-  }
-  try {
-    return JSON.parse(fs.readFileSync(LOCAL_PLAYLISTS_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
+  return readJsonFile(
+    LOCAL_PLAYLISTS_FILE,
+    readJsonFile(LEGACY_SERVER_LOCAL_PLAYLISTS_FILE, readJsonFile(LEGACY_LOCAL_PLAYLISTS_FILE, [])),
+  );
 }
 
 function saveLocalPlaylists(playlists) {
   try {
+    ensureDataDir();
     fs.writeFileSync(LOCAL_PLAYLISTS_FILE, JSON.stringify(playlists, null, 2));
     return true;
   } catch (err) {
     console.error('[ERROR] Failed to save local playlists:', err.message);
     return false;
   }
+}
+
+function createDefaultUserState() {
+  return {
+    recentPlays: [],
+    favorites: [],
+    favoriteTracks: {},
+    searchHistory: [],
+    savedQueues: [],
+    volume: 80,
+    language: 'en',
+    themeState: null,
+    pageSettings: null,
+    lyricsSettings: null,
+    updatedAt: null,
+  };
+}
+
+function loadAllUserStates() {
+  const parsed = readJsonFile(
+    USER_STATE_FILE,
+    readJsonFile(LEGACY_SERVER_USER_STATE_FILE, readJsonFile(LEGACY_USER_STATE_FILE, {})),
+  );
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+function saveAllUserStates(states) {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(USER_STATE_FILE, JSON.stringify(states, null, 2));
+    return true;
+  } catch (err) {
+    console.error('[ERROR] Failed to save user state:', err.message);
+    return false;
+  }
+}
+
+function normalizeUserStateKey(key) {
+  return String(key || 'guest').replace(/[^a-zA-Z0-9@._-]/g, '_').slice(0, 120) || 'guest';
+}
+
+function loadUserState(key = 'guest') {
+  const states = loadAllUserStates();
+  const stateKey = normalizeUserStateKey(key);
+  return { ...createDefaultUserState(), ...(states[stateKey] || {}) };
+}
+
+function saveUserState(key = 'guest', state) {
+  const states = loadAllUserStates();
+  const stateKey = normalizeUserStateKey(key);
+  states[stateKey] = { ...createDefaultUserState(), ...state };
+  return saveAllUserStates(states);
 }
 
 function wrap(fn) {
@@ -105,4 +177,7 @@ module.exports = {
   hasYtMusicHeaders,
   loadLocalPlaylists,
   saveLocalPlaylists,
+  createDefaultUserState,
+  loadUserState,
+  saveUserState,
 };

@@ -1,4 +1,5 @@
 import React from "react";
+import { fetchJson } from "../lib/api";
 import { useTheme, PRESET_THEMES } from "../contexts/ThemeContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Settings, Zap, Palette, Droplets, Monitor, Heart, Languages } from "../components/Icons";
@@ -71,14 +72,21 @@ export default function SettingsPage() {
     showToast("Przywrócono domyślne ustawienia wyglądu.", "success");
   };
 
-  const clearSavedQueues = () => {
+  const clearSavedQueues = async () => {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
       if (key?.startsWith("queue-")) keysToRemove.push(key);
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
-    showToast(`Usunięto zapisane kolejki: ${keysToRemove.length}`, "info");
+
+    try {
+      const result = await fetchJson("/api/user/queues", { method: "DELETE" });
+      showToast(`Usunięto zapisane kolejki: ${keysToRemove.length + (result.removed || 0)}`, "info");
+    } catch (err) {
+      console.warn("Could not clear backend queues:", err.message);
+      showToast(`Usunięto zapisane kolejki lokalne: ${keysToRemove.length}`, "info");
+    }
   };
 
   return (

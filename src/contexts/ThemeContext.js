@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { clearDynamicColors } from "../lib/colorExtractor";
+import { fetchJson } from "../lib/api";
 
 export const PRESET_THEMES = {
   dark: {
@@ -277,6 +278,10 @@ function buildCustomVars(base, primaryColor, bgColor, textColor) {
 
 const ThemeContext = createContext(null);
 
+function stableStringify(value) {
+  return JSON.stringify(value);
+}
+
 function loadSaved() {
   try {
     return JSON.parse(localStorage.getItem("bm-theme-state") || "null");
@@ -287,6 +292,9 @@ function loadSaved() {
 
 export function ThemeProvider({ children }) {
   const saved = loadSaved();
+  const backendHydratedRef = useRef(false);
+  const lastPersistedPageSettingsRef = useRef("");
+  const lastPersistedThemeStateRef = useRef("");
   const [theme, setThemeState] = useState(saved?.theme || "dark");
   const [primaryColor, setPrimaryColorState] = useState(saved?.primaryColor || DEFAULT_PRIMARY);
   const [bgColor, setBgColorState] = useState(saved?.bgColor || "");
@@ -319,7 +327,7 @@ export function ThemeProvider({ children }) {
     }
   });
 
-  function applyVars(themeName, primary, bg, text, base) {
+  const applyVars = useCallback((themeName, primary, bg, text, base) => {
     let vars;
     if (themeName === "custom") {
       vars = buildCustomVars(base || "dark", primary, bg, text);
@@ -356,25 +364,86 @@ export function ThemeProvider({ children }) {
     if (!dynamicColors) {
       clearDynamicColors();
     }
-  }
+  }, [dynamicColors]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchJson("/api/user/state", { timeout: 4000 })
+      .then((state) => {
+        if (cancelled || !state) return;
+        if (state.themeState && typeof state.themeState === "object") {
+          const next = state.themeState;
+          const themeState = {
+            theme: next.theme || "dark",
+            primaryColor: next.primaryColor || DEFAULT_PRIMARY,
+            bgColor: next.bgColor || "",
+            textColor: next.textColor || "",
+            customBase: next.customBase || "dark",
+            dynamicColors: next.dynamicColors ?? false,
+          };
+          lastPersistedThemeStateRef.current = stableStringify(themeState);
+          setThemeState(themeState.theme);
+          setPrimaryColorState(themeState.primaryColor);
+          setBgColorState(themeState.bgColor);
+          setTextColorState(themeState.textColor);
+          setCustomBaseState(themeState.customBase);
+          setDynamicColorsState(themeState.dynamicColors);
+        }
+        if (state.pageSettings && typeof state.pageSettings === "object") {
+          const pageSettings = {
+            liquidGlassEnabled: state.pageSettings.liquidGlassEnabled ?? true,
+            blurIntensity: state.pageSettings.blurIntensity ?? 10,
+            transparency: state.pageSettings.transparency ?? 0.8,
+          };
+          lastPersistedPageSettingsRef.current = stableStringify(pageSettings);
+          setLiquidGlassEnabledState(pageSettings.liquidGlassEnabled);
+          setBlurIntensityState(pageSettings.blurIntensity);
+          setTransparencyState(pageSettings.transparency);
+        }
+      })
+      .catch((err) => console.warn("Could not hydrate theme settings:", err.message))
+      .finally(() => {
+        if (!cancelled) backendHydratedRef.current = true;
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     applyVars(theme, primaryColor, bgColor, textColor, customBase);
-  }, [theme, primaryColor, bgColor, textColor, customBase, dynamicColors]);
+  }, [theme, primaryColor, bgColor, textColor, customBase, applyVars]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "bm-page-settings",
-      JSON.stringify({
-        liquidGlassEnabled,
-        blurIntensity: Number(blurIntensity),
-        transparency: Number(transparency),
-      }),
-    );
+    const pageSettings = {
+      liquidGlassEnabled,
+      blurIntensity: Number(blurIntensity),
+      transparency: Number(transparency),
+    };
+    localStorage.setItem("bm-page-settings", JSON.stringify(pageSettings));
+    if (!backendHydratedRef.current) return;
+    const serialized = stableStringify(pageSettings);
+    if (serialized === lastPersistedPageSettingsRef.current) return;
+    lastPersistedPageSettingsRef.current = serialized;
+    fetchJson("/api/user/state", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pageSettings }),
+      timeout: 4000,
+    }).catch((err) => console.warn("Could not persist page settings:", err.message));
   }, [liquidGlassEnabled, blurIntensity, transparency]);
 
   function persist(state) {
     localStorage.setItem("bm-theme-state", JSON.stringify(state));
+    if (!backendHydratedRef.current) return;
+    const serialized = stableStringify(state);
+    if (serialized === lastPersistedThemeStateRef.current) return;
+    lastPersistedThemeStateRef.current = serialized;
+    fetchJson("/api/user/state", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ themeState: state }),
+      timeout: 4000,
+    }).catch((err) => console.warn("Could not persist theme state:", err.message));
   }
 
   function setDynamicColors(enabled) {

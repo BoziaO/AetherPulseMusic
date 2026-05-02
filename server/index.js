@@ -11,6 +11,8 @@ const createYtmusicRouter = require('./routes/ytmusic');
 const createLocalPlaylistsRouter = require('./routes/localPlaylists');
 const createLyricsRouter = require('./routes/lyrics');
 const createPagesRouter = require('./routes/pages');
+const createFlowsRouter = require('./routes/flows');
+const createUserRouter = require('./routes/user');
 
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 5000) : (process.env.BACKEND_PORT || 3001);
@@ -113,6 +115,8 @@ app.use('/api/ytmusic', createYtmusicRouter(yt));
 app.use('/api/local/playlists', createLocalPlaylistsRouter(yt));
 app.use('/api/lyrics', createLyricsRouter(yt));
 app.use('/api/page', createPagesRouter(yt));
+app.use('/api/flows', createFlowsRouter(yt));
+app.use('/api/user', createUserRouter());
 
 // Static files for production
 if (process.env.NODE_ENV === 'production') {

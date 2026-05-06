@@ -761,6 +761,26 @@ function handleKeyboard(event) {
   }
 }
 
+const gamesEnabled = ref(readJson("ap-games-enabled", true));
+const lyricsFollowMode = ref(readJson("ap-lyrics-follow-mode", true));
+const lyricsCompact = ref(readJson("ap-lyrics-compact", false));
+const homeDensity = ref(readJson("ap-home-density", "spacious"));
+
+function setHomeDensity(next) {
+  homeDensity.value = next === "compact" ? "compact" : "spacious";
+}
+
+watch(
+  [gamesEnabled, lyricsFollowMode, lyricsCompact, homeDensity],
+  () => {
+    localStorage.setItem("ap-games-enabled", JSON.stringify(gamesEnabled.value));
+    localStorage.setItem("ap-lyrics-follow-mode", JSON.stringify(lyricsFollowMode.value));
+    localStorage.setItem("ap-lyrics-compact", JSON.stringify(lyricsCompact.value));
+    localStorage.setItem("ap-home-density", JSON.stringify(homeDensity.value));
+  },
+  { deep: true },
+);
+
 provide("appState", {
   language,
   t,
@@ -783,7 +803,13 @@ provide("appState", {
   recentPlays,
   toggleFavoriteTrack,
   showToast,
+  gamesEnabled,
+  lyricsFollowMode,
+  lyricsCompact,
+  homeDensity,
+  setHomeDensity,
 });
+
 
 onMounted(() => {
   applyTheme();

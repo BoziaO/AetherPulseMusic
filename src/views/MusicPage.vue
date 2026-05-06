@@ -49,6 +49,7 @@
 
     <section v-if="pageKey === 'home'" class="panel mb-8 p-4">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+
         <div>
           <h2 class="text-xl font-black">{{ app.t('flowComposer') }}</h2>
           <p class="text-sm font-semibold" style="color: var(--text-muted)">Focus, energia albo spokojniejsze przejscie z aktualnej puli utworow.</p>
@@ -106,7 +107,10 @@
         @add-queue="app.addToQueue"
         @toggle-favorite="app.toggleFavoriteTrack"
       />
+
+      <HomeGamesPanel />
     </section>
+
 
     <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div class="min-w-0 space-y-8">
@@ -180,6 +184,8 @@ import MediaGrid from "../components/MediaGrid.vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
+import HomeGamesPanel from "../components/HomeGamesPanel.vue";
+
 import { fetchJson } from "../lib/api";
 import { cleanData, normalizeTrack, trackKey } from "../lib/format";
 import { estimateEnergy } from "../lib/energy";

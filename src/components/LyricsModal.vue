@@ -11,7 +11,7 @@
         </button>
       </header>
 
-      <div class="max-h-[64vh] overflow-y-auto p-5">
+        <div ref="containerRef" class="max-h-[64vh] overflow-y-auto p-5">
         <div v-if="loading" class="flex min-h-48 items-center justify-center text-sm font-semibold" style="color: var(--text-muted)">
           Ladowanie tekstu...
         </div>
@@ -19,8 +19,11 @@
         <div v-else-if="timedLines.length" class="space-y-2">
           <button
             v-for="(line, index) in timedLines"
+
             :key="`${line.time}-${index}`"
-            class="block w-full rounded-lg px-3 py-2 text-left text-base font-black transition-colors"
+            :data-lyric-index="index"
+            class="block w-full rounded-lg text-left font-black transition-colors"
+            :class="compactMode ? 'px-3 py-1 text-sm' : 'px-3 py-2 text-base'"
             :style="activeIndex === index ? activeLineStyle : inactiveLineStyle"
             type="button"
             @click="$emit('seek', line.time)"
@@ -36,7 +39,9 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, inject, ref, watch } from "vue";
+
+const app = inject("appState");
 import { X } from "lucide-vue-next";
 import { fetchJson } from "../lib/api";
 
@@ -64,6 +69,40 @@ const activeIndex = computed(() => {
   return index;
 });
 
+const followMode = computed(() => app?.lyricsFollowMode?.value ?? true);
+const compactMode = computed(() => app?.lyricsCompact?.value ?? false);
+
+
+watch(
+  () => [props.open, props.track?.videoId, props.track?.title, followMode.value],
+  () => {
+    // keep scroll in sync when switching track/modals
+    if (props.open && timedLines.value.length && followMode.value) {
+      scrollToActiveLine(activeIndex.value);
+    }
+  },
+  { flush: "post" },
+);
+
+const containerRef = ref(null);
+
+function scrollToActiveLine(index) {
+  if (!containerRef.value || index < 0) return;
+  const el = containerRef.value.querySelector(`[data-lyric-index="${index}"]`);
+  if (!el) return;
+  const cTop = containerRef.value.scrollTop;
+  const cBottom = cTop + containerRef.value.clientHeight;
+  const eTop = el.offsetTop;
+  const eBottom = eTop + el.offsetHeight;
+
+  // If active line is above or below viewport, adjust scroll
+  if (eTop < cTop + 16) {
+    containerRef.value.scrollTop = Math.max(0, eTop - 16);
+  } else if (eBottom > cBottom - 16) {
+    containerRef.value.scrollTop = Math.max(0, eBottom - containerRef.value.clientHeight + 16);
+  }
+}
+
 watch(
   () => [props.open, props.track?.videoId, props.track?.title],
   async () => {
@@ -80,12 +119,27 @@ watch(
       const text = data.syncedLyrics || data.lyrics || data.plainLyrics || "";
       timedLines.value = parseTimedLyrics(text);
       plainLyrics.value = timedLines.value.length ? "" : text;
+
+      // reset scroll to top when new lyrics are loaded
+      if (containerRef.value) containerRef.value.scrollTop = 0;
     } catch (error) {
       plainLyrics.value = error.message;
     } finally {
       loading.value = false;
     }
   },
+);
+
+// Auto-scroll synced lyrics
+watch(
+  () => [props.open, props.currentTime, timedLines.value.length, followMode.value],
+  () => {
+    if (!props.open) return;
+    if (!followMode.value) return;
+    if (!timedLines.value.length) return;
+    scrollToActiveLine(activeIndex.value);
+  },
+  { flush: "post" },
 );
 
 function parseTimedLyrics(text) {

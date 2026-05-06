@@ -2,43 +2,34 @@
   "name": "aetherpulse-music",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10"
+  },
   "dependencies": {
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^13.5.0",
+    "@vitejs/plugin-vue": "^6.0.6",
     "autoprefixer": "^10.5.0",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
-    "cross-env": "^7.0.3",
-    "debug": "^4.4.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "googleapis": "^165.0.0",
+    "lucide-vue-next": "^0.468.0",
     "postcss": "^8.5.10",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "react-router-dom": "^7.14.1",
-    "react-scripts": "^5.0.1",
     "tailwindcss": "^3.4.19",
-    "web-vitals": "^2.1.4"
+    "vite": "^8.0.10",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   },
   "scripts": {
-    "client": "cross-env PORT=5000 HOST=0.0.0.0 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
+    "client": "vite --host 0.0.0.0 --port 5000",
     "dev": "concurrently --kill-others \"npm run server:dev\" \"npm run client\"",
     "server": "node server/index.js",
     "server:dev": "node --watch-path server server/index.js",
-    "start": "cross-env PORT=5000 HOST=0.0.0.0 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "start": "npm run client",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 5000"
   },
   "proxy": "http://localhost:3001",
   "browserslist": {

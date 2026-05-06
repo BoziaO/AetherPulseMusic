@@ -1,1 +1,3 @@
-music-player, youtube-music, react, nodejs, express, tailwind-css, google-oauth, dark-theme, music-streaming, web-app
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf

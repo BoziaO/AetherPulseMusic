@@ -1,6 +1,6 @@
 {
   "short_name": "AetherPulse",
-  "name": "AetherPulse|Music",
+  "name": "AetherPulse Music",
   "icons": [
     {
       "src": "favicon2.ico",
@@ -10,7 +10,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#111827",
-  "background_color": "#050816",
-  "description": "Responsywny odtwarzacz muzyki z YouTube Music, lokalnymi playlistami, ulubionymi i historią odtwarzania."
+  "theme_color": "#080908",
+  "background_color": "#080908",
+  "description": "Responsywny odtwarzacz muzyki z YouTube Music, lokalnymi playlistami, ulubionymi i historia odtwarzania."
 }

@@ -1,14 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
+    "./index.html",
+    "./src/**/*.{vue,js,ts}",
   ],
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#f84f39',
-          hover: '#e04431',
+          DEFAULT: '#f2573d',
+          hover: '#d9472f',
         },
         bg: {
           main: '#0a0a0a',
@@ -30,8 +31,8 @@ module.exports = {
         display: ['Space Grotesk', 'sans-serif'],
       },
       borderRadius: {
-        'xl': '24px',
-        'lg': '16px',
+        'xl': '8px',
+        'lg': '8px',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

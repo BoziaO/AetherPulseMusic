@@ -1,4 +1,4 @@
-const CACHE_NAME = "aetherpulse-v1";
+const CACHE_NAME = "aetherpulse-vue-v1";
 const STATIC_ASSETS = [
   "/",
   "/index.html",

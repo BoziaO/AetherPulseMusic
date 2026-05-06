@@ -118,24 +118,26 @@ app.use('/api/page', createPagesRouter(yt));
 app.use('/api/flows', createFlowsRouter(yt));
 app.use('/api/user', createUserRouter());
 
+const clientDistPath = path.join(__dirname, '../dist');
+
 // Static files for production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../build')));
+  app.use(express.static(clientDistPath));
 }
 
-// Catch-all for React Router (production)
+// Catch-all for Vue Router (production)
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '../build', 'index.html');
+  app.get(/.*/, (req, res) => {
+    const indexPath = path.join(clientDistPath, 'index.html');
     res.sendFile(indexPath, (err) => {
       if (err) {
-        res.status(500).send("Build folder missing. Run 'npm run build' first.");
+        res.status(500).send("Dist folder missing. Run 'npm run build' first.");
       }
     });
   });
 } else {
   app.get('/', (req, res) => {
-    res.send('AetherPulse|Music API Server is running on port 3001. Frontend is on port 5000 during development.');
+    res.send('AetherPulse Music API server is running on port 3001. Frontend is on port 5000 during development.');
   });
 }
 

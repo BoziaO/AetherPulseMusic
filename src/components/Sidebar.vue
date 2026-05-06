@@ -3,14 +3,22 @@
     class="fixed inset-y-0 left-0 z-[220] w-[260px] px-6 py-8 transition-transform lg:translate-x-0"
     :class="open ? 'translate-x-0' : '-translate-x-full'"
     style="background: var(--bg-sidebar); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-right: 1px solid var(--surface-line)"
-  >
+  > 
     <div class="mb-10 flex items-center justify-between">
-      <RouterLink to="/" class="flex items-center gap-3" @click="emit('close')">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff2d55] to-[#ff375f] shadow-lg shadow-[#ff2d55]/20">
-          <Music2 class="text-white" :size="24" />
+      <RouterLink to="/" class="flex items-center gap-3 group cursor-pointer" @click="emit('close')">
+        <div
+          class="w-11 h-11 flex items-center justify-center text-white rounded-2xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500"
+          :style="{ background: 'linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #ff9988))' }"
+        >
+          <Zap :size="22" fill="white" />
         </div>
-        <div class="flex flex-col">
-          <span class="text-lg font-bold tracking-tight text-[var(--text-main)]">AetherPulse|Music</span>
+        <div>
+          <h2 class="text-xl font-black tracking-tighter uppercase italic" :style="{ color: 'var(--text-main)' }">
+            AetherPulse<span :style="{ color: 'var(--primary)' }"> Music</span>
+          </h2>
+          <p class="text-[9px] uppercase tracking-[0.3em] font-black" :style="{ color: 'var(--text-soft)' }">
+              Powered by Energy
+            </p>
         </div>
       </RouterLink>
 
@@ -56,7 +64,7 @@ import {
   Album,
   BarChart3,
   Compass,
-  Heart,
+  Heart, 
   Home,
   Library,
   ListMusic,
@@ -64,7 +72,7 @@ import {
   Settings,
   Sparkles,
   UserRound,
-  X,
+  X, 
   Zap,
 } from "lucide-vue-next";
 import { navigationGroups } from "../data/navigation";

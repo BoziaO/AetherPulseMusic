@@ -1,9 +1,10 @@
 const express = require('express');
 const { wrap } = require('../utils/helpers');
+const { validateQuery, schemas } = require('../utils/schemas');
 
 function createLyricsRouter(yt) {
   const router = express.Router();
-  router.get('/', wrap(async (req) => {
+  router.get('/', validateQuery(schemas.LyricsQuerySchema), wrap(async (req) => {
     const { q, videoId, artist, title } = req.query;
 
     try {

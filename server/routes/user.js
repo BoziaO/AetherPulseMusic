@@ -1,5 +1,12 @@
 const express = require('express');
-const { wrap, loadUserState, saveUserState, createDefaultUserState } = require('../utils/helpers');
+const {
+  wrap,
+  loadUserState,
+  saveUserState,
+  mutateUserState,
+  createDefaultUserState,
+} = require('../utils/helpers');
+const { validateBody, validateParams, schemas } = require('../utils/schemas');
 
 const MAX_RECENT_PLAYS = 50;
 const MAX_SEARCH_HISTORY = 20;
@@ -56,83 +63,102 @@ function createUserRouter() {
   }));
 
   router.patch('/state', wrap(async (req) => {
-    const current = loadUserState(getUserStateKey(req));
     const clean = sanitizePatch(req.body || {});
-    const state = { ...current, ...clean, updatedAt: new Date().toISOString() };
-    saveUserState(getUserStateKey(req), state);
-    return state;
+    return mutateUserState(getUserStateKey(req), (current) => ({
+      ...current,
+      ...clean,
+      updatedAt: new Date().toISOString(),
+    }));
   }));
 
-  router.post('/recent', wrap(async (req) => {
-    const track = req.body?.track;
-    if (!track) return { error: 'track is required' };
-    const state = loadUserState(getUserStateKey(req));
-    const key = getTrackKey(track);
-    state.recentPlays = [track, ...state.recentPlays.filter((item) => getTrackKey(item) !== key)].slice(0, MAX_RECENT_PLAYS);
-    state.updatedAt = new Date().toISOString();
-    saveUserState(getUserStateKey(req), state);
-    return { recentPlays: state.recentPlays };
-  }));
+  router.post(
+    '/recent',
+    validateBody(schemas.RecentBodySchema),
+    wrap(async (req) => {
+      const track = req.body.track;
+      const next = mutateUserState(getUserStateKey(req), (current) => {
+        const key = getTrackKey(track);
+        const recentPlays = [track, ...(current.recentPlays || []).filter((item) => getTrackKey(item) !== key)]
+          .slice(0, MAX_RECENT_PLAYS);
+        return { ...current, recentPlays, updatedAt: new Date().toISOString() };
+      });
+      return { recentPlays: next.recentPlays };
+    }),
+  );
 
-  router.post('/favorites/toggle', wrap(async (req) => {
-    const track = req.body?.track;
-    if (!track) return { error: 'track is required' };
-    const state = loadUserState(getUserStateKey(req));
-    const key = getTrackKey(track);
-    const favorites = new Set(state.favorites || []);
-    const favoriteTracks = { ...(state.favoriteTracks || {}) };
-    const isFavorite = !favorites.has(key);
-
-    if (isFavorite) {
-      favorites.add(key);
-      favoriteTracks[key] = track;
-    } else {
-      favorites.delete(key);
-      delete favoriteTracks[key];
-    }
-
-    state.favorites = Array.from(favorites);
-    state.favoriteTracks = favoriteTracks;
-    state.updatedAt = new Date().toISOString();
-    saveUserState(getUserStateKey(req), state);
-    return { favorites: state.favorites, favoriteTracks: state.favoriteTracks, isFavorite };
-  }));
+  router.post(
+    '/favorites/toggle',
+    validateBody(schemas.FavoritesBodySchema),
+    wrap(async (req) => {
+      const track = req.body.track;
+      let isFavorite = false;
+      const next = mutateUserState(getUserStateKey(req), (current) => {
+        const key = getTrackKey(track);
+        const favorites = new Set(current.favorites || []);
+        const favoriteTracks = { ...(current.favoriteTracks || {}) };
+        isFavorite = !favorites.has(key);
+        if (isFavorite) {
+          favorites.add(key);
+          favoriteTracks[key] = track;
+        } else {
+          favorites.delete(key);
+          delete favoriteTracks[key];
+        }
+        return {
+          ...current,
+          favorites: Array.from(favorites),
+          favoriteTracks,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      return { favorites: next.favorites, favoriteTracks: next.favoriteTracks, isFavorite };
+    }),
+  );
 
   router.get('/queues', (req, res) => {
     const state = loadUserState(getUserStateKey(req));
     res.json({ queues: state.savedQueues || [] });
   });
 
-  router.post('/queues', wrap(async (req) => {
-    const { title, tracks = [] } = req.body || {};
-    if (!title?.trim()) return { error: 'title is required' };
-    const state = loadUserState(getUserStateKey(req));
-    const queue = {
-      id: `${Date.now()}`,
-      title: title.trim(),
-      tracks: sanitizeArray(tracks, 250),
-      createdAt: new Date().toISOString(),
-    };
-    state.savedQueues = [queue, ...(state.savedQueues || [])].slice(0, MAX_SAVED_QUEUES);
-    state.updatedAt = new Date().toISOString();
-    saveUserState(getUserStateKey(req), state);
-    return { queue, queues: state.savedQueues };
-  }));
+  router.post(
+    '/queues',
+    validateBody(schemas.SaveQueueBodySchema),
+    wrap(async (req) => {
+      const { title, tracks } = req.body;
+      const queue = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: title.trim(),
+        tracks: sanitizeArray(tracks, 250),
+        createdAt: new Date().toISOString(),
+      };
+      const next = mutateUserState(getUserStateKey(req), (current) => ({
+        ...current,
+        savedQueues: [queue, ...(current.savedQueues || [])].slice(0, MAX_SAVED_QUEUES),
+        updatedAt: new Date().toISOString(),
+      }));
+      return { queue, queues: next.savedQueues };
+    }),
+  );
 
-  router.delete('/queues/:queueId', wrap(async (req) => {
-    const state = loadUserState(getUserStateKey(req));
-    state.savedQueues = (state.savedQueues || []).filter((queue) => queue.id !== req.params.queueId);
-    state.updatedAt = new Date().toISOString();
-    saveUserState(getUserStateKey(req), state);
-    return { queues: state.savedQueues };
-  }));
+  router.delete(
+    '/queues/:queueId',
+    validateParams(schemas.QueueParamsSchema),
+    wrap(async (req) => {
+      const next = mutateUserState(getUserStateKey(req), (current) => ({
+        ...current,
+        savedQueues: (current.savedQueues || []).filter((queue) => queue.id !== req.params.queueId),
+        updatedAt: new Date().toISOString(),
+      }));
+      return { queues: next.savedQueues };
+    }),
+  );
 
   router.delete('/queues', wrap(async (req) => {
-    const state = loadUserState(getUserStateKey(req));
-    const removed = (state.savedQueues || []).length;
-    state.savedQueues = [];
-    state.updatedAt = new Date().toISOString();
-    saveUserState(getUserStateKey(req), state);
+    let removed = 0;
+    mutateUserState(getUserStateKey(req), (current) => {
+      removed = (current.savedQueues || []).length;
+      return { ...current, savedQueues: [], updatedAt: new Date().toISOString() };
+    });
     return { success: true, removed };
   }));
 

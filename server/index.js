@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const rateLimit = require('express-rate-limit');
 const { google } = require('googleapis');
 const cors = require('cors');
 const path = require('path');
@@ -13,6 +14,9 @@ const createLyricsRouter = require('./routes/lyrics');
 const createPagesRouter = require('./routes/pages');
 const createFlowsRouter = require('./routes/flows');
 const createUserRouter = require('./routes/user');
+
+// Initialize the SQLite database (runs schema + legacy JSON migration on first boot).
+require('./utils/db').getDb();
 
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 5000) : (process.env.BACKEND_PORT || 3001);
@@ -71,8 +75,34 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 app.set('trust proxy', 1);
+
+// Rate limiters. Tight limits for endpoints that proxy YouTube traffic
+// (high risk of upstream blocking), looser limits for everything else.
+const ytSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many search requests. Please slow down.' },
+});
+
+const ytApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests to YouTube Music API.' },
+});
+
+const generalApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests.' },
+});
 app.use(session({
   secret: (() => {
     if (process.env.NODE_ENV === 'production') {
@@ -109,7 +139,17 @@ app.use((req, res, next) => {
 // Make YouTube Music client available to routes via app.locals
 app.locals.yt = yt;
 
-// Mount routers
+// Mount routers (rate-limit hot paths first, then fall back to a general limiter).
+app.use('/api/ytmusic/search', ytSearchLimiter);
+app.use('/api/ytmusic/suggestions', ytSearchLimiter);
+app.use('/api/ytmusic', ytApiLimiter);
+app.use('/api/lyrics', ytApiLimiter);
+app.use('/api/page', ytApiLimiter);
+app.use('/api/flows', ytApiLimiter);
+app.use('/api/local', generalApiLimiter);
+app.use('/api/user', generalApiLimiter);
+app.use('/api/auth', generalApiLimiter);
+
 app.use('/api/auth', createAuthRouter(oauth2Client, getFrontendRedirectUrl));
 app.use('/api/ytmusic', createYtmusicRouter(yt));
 app.use('/api/local/playlists', createLocalPlaylistsRouter(yt));

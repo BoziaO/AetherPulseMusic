@@ -1,233 +1,716 @@
 <template>
-  <div class="animate-in">
-    <PageHero
-      title="Ustawienia"
-      subtitle="Motyw, jezyk, konto Google i dane lokalne."
-      eyebrow="System"
-      :playable="false"
-    />
+  <div class="settings-page animate-fade">
+    <header class="page-head">
+      <h1 class="page-title">{{ t('settingsTitle') }}</h1>
+      <p class="page-sub">{{ t('settingsSubtitle') }}</p>
+    </header>
 
-    <div class="grid gap-5 xl:grid-cols-2">
-      <section class="panel p-4">
-        <h2 class="mb-4 text-xl font-black">Wyglad</h2>
-        <div class="space-y-4">
-          <div>
-            <p class="mb-2 text-xs font-black uppercase" style="color: var(--text-soft)">Motyw</p>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                class="ghost-button px-4"
-                type="button"
-                :style="theme === 'dark' ? selectedStyle : ''"
-                @click="app.setTheme('dark')"
-              >
-                <Moon :size="16" />
-                {{ app.t('dark') }}
-              </button>
-              <button
-                class="ghost-button px-4"
-                type="button"
-                :style="theme === 'light' ? selectedStyle : ''"
-                @click="app.setTheme('light')"
-              >
-                <Sun :size="16" />
-                {{ app.t('light') }}
-              </button>
-            </div>
-          </div>
+    <section class="card-block">
+      <header class="card-head">
+        <Palette :size="18" />
+        <h2 class="card-title">{{ t('appearance') }}</h2>
+      </header>
 
-          <div>
-            <p class="mb-2 text-xs font-black uppercase" style="color: var(--text-soft)">Akcent</p>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="color in accentColors"
-                :key="color"
-                class="h-10 w-10 rounded-lg border"
-                :style="{ background: color, borderColor: accent === color ? 'var(--text-main)' : 'var(--surface-line)' }"
-                type="button"
-                :title="color"
-                @click="app.setAccent(color)"
-              />
-            </div>
-          </div>
-
-          <div>
-            <p class="mb-2 text-xs font-black uppercase" style="color: var(--text-soft)">Jezyk</p>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                class="ghost-button px-4"
-                type="button"
-                :style="language === 'pl' ? selectedStyle : ''"
-                @click="app.setLanguage('pl')"
-              >
-                Polski
-              </button>
-              <button
-                class="ghost-button px-4"
-                type="button"
-                :style="language === 'en' ? selectedStyle : ''"
-                @click="app.setLanguage('en')"
-              >
-                English
-              </button>
-            </div>
-          </div>
+      <div class="row">
+        <div>
+          <p class="row-title">{{ t('theme') }}</p>
         </div>
-      </section>
-
-      <section class="panel p-4">
-        <h2 class="mb-4 text-xl font-black">Odtwarzanie & gra</h2>
-
-        <div class="space-y-3">
-          <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-sm font-black">Gry</p>
-            <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-              Wlacz mini-gre w sekcji Home.
-            </p>
-
-            <div class="mt-3 flex items-center justify-between gap-3">
-              <span class="text-sm font-semibold" style="color: var(--text-muted)">Stan</span>
-              <button
-                class="ghost-button px-4"
-                type="button"
-                :style="gamesEnabled ? selectedStyle : ''"
-                @click="app.gamesEnabled.value = !gamesEnabled"
-              >
-                {{ gamesEnabled ? 'Wlacz' : 'Wylacz' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-sm font-black">Tekst</p>
-            <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-              Auto-scroll w LyricsModal.
-            </p>
-
-            <div class="mt-3 space-y-2">
-              <button
-                class="ghost-button w-full px-4"
-                type="button"
-                :style="lyricsAutoScroll ? selectedStyle : ''"
-                @click="app.lyricsFollowMode.value = !lyricsAutoScroll"
-              >
-                {{ lyricsAutoScroll ? 'Follow: wlaczony' : 'Follow: wylaczony' }}
-              </button>
-              <button
-                class="ghost-button w-full px-4"
-                type="button"
-                :style="lyricsCompact ? selectedStyle : ''"
-                @click="app.lyricsCompact.value = !lyricsCompact"
-              >
-                {{ lyricsCompact ? 'Tryb: compact' : 'Tryb: spacious' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-sm font-black">Gęstość Home</p>
-            <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-              Zmienia odstepy i ilosc elementow na stronie Home.
-            </p>
-
-            <div class="mt-3 flex gap-2">
-              <button
-                class="ghost-button flex-1 px-4"
-                type="button"
-                :style="homeDensity === 'compact' ? selectedStyle : ''"
-                @click="app.setHomeDensity('compact')"
-              >
-                Compact
-              </button>
-              <button
-                class="ghost-button flex-1 px-4"
-                type="button"
-                :style="homeDensity === 'spacious' ? selectedStyle : ''"
-                @click="app.setHomeDensity('spacious')"
-              >
-                Spacious
-              </button>
-            </div>
-          </div>
+        <div class="seg-control">
+          <button
+            class="seg"
+            :class="appState.theme.value === 'dark' ? 'seg-active' : ''"
+            type="button"
+            @click="appState.setTheme('dark')"
+          >
+            {{ t('themeDark') }}
+          </button>
+          <button
+            class="seg"
+            :class="appState.theme.value === 'light' ? 'seg-active' : ''"
+            type="button"
+            @click="appState.setTheme('light')"
+          >
+            {{ t('themeLight') }}
+          </button>
         </div>
-      </section>
+      </div>
 
-      <section class="panel p-4">
-        <h2 class="mb-4 text-xl font-black">Konto i dane</h2>
-        <div class="space-y-3">
-          <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-sm font-black">Google OAuth</p>
-            <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-              {{ connected ? 'Polaczone konto Google.' : 'Mozesz polaczyc konto, aby pobierac biblioteke YouTube Music.' }}
-            </p>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button v-if="connected" class="ghost-button px-4" type="button" @click="app.logout">
-                <LogOut :size="16" />
-                {{ app.t('logout') }}
-              </button>
-              <a v-else class="primary-button px-4" :href="app.loginUrl.value">
-                <LogIn :size="16" />
-                {{ app.t('signIn') }}
-              </a>
-            </div>
-          </div>
-
-          <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-sm font-black">Dane lokalne</p>
-            <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-              Ulubione: {{ app.favoriteItems.value.length }}, historia: {{ app.recentPlays.value.length }}
-            </p>
-            <button class="ghost-button mt-3 px-4" type="button" @click="clearLocalData">
-              <Trash2 :size="16" />
-              Wyczysc lokalnie
-            </button>
-          </div>
+      <div class="row">
+        <div>
+          <p class="row-title">{{ t('accentColor') }}</p>
         </div>
-      </section>
+        <div class="accent-row">
+          <button
+            v-for="color in accentColors"
+            :key="color"
+            class="accent-dot"
+            :class="appState.accent.value.toLowerCase() === color.toLowerCase() ? 'accent-active' : ''"
+            type="button"
+            :style="{ background: color }"
+            :title="color"
+            @click="appState.setAccent(color)"
+          />
+        </div>
+      </div>
 
-      <section class="panel p-4">
-        <h2 class="mb-4 text-xl font-black">Zaawansowane</h2>
-        <div class="rounded-lg border p-4" style="border-color: var(--surface-line); background: var(--bg-card)">
-          <p class="text-sm font-black">Uwaga</p>
-          <p class="mt-1 text-sm font-semibold" style="color: var(--text-muted)">
-            Ustawienia gier i tekstu sa zapisywane lokalnie.
+      <div class="row">
+        <div>
+          <p class="row-title">{{ t('language') }}</p>
+        </div>
+        <div class="seg-control">
+          <button
+            class="seg"
+            :class="appState.language.value === 'pl' ? 'seg-active' : ''"
+            type="button"
+            @click="appState.setLanguage('pl')"
+          >
+            Polski
+          </button>
+          <button
+            class="seg"
+            :class="appState.language.value === 'en' ? 'seg-active' : ''"
+            type="button"
+            @click="appState.setLanguage('en')"
+          >
+            English
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <Sliders :size="18" />
+        <h2 class="card-title">{{ t('playback') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('defaultVolume') }}</p>
+          <p class="row-sub">{{ appState.volume.value }}%</p>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          :value="appState.volume.value"
+          class="am-slider am-slider-pink volume-slider"
+          :style="{ '--progress': `${appState.volume.value}%` }"
+          @input="(event) => updateVolume(Number(event.target.value))"
+        />
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('autoScrollLyrics') }}</p>
+          <p class="row-sub">{{ t('autoScrollLyricsDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="appState.lyricsFollowMode.value ? 'toggle-on' : ''"
+          type="button"
+          @click="appState.lyricsFollowMode.value = !appState.lyricsFollowMode.value"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <UserCircle :size="18" />
+        <h2 class="card-title">{{ t('account') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('googleAccount') }}</p>
+          <p class="row-sub">
+            {{ appState.authSession.value.auth?.connected ? t('accountConnected') : t('accountNotConnected') }}
           </p>
         </div>
-      </section>
-    </div>
+        <a v-if="!appState.authSession.value.auth?.connected" class="btn-primary" :href="appState.loginUrl.value">
+          {{ t('signIn') }}
+        </a>
+        <button v-else class="btn-secondary" type="button" @click="appState.logout">
+          {{ t('logout') }}
+        </button>
+      </div>
+
+      <template v-if="appState.authSession.value.auth?.connected">
+        <div class="row row-column">
+          <div class="row-head">
+            <div class="row-text">
+              <p class="row-title">{{ t('ytLibraryTitle') }}</p>
+              <p class="row-sub">
+                <span v-if="libLoading">{{ t('ytLibraryLoading') }}</span>
+                <span v-else-if="libError" class="error">{{ libError }}</span>
+                <span v-else-if="!library.length">{{ t('ytLibraryEmpty') }}</span>
+                <span v-else>{{ t('ytLibraryItemCount', { count: library.length }) }}</span>
+              </p>
+            </div>
+            <div class="row-head-actions">
+              <button
+                class="icon-btn"
+                type="button"
+                :title="t('ytLibraryReload')"
+                :disabled="libLoading"
+                @click="loadLibrary(true)"
+              >
+                <RefreshCw :size="15" />
+              </button>
+              <button
+                class="btn-primary"
+                type="button"
+                :disabled="!library.length || importing"
+                @click="importAll"
+              >
+                <Download :size="14" />
+                {{ importing ? t('ytLibraryImporting') : t('ytLibraryImportAll') }}
+              </button>
+            </div>
+          </div>
+
+          <ul v-if="library.length" class="yt-list">
+            <li v-for="pl in library" :key="pl.id" class="yt-item">
+              <div class="yt-thumb">
+                <img v-if="pl.thumbnail" :src="pl.thumbnail" :alt="pl.title" loading="lazy" />
+                <ListMusic v-else :size="18" :style="{ color: 'var(--text-tertiary)' }" />
+              </div>
+              <div class="yt-meta">
+                <span class="yt-title">{{ pl.title }}</span>
+                <span class="yt-sub">
+                  {{ t('ytLibraryItemCount', { count: pl.itemCount || 0 }) }}
+                  <template v-if="isImported(pl.id)"> • {{ t('ytLibraryAlreadyImported') }}</template>
+                </span>
+              </div>
+              <button
+                class="btn-secondary yt-btn"
+                type="button"
+                :disabled="isImported(pl.id) || importingId === pl.id"
+                @click="importOne(pl)"
+              >
+                <Download :size="13" />
+                {{ importingId === pl.id ? t('ytLibraryImporting') : t('ytLibraryImportOne') }}
+              </button>
+            </li>
+          </ul>
+        </div>
+      </template>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <Database :size="18" />
+        <h2 class="card-title">{{ t('localData') }}</h2>
+      </header>
+
+      <div class="data-stats">
+        <div class="data-stat">
+          <span class="ds-value">{{ appState.favoriteItems.value.length }}</span>
+          <span class="ds-label">{{ t('favoritesStat') }}</span>
+        </div>
+        <div class="data-stat">
+          <span class="ds-value">{{ appState.recentPlays.value.length }}</span>
+          <span class="ds-label">{{ t('historyStat') }}</span>
+        </div>
+      </div>
+
+      <button class="btn-secondary" type="button" @click="clearLocalData">
+        <Trash2 :size="14" />
+        {{ t('clearLocalData') }}
+      </button>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <Keyboard :size="18" />
+        <h2 class="card-title">{{ t('keyboardShortcuts') }}</h2>
+      </header>
+
+      <ul class="shortcut-list">
+        <li v-for="shortcut in shortcuts" :key="shortcut.keys">
+          <kbd>{{ shortcut.keys }}</kbd>
+          <span>{{ shortcut.label }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <p class="footer">{{ t('about') }} • {{ t('aboutTagline') }}</p>
   </div>
 </template>
 
 <script setup>
-import { computed, inject } from "vue";
-import { LogIn, LogOut, Moon, Sun, Trash2 } from "lucide-vue-next";
-import PageHero from "../components/PageHero.vue";
+import { computed, inject, ref, watch } from "vue";
+import {
+  Database,
+  Download,
+  Keyboard,
+  ListMusic,
+  Palette,
+  RefreshCw,
+  Sliders,
+  Trash2,
+  UserCircle,
+} from "lucide-vue-next";
+import { fetchJson } from "../lib/api";
 
-const app = inject("appState");
-const accentColors = ["#f2573d", "#00a99d", "#7cbd45", "#e0a32f", "#d94678", "#3b82f6"];
-const selectedStyle = "border-color: var(--primary); background: color-mix(in srgb, var(--primary) 16%, var(--bg-card)); color: var(--text-main)";
+const appState = inject("appState");
+function t(key, vars) {
+  return appState?.t?.(key, vars) ?? key;
+}
 
-const language = computed(() => app.language.value);
-const theme = computed(() => app.theme.value);
-const accent = computed(() => app.accent.value);
-const connected = computed(() => app.authSession.value?.auth?.connected);
+const accentColors = ["#fa243c", "#ff375f", "#ff9f0a", "#30d158", "#0a84ff", "#bf5af2"];
 
-const gamesEnabled = computed(() => app.gamesEnabled.value);
-const lyricsAutoScroll = computed(() => app.lyricsFollowMode.value);
-const lyricsCompact = computed(() => app.lyricsCompact.value);
-const homeDensity = computed(() => app.homeDensity.value);
+function updateVolume(value) {
+  appState.volume.value = value;
+  try {
+    document.querySelector("#yt-hidden-player");
+  } catch {}
+}
 
 function clearLocalData() {
-  [
-    "boziamusic:recent",
-    "boziamusic:favorites",
-    "boziamusic:favoriteTracks",
-    "ap:search-history",
-    "ap-games-enabled",
-    "ap-lyrics-follow-mode",
-    "ap-lyrics-compact",
-    "ap-home-density",
-  ].forEach((key) => localStorage.removeItem(key));
+  if (!window.confirm(t("confirmClear"))) return;
+  ["boziamusic:favorites", "boziamusic:favoriteTracks", "boziamusic:recent", "ap:search-history"].forEach((key) => {
+    localStorage.removeItem(key);
+  });
   window.location.reload();
 }
+
+const shortcuts = computed(() => [
+  { keys: "Space / K", label: `${t("play")} / ${t("pause")}` },
+  { keys: "←  →", label: "Seek 10s" },
+  { keys: "Shift + ←  →", label: `${t("previous")} / ${t("next")}` },
+  { keys: "Q", label: t("queue") },
+  { keys: "L", label: t("lyrics") },
+  { keys: "/", label: t("searchPlaceholder") },
+  { keys: "Esc", label: t("close") },
+]);
+
+// ── YouTube library import ──────────────────────────────────
+const library = ref([]);
+const libLoading = ref(false);
+const libError = ref("");
+const importing = ref(false);
+const importingId = ref("");
+const importedIds = ref(new Set());
+
+async function loadLibrary(force = false) {
+  if (!appState?.authSession?.value?.auth?.connected) {
+    library.value = [];
+    return;
+  }
+  if (libLoading.value) return;
+  if (!force && library.value.length) return;
+  libLoading.value = true;
+  libError.value = "";
+  try {
+    const data = await fetchJson("/api/auth/youtube/playlists", { timeout: 20000 });
+    library.value = Array.isArray(data?.items) ? data.items : [];
+  } catch (error) {
+    libError.value = error?.message || t("ytLibraryError");
+  } finally {
+    libLoading.value = false;
+  }
+  await refreshImportedIds();
+}
+
+async function refreshImportedIds() {
+  try {
+    const list = await fetchJson("/api/local/playlists", { timeout: 8000 });
+    importedIds.value = new Set(
+      (list || []).map((p) => p.importedFrom).filter(Boolean).map(String),
+    );
+  } catch {
+    // leave prior set intact
+  }
+}
+
+function isImported(id) {
+  return importedIds.value.has(String(id));
+}
+
+async function importOne(pl) {
+  if (isImported(pl.id)) return;
+  importingId.value = pl.id;
+  try {
+    const res = await fetchJson("/api/auth/youtube/playlists/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [pl.id] }),
+      timeout: 90000,
+    });
+    if (res?.imported) {
+      appState?.showToast(t("ytLibraryImported", { count: res.imported }), "success");
+    } else if (res?.errors) {
+      appState?.showToast(res.results?.[0]?.error || t("ytLibraryError"), "error");
+    } else {
+      appState?.showToast(t("ytLibraryAlreadyImported"), "info");
+    }
+    await refreshImportedIds();
+  } catch (error) {
+    appState?.showToast(error?.message || t("ytLibraryError"), "error");
+  } finally {
+    importingId.value = "";
+  }
+}
+
+async function importAll() {
+  if (importing.value || !library.value.length) return;
+  importing.value = true;
+  try {
+    const res = await fetchJson("/api/auth/youtube/playlists/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+      timeout: 300000,
+    });
+    if (res?.errors || res?.skipped) {
+      appState?.showToast(
+        t("ytLibraryPartial", {
+          imported: res.imported || 0,
+          skipped: res.skipped || 0,
+          errors: res.errors || 0,
+        }),
+        res.errors ? "error" : "info",
+      );
+    } else {
+      appState?.showToast(t("ytLibraryImported", { count: res.imported || 0 }), "success");
+    }
+    await refreshImportedIds();
+  } catch (error) {
+    appState?.showToast(error?.message || t("ytLibraryError"), "error");
+  } finally {
+    importing.value = false;
+  }
+}
+
+watch(
+  () => appState?.authSession?.value?.auth?.connected,
+  (connected) => {
+    if (connected) loadLibrary(false);
+    else {
+      library.value = [];
+      libError.value = "";
+    }
+  },
+  { immediate: true },
+);
 </script>
 
+<style scoped>
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.page-sub {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.card-block {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.row-column {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.yt-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.yt-item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+}
+
+.yt-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yt-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yt-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.yt-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-btn {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.row-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.seg-control {
+  display: inline-flex;
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.seg-active {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+.accent-row {
+  display: flex;
+  gap: 8px;
+}
+
+.accent-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast);
+}
+
+.accent-dot:hover {
+  transform: scale(1.1);
+}
+
+.accent-dot.accent-active {
+  border-color: var(--text-primary);
+}
+
+.toggle {
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--bg-input);
+  position: relative;
+  transition: background var(--transition-fast);
+}
+
+.toggle-on {
+  background: var(--success);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-on .toggle-thumb {
+  transform: translateX(18px);
+}
+
+.volume-slider {
+  width: 200px;
+}
+
+.data-stats {
+  display: flex;
+  gap: 32px;
+  padding: 14px 20px;
+}
+
+.data-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-value {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.ds-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.card-block > .btn-secondary {
+  margin: 0 20px 20px;
+  align-self: flex-start;
+}
+
+.shortcut-list {
+  margin: 0;
+  padding: 16px 20px;
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+}
+
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 4px 8px;
+  font-family: -apple-system, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-input);
+  border-radius: 5px;
+  color: var(--text-primary);
+}
+
+.footer {
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+</style>

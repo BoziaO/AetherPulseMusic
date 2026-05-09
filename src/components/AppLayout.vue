@@ -1,144 +1,122 @@
 <template>
-  <div class="app-shell flex min-h-screen">
+  <div class="app-shell">
     <Sidebar :open="sidebarOpen" :current-path="route.path" @close="sidebarOpen = false" />
 
-    <main
-      class="relative z-10 min-w-0 flex-1 px-4 pb-28 pt-4 transition-[padding] sm:px-6 lg:ml-[268px] lg:px-8 lg:pt-6"
-      :class="nowPlaying && playerVisible ? 'lg:pb-36' : 'lg:pb-10'"
-    >
-      <header class="sticky top-0 z-[180] mb-8 flex items-center justify-between px-2 py-4 backdrop-blur-md lg:px-0">
-        <div class="flex flex-1 items-center gap-4">
-          <button class="icon-button lg:hidden" type="button" @click="sidebarOpen = true">
+    <main class="main" :class="nowPlaying ? 'has-player' : ''">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <button class="icon-btn lg:hidden" type="button" :title="t('navHome')" @click="sidebarOpen = true">
             <Menu :size="20" />
           </button>
 
-          <div ref="searchRef" class="relative w-full max-w-[480px]">
-            <Search :size="18" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
+          <div ref="searchRef" class="search-wrap">
+            <Search :size="16" class="search-icon" />
             <input
               ref="searchInputRef"
               v-model="query"
-              class="h-10 w-full rounded-xl bg-[var(--bg-input)] pl-10 pr-10 text-[14px] font-medium transition-all focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--primary)]/20"
-              style="border: none; color: var(--text-main)"
-              :placeholder="currentPage.searchPlaceholder"
+              class="search-input"
+              type="search"
+              :placeholder="t('searchPlaceholder')"
               @focus="searchOpen = true"
               @keydown.enter.prevent="saveSearch(query)"
             />
-            <button v-if="query" class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-[var(--text-soft)] hover:text-[var(--text-main)]" type="button" @click="query = ''">
-              <X :size="16" />
+            <button v-if="query" class="search-clear" type="button" :title="t('clear')" @click="query = ''">
+              <X :size="14" />
             </button>
 
-          <div v-if="searchOpen && (query || searchHistory.length)" class="surface absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-lg">
-            <div class="flex gap-2 overflow-x-auto border-b p-2 scrollbar-hide" style="border-color: var(--surface-line)">
-              <button
-                v-for="filter in searchFilters"
-                :key="filter.value"
-                class="rounded-lg px-3 py-1.5 text-xs font-black"
-                type="button"
-                :style="searchFilter === filter.value ? activePillStyle : passivePillStyle"
-                @click="searchFilter = filter.value"
-              >
-                {{ filter.label }}
-              </button>
-            </div>
-
-            <div class="max-h-[62vh] overflow-y-auto p-2">
-              <div v-if="!query.trim() && searchHistory.length">
-                <div class="mb-1 flex items-center justify-between px-2">
-                  <p class="text-[11px] font-black uppercase" style="color: var(--text-soft)">{{ t('recentSearches') }}</p>
-                  <button class="text-xs font-black" type="button" style="color: var(--primary)" @click="searchHistory = []">{{ t('clear') }}</button>
-                </div>
+            <div v-if="searchOpen && (query || searchHistory.length)" class="search-pop">
+              <div class="search-filters">
                 <button
-                  v-for="entry in searchHistory"
-                  :key="entry"
-                  class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-bold"
+                  v-for="filter in searchFilters"
+                  :key="filter.value"
+                  class="chip"
+                  :class="searchFilter === filter.value ? 'chip-active' : ''"
                   type="button"
-                  @click="query = entry"
+                  @click="searchFilter = filter.value"
                 >
-                  <Search :size="15" style="color: var(--text-soft)" />
-                  <span class="truncate">{{ entry }}</span>
+                  {{ t(filter.labelKey) }}
                 </button>
               </div>
 
-              <div v-else-if="query.trim().length > 0 && query.trim().length < 2" class="p-8 text-center text-sm font-bold" style="color: var(--text-muted)">
-                Wpisz co najmniej 2 znaki
-              </div>
+              <div class="search-results">
+                <div v-if="!query.trim() && searchHistory.length">
+                  <div class="search-history-head">
+                    <p>{{ t('recentSearches') }}</p>
+                    <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
+                  </div>
+                  <button
+                    v-for="entry in searchHistory"
+                    :key="entry"
+                    class="history-row"
+                    type="button"
+                    @click="query = entry"
+                  >
+                    <Search :size="14" :style="{ color: 'var(--text-tertiary)' }" />
+                    <span class="truncate">{{ entry }}</span>
+                  </button>
+                </div>
 
-              <div v-else-if="searchLoading" class="p-8 text-center text-sm font-bold" style="color: var(--text-muted)">
-                {{ t('searching') }}
-              </div>
+                <div v-else-if="query.trim().length > 0 && query.trim().length < 2" class="state-msg">
+                  {{ t('minTwoChars') }}
+                </div>
 
-              <div v-else-if="searchResults.length" class="space-y-1">
-                <button
-                  v-for="(item, index) in searchResults"
-                  :key="item.videoId || item.browseId || `${item.title}-${index}`"
-                  class="track-row grid w-full grid-cols-[42px_1fr_auto] items-center gap-3 p-2 text-left"
-                  type="button"
-                  @click="handleSearchResultClick(item)"
-                >
-                  <span class="h-10 w-10 overflow-hidden rounded-lg" style="background: var(--bg-card)">
-                    <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" class="h-full w-full object-cover" />
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block truncate text-sm font-black">{{ item.title }}</span>
-                    <span class="block truncate text-xs font-semibold" style="color: var(--text-muted)">
-                      {{ item.artist || item.author || item.subtitle || artistsText(item) || "YouTube Music" }}
+                <div v-else-if="searchLoading" class="state-msg">
+                  {{ t('searching') }}
+                </div>
+
+                <div v-else-if="searchResults.length" class="result-list">
+                  <button
+                    v-for="(item, index) in searchResults"
+                    :key="item.videoId || item.browseId || `${item.title}-${index}`"
+                    class="result-row"
+                    type="button"
+                    @click="handleSearchResultClick(item)"
+                  >
+                    <span class="result-cover">
+                      <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" />
                     </span>
-                  </span>
-                  <span class="rounded-md px-2 py-1 text-[10px] font-black uppercase" style="background: var(--bg-card); color: var(--text-soft)">
-                    {{ item.resultType || searchFilter }}
-                  </span>
-                </button>
-              </div>
-
-              <div v-else class="p-8 text-center text-sm font-bold" style="color: var(--text-muted)">
-                {{ t('noResults') }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-        <div class="flex items-center gap-2">
-          <div class="relative">
-            <button class="icon-button" type="button" :title="t('notifications')" @click="notificationsOpen = !notificationsOpen">
-              <Bell :size="18" />
-            </button>
-            <div v-if="notificationsOpen" class="surface absolute right-0 mt-2 w-72 rounded-lg p-2">
-              <div class="mb-1 flex items-center justify-between px-2 py-1">
-                <p class="text-xs font-black">{{ t('notifications') }}</p>
-                <button class="text-xs font-black" type="button" style="color: var(--primary)" @click="notifications = []">{{ t('clear') }}</button>
-              </div>
-              <div v-if="notifications.length" class="max-h-72 space-y-1 overflow-y-auto">
-                <div v-for="note in notifications" :key="note.id" class="rounded-lg border p-3" style="border-color: var(--surface-line); background: var(--bg-card)">
-                  <p class="text-sm font-bold">{{ note.message }}</p>
-                  <p class="mt-1 text-[11px] font-semibold" style="color: var(--text-soft)">{{ new Date(note.createdAt).toLocaleTimeString() }}</p>
+                    <span class="result-text">
+                      <span class="result-title">{{ item.title }}</span>
+                      <span class="result-sub">
+                        {{ item.artist || item.author || item.subtitle || artistsText(item) || "YouTube Music" }}
+                      </span>
+                    </span>
+                    <span class="result-tag">{{ item.resultType || searchFilter }}</span>
+                  </button>
                 </div>
+
+                <div v-else class="state-msg">{{ t('noResults') }}</div>
               </div>
-              <div v-else class="p-6 text-center text-sm font-bold" style="color: var(--text-muted)">{{ t('noNotifications') }}</div>
             </div>
           </div>
 
-          <RouterLink class="icon-button hidden sm:inline-flex" to="/settings" :title="t('settings')">
-            <Settings :size="18" />
-          </RouterLink>
-
-          <button v-if="authSession.auth?.connected" class="ghost-button hidden px-3 sm:inline-flex" type="button" @click="logout">
-            {{ t('logout') }}
-          </button>
-          <a v-else class="primary-button hidden px-3 sm:inline-flex" :href="loginUrl">
-            <LogIn :size="16" />
-            {{ t('signIn') }}
-          </a>
+          <div class="header-actions">
+            <RouterLink class="icon-btn" to="/insights" :title="t('navInsights')">
+              <BarChart3 :size="18" />
+            </RouterLink>
+            <RouterLink class="icon-btn" to="/settings" :title="t('navSettings')">
+              <Settings :size="18" />
+            </RouterLink>
+            <button v-if="authSession.auth?.connected" class="btn-secondary hidden sm:inline-flex" type="button" @click="logout">
+              {{ t('logout') }}
+            </button>
+            <a v-else-if="authSession.auth?.enabled" class="btn-primary hidden sm:inline-flex" :href="loginUrl">
+              <LogIn :size="14" />
+              {{ t('signIn') }}
+            </a>
+          </div>
         </div>
       </header>
 
-      <RouterView />
+      <div class="page">
+        <RouterView />
+      </div>
     </main>
 
-    <div id="yt-hidden-player" class="hidden" />
+    <div id="yt-hidden-player" aria-hidden="true" />
 
     <PlayerBar
-      v-if="nowPlaying && playerVisible"
+      v-if="nowPlaying"
       :track="nowPlaying"
       :is-playing="isPlaying"
       :current-time="currentTime"
@@ -157,34 +135,45 @@
       @toggle-favorite="toggleFavoriteTrack(nowPlaying)"
       @queue="showQueueModal = true"
       @lyrics="showLyricsModal = true"
-      @hide="playerVisible = false"
+      @expand="showFullPlayer = true"
     />
 
-    <button
-      v-else-if="nowPlaying"
-      class="surface fixed bottom-4 left-4 right-4 z-[200] grid grid-cols-[42px_1fr_auto] items-center gap-3 rounded-lg p-2 lg:left-auto lg:w-[420px]"
-      type="button"
-      @click="playerVisible = true"
-    >
-      <span class="h-10 w-10 overflow-hidden rounded-lg" style="background: var(--bg-card)">
-        <img v-if="nowPlaying.art || nowPlaying.thumbnail" :src="nowPlaying.art || nowPlaying.thumbnail" alt="" class="h-full w-full object-cover" />
-      </span>
-      <span class="min-w-0 text-left">
-        <span class="block truncate text-sm font-black">{{ nowPlaying.title }}</span>
-        <span class="block truncate text-xs font-semibold" style="color: var(--text-muted)">{{ nowPlaying.artist }}</span>
-      </span>
-      <Play v-if="!isPlaying" :size="18" fill="currentColor" />
-      <Pause v-else :size="18" fill="currentColor" />
-    </button>
+    <FullPlayer
+      v-if="nowPlaying && showFullPlayer"
+      :track="nowPlaying"
+      :is-playing="isPlaying"
+      :current-time="currentTime"
+      :duration="audioDuration"
+      :volume="volume"
+      :shuffle="isShuffled"
+      :repeat-mode="repeatMode"
+      :favorite="favoriteKeys.has(trackKey(nowPlaying))"
+      :playlist-name="getCurrentPlaylistName()"
+      @close="showFullPlayer = false"
+      @toggle-play="togglePlay"
+      @seek="seekTo"
+      @volume="setVolume"
+      @prev="prevTrack"
+      @next="nextTrack"
+      @shuffle="toggleShuffle"
+      @repeat="toggleRepeat"
+      @toggle-favorite="toggleFavoriteTrack(nowPlaying)"
+      @queue="showQueueModal = true"
+      @lyrics="showLyricsModal = true"
+    />
 
     <QueueModal
       :open="showQueueModal"
       :tracks="visibleQueue"
       :current-index="currentQueueIndex"
+      :is-favorite="isFavorite"
       @close="showQueueModal = false"
       @play-index="playQueueIndex"
       @remove="removeFromQueue"
       @save="saveQueue"
+      @clear="clearQueue"
+      @shuffle="toggleShuffle"
+      @favorite="toggleFavoriteTrack"
     />
 
     <LyricsModal
@@ -202,13 +191,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import { Bell, LogIn, Menu, Pause, Play, Search, Settings, X } from "lucide-vue-next";
+import { BarChart3, LogIn, Menu, Search, Settings, X } from "lucide-vue-next";
 import LyricsModal from "./LyricsModal.vue";
 import PlayerBar from "./PlayerBar.vue";
 import QueueModal from "./QueueModal.vue";
+import FullPlayer from "./FullPlayer.vue";
 import Sidebar from "./Sidebar.vue";
 import ToastStack from "./ToastStack.vue";
-import { getPageByPath } from "../data/navigation";
 import { translate } from "../data/i18n";
 import { buildApiUrl, fetchJson } from "../lib/api";
 import { clamp, normalizeTrack, secondsFromDuration, trackKey } from "../lib/format";
@@ -217,14 +206,12 @@ const route = useRoute();
 const router = useRouter();
 
 const searchFilters = [
-  { value: "songs", label: "Piosenki" },
-  { value: "playlists", label: "Playlisty" },
-  { value: "albums", label: "Albumy" },
-  { value: "artists", label: "Wykonawcy" },
+  { value: "songs", labelKey: "filterSongs" },
+  { value: "playlists", labelKey: "filterPlaylists" },
+  { value: "albums", labelKey: "filterAlbums" },
+  { value: "artists", labelKey: "filterArtists" },
 ];
 
-const activePillStyle = "background: var(--primary); color: #fff";
-const passivePillStyle = "background: var(--bg-card); color: var(--text-muted)";
 const USER_STATE_SAVE_DELAY_MS = 600;
 
 const sidebarOpen = ref(false);
@@ -236,17 +223,14 @@ const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchOpen = ref(false);
 const searchHistory = ref(readJson("ap:search-history", []));
-const notificationsOpen = ref(false);
-const notifications = ref([]);
 const toasts = ref([]);
 
 const authSession = ref({ auth: { enabled: false, connected: false } });
 const language = ref(localStorage.getItem("ap:language") || "pl");
 const theme = ref(localStorage.getItem("ap:theme") || "dark");
-const accent = ref(localStorage.getItem("ap:accent") || "#f2573d");
+const accent = ref(localStorage.getItem("ap:accent") || "#fa243c");
 
 const nowPlaying = ref(null);
-const playerVisible = ref(false);
 const isPlaying = ref(false);
 const currentTime = ref(0);
 const audioDuration = ref(0);
@@ -258,10 +242,13 @@ const isShuffled = ref(false);
 const repeatMode = ref("none");
 const showQueueModal = ref(false);
 const showLyricsModal = ref(false);
+const showFullPlayer = ref(false);
 
 const recentPlays = ref(readJson("boziamusic:recent", []));
 const favorites = ref(new Set(readJson("boziamusic:favorites", [])));
 const favoriteTracks = ref(readJson("boziamusic:favoriteTracks", {}));
+const lyricsFollowMode = ref(readJson("ap-lyrics-follow-mode", true));
+
 const userStateHydrated = ref(false);
 const lastPersistedUserState = ref("");
 let persistTimer = null;
@@ -270,19 +257,23 @@ let progressTimer = null;
 let ytPlayer = null;
 let ytReady = false;
 
-const currentPage = computed(() => getPageByPath(route.path));
 const loginUrl = computed(() => buildApiUrl("/api/auth/google"));
-const favoriteKeys = computed(() => new Set(Array.from(favorites.value)));
+const favoriteKeys = computed(() => new Set(favorites.value));
 const favoriteItems = computed(() => Object.values(favoriteTracks.value || {}));
 const visibleQueue = computed(() => (isShuffled.value ? shuffledQueue.value : queue.value));
 
-function t(key) {
-  return translate(language.value, key);
+function isFavorite(track) {
+  return favoriteKeys.value.has(trackKey(track));
+}
+
+function t(key, vars) {
+  return translate(language.value, key, vars);
 }
 
 function readJson(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
   } catch {
     return fallback;
   }
@@ -293,13 +284,14 @@ function stableStringify(value) {
 }
 
 function artistsText(item) {
-  return Array.isArray(item?.artists) ? item.artists.map((artist) => artist.name).filter(Boolean).join(", ") : "";
+  return Array.isArray(item?.artists)
+    ? item.artists.map((artist) => artist.name).filter(Boolean).join(", ")
+    : "";
 }
 
 function showToast(message, type = "info") {
   const toast = { id: `${Date.now()}-${Math.random()}`, message, type, createdAt: Date.now() };
   toasts.value = [toast, ...toasts.value].slice(0, 4);
-  notifications.value = [toast, ...notifications.value].slice(0, 20);
   window.setTimeout(() => dismissToast(toast.id), 4200);
 }
 
@@ -317,16 +309,25 @@ function applyTheme() {
   document.documentElement.dataset.theme = theme.value === "light" ? "light" : "dark";
   document.documentElement.style.setProperty("--primary", accent.value);
   document.documentElement.style.setProperty("--primary-hover", shadeHex(accent.value, -18));
+  const rgb = hexToRgb(accent.value);
+  if (rgb) document.documentElement.style.setProperty("--primary-rgb", rgb.join(", "));
+}
+
+function hexToRgb(hex) {
+  const clean = String(hex || "").replace("#", "");
+  if (clean.length !== 6) return null;
+  return [clean.slice(0, 2), clean.slice(2, 4), clean.slice(4, 6)].map((p) => parseInt(p, 16));
 }
 
 function shadeHex(hex, amount) {
-  const clean = hex.replace("#", "");
-  if (clean.length !== 6) return "#d9472f";
-  const parts = [clean.slice(0, 2), clean.slice(2, 4), clean.slice(4, 6)].map((part) => {
-    const next = clamp(parseInt(part, 16) + amount, 0, 255);
-    return next.toString(16).padStart(2, "0");
-  });
-  return `#${parts.join("")}`;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return (
+    "#" +
+    rgb
+      .map((value) => clamp(value + amount, 0, 255).toString(16).padStart(2, "0"))
+      .join("")
+  );
 }
 
 function setLanguage(next) {
@@ -353,7 +354,7 @@ async function logout() {
   try {
     await fetchJson("/api/auth/logout", { method: "POST", timeout: 5000 });
     await loadAuthSession();
-    showToast("Wylogowano", "success");
+    showToast(t("loggedOut"), "success");
   } catch (error) {
     showToast(error.message, "error");
   }
@@ -370,8 +371,11 @@ async function hydrateUserState() {
     recentPlays.value = Array.isArray(state.recentPlays) ? state.recentPlays : fallbackRecent;
     searchHistory.value = Array.isArray(state.searchHistory) ? state.searchHistory : fallbackHistory;
     favorites.value = new Set(Array.isArray(state.favorites) ? state.favorites : fallbackFavorites);
-    favoriteTracks.value = state.favoriteTracks && typeof state.favoriteTracks === "object" ? state.favoriteTracks : fallbackFavoriteTracks;
-    volume.value = Number.isFinite(Number(state.volume)) ? Number(state.volume) : volume.value;
+    favoriteTracks.value =
+      state.favoriteTracks && typeof state.favoriteTracks === "object"
+        ? state.favoriteTracks
+        : fallbackFavoriteTracks;
+    if (Number.isFinite(Number(state.volume))) volume.value = Number(state.volume);
     if (state.language === "en" || state.language === "pl") language.value = state.language;
     if (state.themeState?.theme) theme.value = state.themeState.theme;
     if (state.themeState?.accent) accent.value = state.themeState.accent;
@@ -418,7 +422,7 @@ function persistUserState() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state),
       timeout: 4500,
-    }).catch((error) => console.warn("Could not persist state:", error.message));
+    }).catch(() => {});
   }, USER_STATE_SAVE_DELAY_MS);
 }
 
@@ -445,14 +449,7 @@ function initYouTubePlayer() {
   ytPlayer = new window.YT.Player("yt-hidden-player", {
     height: "1",
     width: "1",
-    playerVars: {
-      autoplay: 0,
-      controls: 0,
-      fs: 0,
-      rel: 0,
-      modestbranding: 1,
-      playsinline: 1,
-    },
+    playerVars: { autoplay: 0, controls: 0, fs: 0, rel: 0, modestbranding: 1, playsinline: 1 },
     events: {
       onReady: () => {
         ytPlayer?.setVolume?.(volume.value);
@@ -478,7 +475,7 @@ function initYouTubePlayer() {
           }
         }
       },
-      onError: () => showToast("Nie udalo sie odtworzyc tego utworu.", "error"),
+      onError: () => showToast(t("cantPlay"), "error"),
     },
   });
 }
@@ -508,7 +505,10 @@ function play(item, newQueue = null) {
   const track = normalizeTrack(item);
   if (newQueue?.length) {
     queue.value = newQueue.map(normalizeTrack).filter(Boolean);
-    currentQueueIndex.value = Math.max(0, queue.value.findIndex((entry) => trackKey(entry) === trackKey(track)));
+    currentQueueIndex.value = Math.max(
+      0,
+      queue.value.findIndex((entry) => trackKey(entry) === trackKey(track)),
+    );
     if (isShuffled.value) shuffledQueue.value = shuffle(queue.value);
   } else if (visibleQueue.value.length) {
     const index = visibleQueue.value.findIndex((entry) => trackKey(entry) === trackKey(track));
@@ -516,12 +516,14 @@ function play(item, newQueue = null) {
   }
 
   nowPlaying.value = track;
-  playerVisible.value = true;
   currentTime.value = 0;
   audioDuration.value = track.durationSeconds || secondsFromDuration(track.duration) || 0;
-  document.title = `${track.title} | AetherPulse Music`;
+  document.title = `${track.title} — ${t("appName")}`;
 
-  recentPlays.value = [track, ...recentPlays.value.filter((entry) => trackKey(entry) !== trackKey(track))].slice(0, 25);
+  recentPlays.value = [
+    track,
+    ...recentPlays.value.filter((entry) => trackKey(entry) !== trackKey(track)),
+  ].slice(0, 25);
   fetchJson("/api/user/recent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -532,18 +534,21 @@ function play(item, newQueue = null) {
   if (track.videoId && ytPlayer?.loadVideoById) {
     ytPlayer.loadVideoById(track.videoId);
   } else if (!track.videoId) {
-    showToast("Ten element nie ma videoId.", "warning");
+    showToast(t("noVideoId"), "warning");
   }
 }
 
 function togglePlay() {
-  if (!ytPlayer) return;
+  if (!ytPlayer) {
+    showToast(t("playerNotReady"), "warning");
+    return;
+  }
   try {
     const state = ytPlayer.getPlayerState();
     if (state === window.YT?.PlayerState?.PLAYING) ytPlayer.pauseVideo();
     else ytPlayer.playVideo();
   } catch {
-    showToast("Odtwarzacz nie jest jeszcze gotowy.", "warning");
+    showToast(t("playerNotReady"), "warning");
   }
 }
 
@@ -564,12 +569,17 @@ function setVolume(next) {
 function nextTrack() {
   const list = visibleQueue.value;
   if (!list.length) return;
-  const nextIndex = currentQueueIndex.value < list.length - 1 ? currentQueueIndex.value + 1 : (repeatMode.value === "all" ? 0 : -1);
+  const nextIndex =
+    currentQueueIndex.value < list.length - 1
+      ? currentQueueIndex.value + 1
+      : repeatMode.value === "all"
+      ? 0
+      : -1;
   if (nextIndex >= 0) {
     currentQueueIndex.value = nextIndex;
     play(list[nextIndex]);
   } else {
-    showToast("Koniec kolejki", "info");
+    showToast(t("endOfQueue"), "info");
   }
 }
 
@@ -594,7 +604,7 @@ function playNext(track) {
   const insertAt = Math.max(currentQueueIndex.value + 1, 0);
   next.splice(insertAt, 0, normalized);
   queue.value = next;
-  showToast("Dodano jako nastepny", "success");
+  showToast(t("addedAsNext"), "success");
 }
 
 function addToQueue(track) {
@@ -603,32 +613,50 @@ function addToQueue(track) {
 }
 
 function playQueueIndex(index) {
-  const item = visibleQueue.value[index];
-  if (!item) return;
-  currentQueueIndex.value = index;
-  play(item);
+  const list = visibleQueue.value;
+  if (index >= 0 && index < list.length) {
+    currentQueueIndex.value = index;
+    play(list[index]);
+  }
 }
 
 function removeFromQueue(index) {
-  if (isShuffled.value) {
-    shuffledQueue.value = shuffledQueue.value.filter((_, itemIndex) => itemIndex !== index);
-  } else {
-    queue.value = queue.value.filter((_, itemIndex) => itemIndex !== index);
+  const next = [...queue.value];
+  next.splice(index, 1);
+  queue.value = next;
+  if (currentQueueIndex.value > index) {
+    currentQueueIndex.value -= 1;
+  } else if (currentQueueIndex.value === index && index >= queue.value.length) {
+    currentQueueIndex.value = queue.value.length - 1;
+    if (currentQueueIndex.value >= 0) play(queue.value[currentQueueIndex.value]);
   }
 }
 
-async function saveQueue(title) {
-  try {
-    await fetchJson("/api/user/queues", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, tracks: visibleQueue.value }),
-      timeout: 6000,
-    });
-    showToast("Kolejka zapisana", "success");
-  } catch (error) {
-    showToast(error.message, "error");
-  }
+function clearQueue() {
+  queue.value = [];
+  shuffledQueue.value = [];
+  currentQueueIndex.value = -1;
+  showToast(t("queueCleared"), "info");
+}
+
+function saveQueue(title) {
+  if (!title?.trim()) return;
+  fetchJson("/api/user/queues", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: title.trim(), tracks: [...queue.value] }),
+    timeout: 4500,
+  })
+    .then(() => {
+      showToast(t("saved"), "success");
+      showQueueModal.value = false;
+    })
+    .catch(() => showToast(t("saveFailed"), "error"));
+}
+
+function getCurrentPlaylistName() {
+  if (!queue.value.length) return "";
+  return t("trackCount", { count: queue.value.length });
 }
 
 function toggleShuffle() {
@@ -637,7 +665,8 @@ function toggleShuffle() {
 }
 
 function toggleRepeat() {
-  repeatMode.value = repeatMode.value === "none" ? "all" : repeatMode.value === "all" ? "one" : "none";
+  repeatMode.value =
+    repeatMode.value === "none" ? "all" : repeatMode.value === "all" ? "one" : "none";
 }
 
 function shuffle(items) {
@@ -658,11 +687,11 @@ function toggleFavoriteTrack(track) {
   if (nextFavorites.has(key)) {
     nextFavorites.delete(key);
     delete nextTracks[key];
-    showToast("Usunieto z ulubionych", "info");
+    showToast(t("removedFromFavorites"), "info");
   } else {
     nextFavorites.add(key);
     nextTracks[key] = normalized;
-    showToast("Dodano do ulubionych", "success");
+    showToast(t("addedToFavorites"), "success");
   }
   favorites.value = nextFavorites;
   favoriteTracks.value = nextTracks;
@@ -685,11 +714,14 @@ function openMediaItem(item) {
   if (!item) return;
   const type = item.resultType || searchFilter.value;
   if (item.videoId || type === "song" || type === "video") {
-    play(item, searchResults.value.filter((entry) => entry.videoId));
+    play(
+      item,
+      searchResults.value.filter((entry) => entry.videoId),
+    );
     return;
   }
   const id = item.playlistId || item.browseId;
-  if (type === "artist" || id?.startsWith("UC")) {
+  if (type === "artist" || id?.startsWith?.("UC")) {
     router.push(`/artist/${id}`);
   } else if (type === "album") {
     router.push(`/album/${id}`);
@@ -709,7 +741,11 @@ watch([query, searchFilter], () => {
   searchLoading.value = true;
   searchTimer = window.setTimeout(async () => {
     try {
-      const params = new URLSearchParams({ q: clean, filter: searchFilter.value, limit: "18" });
+      const params = new URLSearchParams({
+        q: clean,
+        filter: searchFilter.value,
+        limit: "18",
+      });
       const data = await fetchJson(`/api/ytmusic/search?${params.toString()}`, { timeout: 12000 });
       searchResults.value = Array.isArray(data) ? data : [];
     } catch (error) {
@@ -721,7 +757,11 @@ watch([query, searchFilter], () => {
   }, 300);
 });
 
-watch([recentPlays, favoriteTracks, favorites, volume, searchHistory, language, theme, accent], persistUserState, { deep: true });
+watch(
+  [recentPlays, favoriteTracks, favorites, volume, searchHistory, language, theme, accent],
+  persistUserState,
+  { deep: true },
+);
 
 watch([theme, accent], applyTheme);
 
@@ -732,6 +772,10 @@ watch(
     searchOpen.value = false;
   },
 );
+
+watch(lyricsFollowMode, () => {
+  localStorage.setItem("ap-lyrics-follow-mode", JSON.stringify(lyricsFollowMode.value));
+});
 
 function handleDocumentClick(event) {
   if (searchRef.value && !searchRef.value.contains(event.target)) searchOpen.value = false;
@@ -758,28 +802,12 @@ function handleKeyboard(event) {
     showQueueModal.value = true;
   } else if (event.key.toLowerCase() === "l") {
     showLyricsModal.value = true;
+  } else if (event.key === "Escape") {
+    if (showFullPlayer.value) showFullPlayer.value = false;
+    else if (showQueueModal.value) showQueueModal.value = false;
+    else if (showLyricsModal.value) showLyricsModal.value = false;
   }
 }
-
-const gamesEnabled = ref(readJson("ap-games-enabled", true));
-const lyricsFollowMode = ref(readJson("ap-lyrics-follow-mode", true));
-const lyricsCompact = ref(readJson("ap-lyrics-compact", false));
-const homeDensity = ref(readJson("ap-home-density", "spacious"));
-
-function setHomeDensity(next) {
-  homeDensity.value = next === "compact" ? "compact" : "spacious";
-}
-
-watch(
-  [gamesEnabled, lyricsFollowMode, lyricsCompact, homeDensity],
-  () => {
-    localStorage.setItem("ap-games-enabled", JSON.stringify(gamesEnabled.value));
-    localStorage.setItem("ap-lyrics-follow-mode", JSON.stringify(lyricsFollowMode.value));
-    localStorage.setItem("ap-lyrics-compact", JSON.stringify(lyricsCompact.value));
-    localStorage.setItem("ap-home-density", JSON.stringify(homeDensity.value));
-  },
-  { deep: true },
-);
 
 provide("appState", {
   language,
@@ -797,19 +825,18 @@ provide("appState", {
   addToQueue,
   openMediaItem,
   nowPlaying,
+  isPlaying,
+  currentTime,
+  audioDuration,
+  volume,
   queue,
   favoriteKeys,
   favoriteItems,
   recentPlays,
   toggleFavoriteTrack,
   showToast,
-  gamesEnabled,
   lyricsFollowMode,
-  lyricsCompact,
-  homeDensity,
-  setHomeDensity,
 });
-
 
 onMounted(() => {
   applyTheme();
@@ -828,3 +855,276 @@ onBeforeUnmount(() => {
   stopProgressTimer();
 });
 </script>
+
+<style scoped>
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: 24px;
+}
+
+.main.has-player {
+  padding-bottom: 92px;
+}
+
+@media (min-width: 1024px) {
+  .main {
+    margin-left: 260px;
+  }
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 180;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 480px;
+}
+
+.search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 38px 0 36px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid transparent;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.search-input:focus {
+  outline: none;
+  background: var(--bg-elevated);
+  border-color: var(--line-strong);
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  transition: background var(--transition-fast);
+}
+
+.search-clear:hover {
+  background: var(--bg-hover);
+}
+
+.search-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-strong);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.search-filters {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.search-filters .chip {
+  flex-shrink: 0;
+}
+
+.search-results {
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.search-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 4px;
+}
+
+.search-history-head p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.history-row:hover {
+  background: var(--bg-hover);
+}
+
+.state-msg {
+  padding: 32px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.result-row:hover {
+  background: var(--bg-hover);
+}
+
+.result-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.result-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.result-text {
+  min-width: 0;
+}
+
+.result-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-sub {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.page {
+  flex: 1;
+  padding: 24px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#yt-hidden-player {
+  position: fixed;
+  inset: -9999px;
+  pointer-events: none;
+  visibility: hidden;
+  height: 1px;
+  width: 1px;
+}
+</style>

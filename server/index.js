@@ -106,7 +106,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Make yt available to routers via app.locals
+// Make YouTube Music client available to routes via app.locals
 app.locals.yt = yt;
 
 // Mount routers

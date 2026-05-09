@@ -521,22 +521,223 @@ async function getArtistAlbums(channelId, params, limit = 100) {
     .filter(Boolean);
 }
 
+function extractAlbumTrack(renderer, fallbackArtist, fallbackThumbnail) {
+  if (!renderer) return null;
+
+  const videoId =
+    nav(renderer, "playlistItemData", "videoId") ||
+    nav(renderer, "overlay", "musicItemThumbnailOverlayRenderer", "content", "musicPlayButtonRenderer", "playNavigationEndpoint", "watchEndpoint", "videoId") ||
+    nav(renderer, "navigationEndpoint", "watchEndpoint", "videoId") ||
+    nav(
+      renderer,
+      "flexColumns",
+      0,
+      "musicResponsiveListItemFlexColumnRenderer",
+      "text",
+      "runs",
+      0,
+      "navigationEndpoint",
+      "watchEndpoint",
+      "videoId",
+    );
+
+  const title = getText(
+    nav(
+      renderer,
+      "flexColumns",
+      0,
+      "musicResponsiveListItemFlexColumnRenderer",
+      "text",
+    ),
+  );
+  if (!title) return null;
+
+  // Prefer parsed artist list (handles "Artist1, Artist2" correctly).
+  const artistRuns =
+    nav(
+      renderer,
+      "flexColumns",
+      1,
+      "musicResponsiveListItemFlexColumnRenderer",
+      "text",
+      "runs",
+    ) || [];
+  const artistNames = artistRuns
+    .map((run) => (typeof run?.text === "string" ? run.text.trim() : ""))
+    .filter((text) => text && text !== "•" && text !== " • ");
+  const parsedArtist = artistNames.join(", ").replace(/\s+,/g, ",");
+
+  const artist =
+    parsedArtist ||
+    getText(
+      nav(
+        renderer,
+        "flexColumns",
+        1,
+        "musicResponsiveListItemFlexColumnRenderer",
+        "text",
+      ),
+    ) ||
+    fallbackArtist ||
+    "";
+
+  const duration = getText(
+    nav(
+      renderer,
+      "fixedColumns",
+      0,
+      "musicResponsiveListItemFixedColumnRenderer",
+      "text",
+    ),
+  );
+
+  const thumbnail = getBestThumbnail(renderer) || fallbackThumbnail || null;
+
+  return { videoId: videoId || null, title, artist, duration, thumbnail };
+}
+
+function collectTracksFromSections(sections, fallbackArtist, fallbackThumbnail) {
+  const out = [];
+  if (!Array.isArray(sections)) return out;
+  for (const section of sections) {
+    const shelves = [
+      nav(section, "musicShelfRenderer", "contents"),
+      nav(section, "musicPlaylistShelfRenderer", "contents"),
+    ];
+    for (const shelf of shelves) {
+      if (!Array.isArray(shelf)) continue;
+      for (const item of shelf) {
+        const track = extractAlbumTrack(
+          item.musicResponsiveListItemRenderer,
+          fallbackArtist,
+          fallbackThumbnail,
+        );
+        if (track) out.push(track);
+      }
+    }
+    if (out.length) break;
+  }
+  return out;
+}
+
+function extractAudioPlaylistId(data, header) {
+  // 1. microformat canonical URL (?list=OLAK5uy_...)
+  const canonical = nav(
+    data,
+    "microformat",
+    "microformatDataRenderer",
+    "urlCanonical",
+  );
+  if (typeof canonical === "string") {
+    const match = canonical.match(/[?&]list=([^&]+)/);
+    if (match) return match[1];
+  }
+
+  // 2. header play button navigation endpoint
+  const buttons =
+    nav(header, "buttons") ||
+    nav(header, "menu", "menuRenderer", "topLevelButtons") ||
+    nav(header, "playButton") ||
+    [];
+  const btnArray = Array.isArray(buttons) ? buttons : [buttons];
+  for (const btn of btnArray) {
+    const pid =
+      nav(btn, "musicPlayButtonRenderer", "playNavigationEndpoint", "watchEndpoint", "playlistId") ||
+      nav(btn, "musicPlayButtonRenderer", "playNavigationEndpoint", "watchPlaylistEndpoint", "playlistId") ||
+      nav(btn, "buttonRenderer", "navigationEndpoint", "watchPlaylistEndpoint", "playlistId") ||
+      nav(btn, "buttonRenderer", "navigationEndpoint", "watchEndpoint", "playlistId");
+    if (pid) return pid;
+  }
+
+  return null;
+}
+
+function parseAlbumHeader(data) {
+  const header =
+    nav(data, "header", "musicDetailHeaderRenderer") ||
+    nav(data, "header", "musicImmersiveHeaderRenderer") ||
+    nav(data, "header", "musicResponsiveHeaderRenderer");
+
+  if (!header) {
+    // modern two-column layout embeds the header under contents
+    const tc = nav(
+      data,
+      "contents",
+      "twoColumnBrowseResultsRenderer",
+      "tabs",
+      0,
+      "tabRenderer",
+      "content",
+      "sectionListRenderer",
+      "contents",
+      0,
+      "musicResponsiveHeaderRenderer",
+    );
+    if (tc) return tc;
+  }
+  return header;
+}
+
 async function getAlbum(browseId) {
   const data = await sendRequest("browse", { browseId });
 
-  const header =
-    nav(data, "header", "musicDetailHeaderRenderer") ||
-    nav(data, "header", "musicImmersiveHeaderRenderer");
+  const header = parseAlbumHeader(data);
 
   const title = getText(nav(header, "title"));
-  const subtitle = nav(header, "subtitle", "runs") || [];
-  const artist = subtitle[2] ? subtitle[2].text : null;
-  const year = subtitle[subtitle.length - 1]?.text || null;
-  const thumbnail = getBestThumbnail(header);
-  const description = getText(nav(header, "description"));
+  const subtitleRuns = nav(header, "subtitle", "runs") || [];
+  const secondSubtitleRuns = nav(header, "secondSubtitle", "runs") || [];
+  // Modern musicResponsiveHeaderRenderer puts the artist in straplineTextOne.
+  const straplineRuns = nav(header, "straplineTextOne", "runs") || [];
+  const combinedSubtitle = [...subtitleRuns, ...secondSubtitleRuns, ...straplineRuns];
 
-  const tracks = [];
-  const contents =
+  const isArtistRun = (run) =>
+    nav(
+      run,
+      "navigationEndpoint",
+      "browseEndpoint",
+      "browseEndpointContextSupportedConfigs",
+      "browseEndpointContextMusicConfig",
+      "pageType",
+    ) === "MUSIC_PAGE_TYPE_ARTIST";
+
+  // Prefer a navigable artist run (reliable identification).
+  // Order of preference: strapline → subtitle → second-subtitle.
+  let artistRun =
+    straplineRuns.find(isArtistRun) ||
+    subtitleRuns.find(isArtistRun) ||
+    secondSubtitleRuns.find(isArtistRun);
+
+  // Legacy musicDetailHeaderRenderer: subtitle is [type, sep, artist, sep, year].
+  if (!artistRun && subtitleRuns.length >= 3) {
+    const candidate = subtitleRuns[2];
+    if (candidate && typeof candidate.text === "string" && !/^\d{4}$/.test(candidate.text.trim())) {
+      artistRun = candidate;
+    }
+  }
+
+  // Last resort: any strapline run.
+  if (!artistRun && straplineRuns.length) {
+    artistRun = straplineRuns.find((r) => typeof r?.text === "string" && r.text.trim()) || null;
+  }
+
+  const albumArtist = artistRun ? artistRun.text : null;
+
+  // Pull year from the last 4-digit token in any subtitle run.
+  const yearRun = [...combinedSubtitle]
+    .reverse()
+    .find((run) => typeof run?.text === "string" && /^\d{4}$/.test(run.text.trim()));
+  const year = yearRun ? yearRun.text.trim() : null;
+
+  const thumbnail = getBestThumbnail(header) || getBestThumbnail(data);
+  const description =
+    getText(nav(header, "description")) ||
+    getText(
+      nav(header, "description", "musicDescriptionShelfRenderer", "description"),
+    ) ||
+    "";
+
+  // Collect track sections from either single- or two-column layouts.
+  const singleColSections =
     nav(
       data,
       "contents",
@@ -547,39 +748,76 @@ async function getAlbum(browseId) {
       "content",
       "sectionListRenderer",
       "contents",
-      0,
-      "musicShelfRenderer",
+    ) || [];
+
+  const twoColPrimary =
+    nav(
+      data,
+      "contents",
+      "twoColumnBrowseResultsRenderer",
+      "secondaryContents",
+      "sectionListRenderer",
       "contents",
     ) || [];
 
-  for (const item of contents) {
-    const r = item.musicResponsiveListItemRenderer;
-    if (!r) continue;
+  const twoColTabs =
+    nav(
+      data,
+      "contents",
+      "twoColumnBrowseResultsRenderer",
+      "tabs",
+      0,
+      "tabRenderer",
+      "content",
+      "sectionListRenderer",
+      "contents",
+    ) || [];
 
-    const videoId = nav(r, "playlistItemData", "videoId");
-    const trackTitle = getText(
-      nav(
-        r,
-        "flexColumns",
-        0,
-        "musicResponsiveListItemFlexColumnRenderer",
-        "text",
-      ),
-    );
-    const duration = getText(
-      nav(
-        r,
-        "fixedColumns",
-        0,
-        "musicResponsiveListItemFixedColumnRenderer",
-        "text",
-      ),
-    );
+  const allSections = [...singleColSections, ...twoColPrimary, ...twoColTabs];
 
-    tracks.push({ videoId, title: trackTitle, duration });
+  let tracks = collectTracksFromSections(allSections, albumArtist, thumbnail);
+
+  // Fallback: if the album browse returned no track renderers, re-fetch
+  // via the audioPlaylistId (works for albums that only expose tracks
+  // through the watch-next / playlist endpoint).
+  const audioPlaylistId = extractAudioPlaylistId(data, header);
+  if (!tracks.length && audioPlaylistId) {
+    try {
+      const pl = await getPlaylist(audioPlaylistId, 200);
+      tracks = (pl?.tracks || []).map((track) => ({
+        videoId: track.videoId || null,
+        title: track.title,
+        artist:
+          track.artist ||
+          (Array.isArray(track.artists)
+            ? track.artists.map((a) => a.name).filter(Boolean).join(", ")
+            : "") ||
+          albumArtist ||
+          "",
+        duration: track.duration || null,
+        thumbnail:
+          track.thumbnail ||
+          (Array.isArray(track.thumbnails)
+            ? track.thumbnails[track.thumbnails.length - 1]?.url
+            : null) ||
+          thumbnail,
+      }));
+    } catch (err) {
+      console.warn(`[ytmusic] album ${browseId} fallback to playlist ${audioPlaylistId} failed:`, err.message);
+    }
   }
 
-  return { browseId, title, artist, year, thumbnail, description, tracks };
+  return {
+    browseId,
+    audioPlaylistId,
+    title,
+    artist: albumArtist,
+    artists: albumArtist ? [{ name: albumArtist }] : [],
+    year,
+    thumbnail,
+    description,
+    tracks,
+  };
 }
 
 async function getUser(channelId) {

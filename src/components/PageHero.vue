@@ -1,54 +1,196 @@
 <template>
-  <section class="mb-7 overflow-hidden rounded-lg border" style="background: var(--bg-panel); border-color: var(--surface-line)">
-    <div class="grid gap-0 lg:grid-cols-[1fr_280px]">
-      <div class="p-5 sm:p-7">
-        <p v-if="eyebrow" class="mb-2 text-xs font-black uppercase" style="color: var(--primary)">
-          {{ eyebrow }}
-        </p>
-        <h1 class="max-w-4xl text-3xl font-black leading-tight sm:text-5xl">{{ title }}</h1>
-        <p v-if="subtitle" class="mt-3 max-w-2xl text-sm leading-6 sm:text-base" style="color: var(--text-muted)">
-          {{ subtitle }}
-        </p>
+  <section class="page-hero" :style="bgStyle">
+    <div v-if="cover" class="hero-cover">
+      <img :src="cover" alt="" loading="lazy" />
+    </div>
 
-        <div class="mt-5 flex flex-wrap items-center gap-2">
-          <button v-if="playable" class="primary-button px-4" type="button" :disabled="disabled" @click="$emit('play')">
-            <Play :size="17" fill="currentColor" />
-            {{ playLabel }}
-          </button>
-          <slot name="actions" />
-        </div>
+    <div class="hero-text">
+      <p v-if="eyebrow" class="hero-eyebrow">{{ eyebrow }}</p>
+      <h1 class="hero-title">{{ title }}</h1>
+      <p v-if="subtitle" class="hero-subtitle">{{ subtitle }}</p>
 
-        <div v-if="stats?.length" class="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <div v-for="stat in stats" :key="`${stat.label}-${stat.value}`" class="rounded-lg border p-3" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <p class="text-[11px] font-bold uppercase" style="color: var(--text-soft)">{{ stat.label }}</p>
-            <p class="mt-1 text-lg font-black">{{ stat.value }}</p>
-          </div>
+      <div v-if="stats?.length" class="hero-stats">
+        <div v-for="stat in stats" :key="`${stat.label}-${stat.value}`" class="stat">
+          <span class="stat-value">{{ stat.value }}</span>
+          <span class="stat-label">{{ stat.label }}</span>
         </div>
       </div>
 
-      <div class="hidden min-h-[220px] border-l lg:block" style="border-color: var(--surface-line); background: var(--bg-card)">
-        <img v-if="cover" :src="cover" alt="" class="h-full w-full object-cover" loading="lazy" decoding="async" />
-        <div v-else class="flex h-full items-center justify-center" style="color: var(--text-soft)">
-          <Music2 :size="64" />
-        </div>
+      <div class="hero-actions">
+        <button
+          v-if="playable"
+          class="btn-primary"
+          type="button"
+          :disabled="disabled"
+          @click="$emit('play')"
+        >
+          <Play :size="16" fill="currentColor" />
+          {{ playLabel }}
+        </button>
+        <button
+          v-if="playable && shuffleable"
+          class="btn-secondary"
+          type="button"
+          :disabled="disabled"
+          @click="$emit('shuffle')"
+        >
+          <Shuffle :size="16" />
+          {{ shuffleLabel }}
+        </button>
+        <slot name="actions" />
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { Music2, Play } from "lucide-vue-next";
+import { computed } from "vue";
+import { Play, Shuffle } from "lucide-vue-next";
 
-defineProps({
+const props = defineProps({
   title: { type: String, required: true },
   subtitle: { type: String, default: "" },
   eyebrow: { type: String, default: "" },
   cover: { type: String, default: "" },
   stats: { type: Array, default: () => [] },
   playable: { type: Boolean, default: true },
+  shuffleable: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   playLabel: { type: String, default: "Play" },
+  shuffleLabel: { type: String, default: "Shuffle" },
 });
 
-defineEmits(["play"]);
+defineEmits(["play", "shuffle"]);
+
+const bgStyle = computed(() => {
+  if (!props.cover) return {};
+  return { backgroundImage: `url(${props.cover})` };
+});
 </script>
+
+<style scoped>
+.page-hero {
+  position: relative;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: end;
+  padding: 28px;
+  margin-bottom: 28px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background-color: var(--bg-elevated);
+  background-position: center;
+  background-size: cover;
+  isolation: isolate;
+}
+
+.page-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.2) 0%,
+    rgba(0, 0, 0, 0.55) 60%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  z-index: 0;
+}
+
+.page-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-cover {
+  width: 220px;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-strong);
+  background: var(--bg-card-strong);
+}
+
+.hero-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hero-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-title {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: #fff;
+}
+
+.hero-subtitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 60ch;
+}
+
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 4px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .page-hero {
+    grid-template-columns: 1fr;
+    padding: 22px;
+  }
+  .hero-cover {
+    width: 160px;
+  }
+}
+</style>

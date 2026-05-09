@@ -1,6 +1,6 @@
 {
   "name": "aetherpulse-music",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": ">=20.19.0",
@@ -31,17 +31,9 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5000"
   },
-  "proxy": "http://localhost:3001",
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
+  "browserslist": [
+    ">0.5%",
+    "not dead",
+    "not op_mini all"
+  ]
 }

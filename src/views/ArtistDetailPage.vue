@@ -1,43 +1,58 @@
 <template>
-  <PageSkeleton v-if="loading" />
-  <div v-else class="animate-in">
-    <div v-if="error" class="mb-5 rounded-lg border p-4 text-sm font-bold" style="border-color: color-mix(in srgb, var(--danger) 32%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent)">
-      {{ error }}
-    </div>
+  <div class="detail-page animate-fade">
+    <PageSkeleton v-if="loading" />
 
-    <PageHero
-      :title="artist?.title || artist?.name || 'Wykonawca'"
-      :subtitle="artist?.description || artist?.subtitle || 'Profil wykonawcy z YouTube Music.'"
-      :cover="artist?.thumbnail || artist?.cover || artist?.art"
-      :stats="stats"
-      :playable="tracks.length > 0"
-      :disabled="tracks.length === 0"
-      :play-label="app.t('playAll')"
-      @play="app.play(tracks[0], tracks)"
-    />
-
-    <section v-if="tracks.length" class="mb-8">
-      <SectionTitle title="Najpopularniejsze utwory" :count="tracks.length" />
-      <TrackList
-        :tracks="tracks"
-        :now-playing="app.nowPlaying.value"
-        :favorite-keys="app.favoriteKeys.value"
-        @play="app.play"
-        @play-next="app.playNext"
-        @add-queue="app.addToQueue"
-        @toggle-favorite="app.toggleFavoriteTrack"
+    <template v-else-if="artist">
+      <PageHero
+        :eyebrow="t('navArtists')"
+        :title="artist.name"
+        :subtitle="artist.description || ''"
+        :cover="artist.thumbnail"
+        :stats="stats"
+        :playable="topSongs.length > 0"
+        :shuffleable="topSongs.length > 0"
+        :play-label="t('playAll')"
+        :shuffle-label="t('shuffle')"
+        @play="playAll(false)"
+        @shuffle="playAll(true)"
       />
-    </section>
 
-    <section v-if="mediaItems.length">
-      <SectionTitle title="Albumy i single" />
-      <MediaGrid :items="mediaItems" @open="openItem" />
-    </section>
+      <section v-if="topSongs.length" class="section">
+        <h2 class="section-title">{{ t('topCharts') }}</h2>
+        <TrackList
+          :tracks="topSongs"
+          :now-playing="appState.nowPlaying.value"
+          :favorite-keys="appState.favoriteKeys.value"
+          @play="(track) => appState.play(track, topSongs)"
+          @add-queue="appState.addToQueue"
+          @play-next="appState.playNext"
+          @toggle-favorite="appState.toggleFavoriteTrack"
+        />
+      </section>
+
+      <section v-if="albums.length" class="section">
+        <h2 class="section-title">{{ t('navAlbums') }}</h2>
+        <MediaGrid
+          :items="albums"
+          @open="(item) => $router.push(`/album/${item.browseId}`)"
+        />
+      </section>
+
+      <section v-if="singles.length" class="section">
+        <h2 class="section-title">Singles</h2>
+        <MediaGrid
+          :items="singles"
+          @open="(item) => $router.push(`/album/${item.browseId}`)"
+        />
+      </section>
+    </template>
+
+    <p v-else-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
   </div>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, inject, ref, watch } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import MediaGrid from "../components/MediaGrid.vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
@@ -49,48 +64,97 @@ const props = defineProps({
   artistId: { type: String, required: true },
 });
 
-const app = inject("appState");
-const artist = ref(null);
+const appState = inject("appState");
+function t(key) {
+  return appState?.t?.(key) ?? key;
+}
+
 const loading = ref(false);
-const error = ref("");
+const errorMessage = ref("");
+const artist = ref(null);
 
-const tracks = computed(() => normalizeList(artist.value?.songs || artist.value?.tracks || artist.value?.videos || []));
-const mediaItems = computed(() => normalizeList([...(artist.value?.albums || []), ...(artist.value?.singles || []), ...(artist.value?.playlists || [])]));
-const stats = computed(() => [
-  { label: "Utwory", value: String(tracks.value.length) },
-  { label: "Wydania", value: String(mediaItems.value.length) },
-]);
+const topSongs = computed(() =>
+  ((artist.value?.songs?.results || artist.value?.songs || [])
+    .map(normalizeTrack)
+    .filter((track) => track.videoId))
+    .slice(0, 12),
+);
 
-function normalizeList(list) {
-  return Array.isArray(list) ? list.map(normalizeTrack).filter(Boolean) : [];
+const albums = computed(() =>
+  (artist.value?.albums?.results || artist.value?.albums || [])
+    .map((album) => ({
+      title: album.title,
+      thumbnail: album.thumbnail || album.thumbnails?.[album.thumbnails.length - 1]?.url,
+      browseId: album.browseId,
+      subtitle: album.year || "",
+    }))
+    .filter((album) => album.browseId),
+);
+
+const singles = computed(() =>
+  (artist.value?.singles?.results || artist.value?.singles || [])
+    .map((single) => ({
+      title: single.title,
+      thumbnail: single.thumbnail || single.thumbnails?.[single.thumbnails.length - 1]?.url,
+      browseId: single.browseId,
+      subtitle: single.year || "",
+    }))
+    .filter((item) => item.browseId),
+);
+
+const stats = computed(() => {
+  const list = [];
+  if (artist.value?.subscribers) list.push({ label: "Subscribers", value: artist.value.subscribers });
+  if (artist.value?.views) list.push({ label: "Views", value: artist.value.views });
+  if (topSongs.value.length) list.push({ label: "Top songs", value: topSongs.value.length });
+  if (albums.value.length) list.push({ label: "Albums", value: albums.value.length });
+  return list;
+});
+
+function playAll(shuffle) {
+  if (!topSongs.value.length) return;
+  const list = shuffle ? [...topSongs.value].sort(() => Math.random() - 0.5) : topSongs.value;
+  appState?.play(list[0], list);
 }
 
-function openItem(item) {
-  if (item.videoId) app.play(item, tracks.value);
-  else app.openMediaItem(item);
-}
-
-async function loadArtist() {
+async function load() {
   loading.value = true;
-  error.value = "";
+  errorMessage.value = "";
   try {
-    artist.value = cleanData(await fetchJson(`/api/ytmusic/artist/${encodeURIComponent(props.artistId)}`, { timeout: 16000 }));
-  } catch (err) {
-    error.value = err.message;
+    const data = await fetchJson(`/api/ytmusic/artist/${encodeURIComponent(props.artistId)}`, { timeout: 15000 });
+    artist.value = cleanData(data);
+  } catch (error) {
+    errorMessage.value = error.message;
   } finally {
     loading.value = false;
   }
 }
 
-watch(() => props.artistId, loadArtist, { immediate: true });
-
-const SectionTitle = defineComponent({
-  props: { title: { type: String, required: true }, count: { type: Number, default: null } },
-  setup(sectionProps) {
-    return () => h("div", { class: "mb-4 flex items-center justify-between gap-3" }, [
-      h("h2", { class: "text-2xl font-black" }, sectionProps.title),
-      sectionProps.count !== null ? h("span", { class: "rounded-full px-2.5 py-1 text-xs font-black", style: "background: color-mix(in srgb, var(--primary) 14%, var(--bg-card)); color: var(--primary)" }, String(sectionProps.count)) : null,
-    ]);
-  },
-});
+watch(() => props.artistId, load, { immediate: true });
 </script>
+
+<style scoped>
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.error-banner {
+  font-size: 12px;
+  color: var(--danger);
+  background: rgba(255, 69, 58, 0.1);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+</style>

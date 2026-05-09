@@ -1,44 +1,64 @@
 <template>
-  <div v-if="open" class="fixed inset-0 z-[260] flex items-end justify-center bg-black/60 p-3 sm:items-center" @click.self="$emit('close')">
-    <section class="surface max-h-[86vh] w-full max-w-2xl overflow-hidden rounded-lg">
-      <header class="flex items-center justify-between border-b p-4" style="border-color: var(--surface-line)">
+  <div v-if="open" class="modal-overlay animate-fade" @click.self="$emit('close')">
+    <section class="modal animate-slide-up">
+      <header class="modal-header">
         <div>
-          <h2 class="text-lg font-black">Kolejka</h2>
-          <p class="text-xs font-semibold" style="color: var(--text-muted)">{{ tracks.length }} utworow</p>
+          <h2 class="modal-title">{{ t('queue') }}</h2>
+          <p class="modal-subtitle">{{ tracks.length }} {{ tracks.length === 1 ? t('tracks').toLowerCase() : t('tracks').toLowerCase() }}</p>
         </div>
-        <button class="icon-button" type="button" title="Zamknij" @click="$emit('close')">
-          <X :size="18" />
-        </button>
+        <div class="header-actions">
+          <button v-if="tracks.length" class="btn-secondary" type="button" @click="$emit('clear')">
+            <Trash2 :size="14" />
+            {{ t('clear') }}
+          </button>
+          <button class="icon-btn" type="button" :title="t('close')" @click="$emit('close')">
+            <X :size="18" />
+          </button>
+        </div>
       </header>
 
-      <div class="max-h-[58vh] overflow-y-auto p-2">
-        <div v-if="tracks.length" class="space-y-1">
-          <div
-            v-for="(track, index) in tracks"
-            :key="track.videoId || `${track.title}-${index}`"
-            class="track-row grid grid-cols-[32px_1fr_auto] items-center gap-3 p-2.5"
-            :class="index === currentIndex ? 'track-row-current' : ''"
-          >
-            <span class="text-xs font-black" style="color: var(--text-soft)">{{ index + 1 }}</span>
-            <button class="min-w-0 text-left" type="button" @click="$emit('play-index', index)">
-              <span class="block truncate text-sm font-black">{{ track.title }}</span>
-              <span class="block truncate text-xs font-semibold" style="color: var(--text-muted)">{{ track.artist || track.subtitle }}</span>
-            </button>
-            <button class="icon-button h-8 w-8" type="button" title="Usun" @click="$emit('remove', index)">
-              <Trash2 :size="14" />
-            </button>
-          </div>
-        </div>
-        <div v-else class="flex min-h-36 items-center justify-center text-sm font-semibold" style="color: var(--text-muted)">
-          Kolejka jest pusta
+      <div v-if="tracks.length" class="modal-body">
+        <div
+          v-for="(track, index) in tracks"
+          :key="`${track.videoId || track.title}-${index}`"
+          class="queue-row"
+          :class="index === currentIndex ? 'is-current' : ''"
+        >
+          <span class="queue-cover">
+            <img v-if="track.thumbnail || track.art" :src="track.thumbnail || track.art" alt="" loading="lazy" />
+          </span>
+          <button class="queue-text" type="button" @click="$emit('play-index', index)">
+            <span class="q-title">{{ track.title }}</span>
+            <span class="q-artist">{{ track.artist || track.subtitle }}</span>
+          </button>
+          <button class="icon-btn" type="button" :title="t('favorites')" @click="$emit('favorite', track)">
+            <Heart
+              :size="14"
+              :fill="isFavorite(track) ? 'var(--primary)' : 'none'"
+              :style="{ color: isFavorite(track) ? 'var(--primary)' : 'var(--text-secondary)' }"
+            />
+          </button>
+          <button class="icon-btn" type="button" :title="t('remove')" @click="$emit('remove', index)">
+            <Trash2 :size="14" />
+          </button>
         </div>
       </div>
+      <div v-else class="modal-empty">{{ t('queueEmpty') }}</div>
 
-      <footer class="grid gap-2 border-t p-4 sm:grid-cols-[1fr_auto]" style="border-color: var(--surface-line)">
-        <input v-model="title" class="rounded-lg border px-3 py-2 text-sm font-semibold" style="background: var(--bg-input); border-color: var(--surface-line); color: var(--text-main)" placeholder="Nazwa zapisanej kolejki" />
-        <button class="primary-button px-4" type="button" :disabled="!tracks.length || !title.trim()" @click="save">
-          <Save :size="16" />
-          Zapisz
+      <footer class="modal-footer">
+        <input
+          v-model="title"
+          type="text"
+          class="modal-input"
+          :placeholder="t('queueName')"
+        />
+        <button class="btn-secondary" type="button" :disabled="!tracks.length" @click="$emit('shuffle')">
+          <Shuffle :size="14" />
+          {{ t('shuffle') }}
+        </button>
+        <button class="btn-primary" type="button" :disabled="!tracks.length || !title.trim()" @click="save">
+          <Save :size="14" />
+          {{ t('save') }}
         </button>
       </footer>
     </section>
@@ -46,16 +66,23 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { Save, Trash2, X } from "lucide-vue-next";
+import { inject, ref } from "vue";
+import { Heart, Save, Shuffle, Trash2, X } from "lucide-vue-next";
 
 defineProps({
   open: { type: Boolean, default: false },
   tracks: { type: Array, default: () => [] },
   currentIndex: { type: Number, default: -1 },
+  isFavorite: { type: Function, default: () => false },
 });
 
-const emit = defineEmits(["close", "play-index", "remove", "save"]);
+const emit = defineEmits(["close", "play-index", "remove", "save", "clear", "shuffle", "favorite"]);
+
+const app = inject("appState");
+function t(key) {
+  return app?.t?.(key) ?? key;
+}
+
 const title = ref("");
 
 function save() {
@@ -63,3 +90,149 @@ function save() {
   title.value = "";
 }
 </script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 12px;
+}
+
+@media (min-width: 720px) {
+  .modal-overlay {
+    align-items: center;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 86vh;
+  background: var(--bg-card-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-strong);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.modal-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.queue-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.queue-row:hover {
+  background: var(--bg-hover);
+}
+
+.queue-row.is-current .q-title {
+  color: var(--primary);
+}
+
+.queue-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.queue-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.queue-text {
+  text-align: left;
+  min-width: 0;
+}
+
+.q-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.q-artist {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-footer {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.modal-input {
+  background: var(--bg-input);
+}
+</style>

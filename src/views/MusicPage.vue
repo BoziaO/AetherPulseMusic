@@ -1,433 +1,681 @@
 <template>
-  <PageSkeleton v-if="loading" />
+  <div class="music-page animate-fade">
+    <PageSkeleton v-if="loading && !pageData" />
 
-  <div v-else class="animate-in">
-    <div v-if="error" class="mb-5 rounded-lg border p-4 text-sm font-bold" style="border-color: color-mix(in srgb, var(--danger) 32%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--text-main)">
-      <p>{{ error }}</p>
-      <button class="ghost-button mt-3 px-3" type="button" @click="loadPage">{{ app.t('tryAgain') }}</button>
-    </div>
-
-    <PageHero
-      :title="heroTitle"
-      :subtitle="heroSubtitle"
-      :eyebrow="displayData?.eyebrow"
-      :cover="displayData?.thumbnail || displayData?.cover || displayData?.art"
-      :stats="displayStats"
-      :playable="tracks.length > 0"
-      :disabled="tracks.length === 0"
-      :play-label="app.t('playAll')"
-      @play="app.play(tracks[0], tracks)"
-    >
-      <template #actions>
-        <button v-if="pageKey === 'playlists' && selectedPlaylistId" class="ghost-button px-4" type="button" @click="router.push('/playlists')">
-          <ArrowLeft :size="16" />
-          Wszystkie playlisty
-        </button>
-      </template>
-    </PageHero>
-
-    <div v-if="chips.length" class="mb-7 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-      <span v-for="chip in chips" :key="chip" class="chip px-3 py-1.5 text-xs font-black">{{ chip }}</span>
-    </div>
-
-    <section v-if="pageKey === 'playlists' && !selectedPlaylistId" class="panel mb-7 grid gap-3 p-4 lg:grid-cols-2">
-      <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <input v-model="newPlaylistTitle" class="rounded-lg border px-3 py-2 text-sm font-semibold" style="background: var(--bg-input); border-color: var(--surface-line); color: var(--text-main)" placeholder="Nazwa lokalnej playlisty" />
-        <button class="primary-button px-4" type="button" :disabled="!newPlaylistTitle.trim() || actionLoading" @click="createPlaylist">
-          <Plus :size="16" />
-          Utworz
-        </button>
-      </div>
-      <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <input v-model="importPlaylistId" class="rounded-lg border px-3 py-2 text-sm font-semibold" style="background: var(--bg-input); border-color: var(--surface-line); color: var(--text-main)" placeholder="ID playlisty YouTube Music" />
-        <button class="ghost-button px-4" type="button" :disabled="!importPlaylistId.trim() || actionLoading" @click="importPlaylist">
-          <Download :size="16" />
-          Importuj
-        </button>
-      </div>
-    </section>
-
-    <section v-if="pageKey === 'home'" class="panel mb-8 p-4">
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-
-        <div>
-          <h2 class="text-xl font-black">{{ app.t('flowComposer') }}</h2>
-          <p class="text-sm font-semibold" style="color: var(--text-muted)">Focus, energia albo spokojniejsze przejscie z aktualnej puli utworow.</p>
-        </div>
-        <button class="primary-button px-4" type="button" :disabled="flowLoading" @click="generateFlow">
-          <Sparkles :size="16" />
-          {{ flowLoading ? "Generuje..." : app.t('generateFlow') }}
-        </button>
-      </div>
-
-      <div class="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <template v-else>
+      <PageHero
+        :title="heroTitle"
+        :subtitle="heroSubtitle"
+        :eyebrow="heroEyebrow"
+        :cover="heroCover"
+        :stats="heroStats"
+        :playable="canPlayHero"
+        :shuffleable="canPlayHero"
+        :play-label="t('playAll')"
+        :shuffle-label="t('shuffle')"
+        @play="playHero(false)"
+        @shuffle="playHero(true)"
+      >
+        <template #actions>
           <button
-            v-for="preset in flowPresets"
-            :key="preset.key"
-            class="rounded-lg border px-3 py-2 text-left text-sm font-black"
+            v-if="pageKey === 'playlists'"
+            class="btn-secondary"
             type="button"
-            :style="flowPreset === preset.key ? selectedControlStyle : controlStyle"
-            @click="flowPreset = preset.key"
+            @click="showPlaylistComposer = true"
           >
-            {{ preset.label }}
+            <Plus :size="14" />
+            {{ t('newPlaylist') }}
           </button>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <label class="tool-card border p-3" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <span class="mb-2 flex justify-between text-xs font-black" style="color: var(--text-muted)">
-              <span>{{ app.t('sessionLength') }}</span>
-              <span>{{ flowMinutes }} min</span>
-            </span>
-            <input v-model.number="flowMinutes" type="range" min="10" max="120" step="5" />
-          </label>
-          <label class="tool-card border p-3" style="border-color: var(--surface-line); background: var(--bg-card)">
-            <span class="mb-2 flex justify-between text-xs font-black" style="color: var(--text-muted)">
-              <span>{{ app.t('discoveryLevel') }}</span>
-              <span>{{ flowNovelty }}%</span>
-            </span>
-            <input v-model.number="flowNovelty" type="range" min="0" max="100" step="5" />
-          </label>
-        </div>
-        <button class="ghost-button px-4" type="button" :disabled="!flowQueue.length" @click="app.play(flowQueue[0], flowQueue)">
-          <Play :size="16" fill="currentColor" />
-          {{ app.t('playFlow') }}
-        </button>
-      </div>
+          <button
+            v-if="canRefresh"
+            class="icon-btn !w-9 !h-9"
+            type="button"
+            :title="t('refresh')"
+            @click="loadPage(true)"
+          >
+            <RefreshCw :size="16" />
+          </button>
+        </template>
+      </PageHero>
 
-      <p v-if="flowError" class="mt-3 text-sm font-bold" style="color: var(--warning)">{{ flowError }}</p>
-      <TrackList
-        v-if="flowQueue.length"
-        class="mt-4"
-        :tracks="flowQueue"
-        :now-playing="app.nowPlaying.value"
-        :favorite-keys="app.favoriteKeys.value"
-        @play="app.play"
-        @play-next="app.playNext"
-        @add-queue="app.addToQueue"
-        @toggle-favorite="app.toggleFavoriteTrack"
-      />
+      <!-- Detail view: when a local playlist is selected, show its tracks instead of grid -->
+      <section v-if="selectedPlaylist" class="section">
+        <header class="section-head">
+          <button class="link-btn" type="button" @click="closePlaylist">
+            <ChevronLeft :size="14" />
+            {{ t('backToPlaylists') }}
+          </button>
+        </header>
+        <TrackList
+          :tracks="selectedPlaylist.tracks"
+          :now-playing="appState.nowPlaying.value"
+          :favorite-keys="appState.favoriteKeys.value"
+          @play="(track) => playFromList(track, selectedPlaylist.tracks)"
+          @add-queue="appState.addToQueue"
+          @play-next="appState.playNext"
+          @toggle-favorite="appState.toggleFavoriteTrack"
+        />
+      </section>
 
-      <HomeGamesPanel />
-    </section>
-
-
-    <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div class="min-w-0 space-y-8">
-        <section v-if="tracks.length">
-          <SectionTitle :title="selectedPlaylistId ? 'Utwory playlisty' : app.t('tracks')" :count="tracks.length" />
+      <template v-else>
+        <!-- Favorites & Recent show local data as a track list -->
+        <section v-if="pageKey === 'favorites'" class="section">
+          <h2 class="section-title">{{ t('navFavorites') }}</h2>
           <TrackList
-            :tracks="tracks"
-            :now-playing="app.nowPlaying.value"
-            :favorite-keys="app.favoriteKeys.value"
-            @play="app.play"
-            @play-next="app.playNext"
-            @add-queue="app.addToQueue"
-            @toggle-favorite="app.toggleFavoriteTrack"
+            :tracks="appState.favoriteItems.value"
+            :now-playing="appState.nowPlaying.value"
+            :favorite-keys="appState.favoriteKeys.value"
+            :empty-label="t('emptyFavorites')"
+            @play="(track) => playFromList(track, appState.favoriteItems.value)"
+            @add-queue="appState.addToQueue"
+            @play-next="appState.playNext"
+            @toggle-favorite="appState.toggleFavoriteTrack"
           />
         </section>
 
-        <section v-if="primaryItems.length">
-          <SectionTitle :title="displayData?.primarySection?.title || 'Polecane'" />
-          <MediaGrid :items="primaryItems" @open="openItem" />
+        <section v-else-if="pageKey === 'recent'" class="section">
+          <h2 class="section-title">{{ t('recentlyPlayed') }}</h2>
+          <TrackList
+            :tracks="appState.recentPlays.value"
+            :now-playing="appState.nowPlaying.value"
+            :favorite-keys="appState.favoriteKeys.value"
+            :empty-label="t('emptyRecent')"
+            @play="(track) => playFromList(track, appState.recentPlays.value)"
+            @add-queue="appState.addToQueue"
+            @play-next="appState.playNext"
+            @toggle-favorite="appState.toggleFavoriteTrack"
+          />
         </section>
 
-        <section v-if="tertiaryItems.length">
-          <SectionTitle :title="displayData?.tertiarySection?.title || 'Wiecej muzyki'" />
-          <MediaGrid :items="tertiaryItems" @open="openItem" />
+        <!-- Standard sections -->
+        <section v-if="primaryItems.length" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ pageData.primarySection.title }}</h2>
+          </header>
+          <MediaGrid
+            :items="primaryItems"
+            @open="openItem"
+            @play="playMediaItem"
+          />
         </section>
 
-        <section v-if="!tracks.length && !primaryItems.length && !loading">
-          <div class="panel flex min-h-52 flex-col items-center justify-center gap-3 p-6 text-center">
-            <Music2 :size="44" style="color: var(--text-soft)" />
-            <p class="text-lg font-black">{{ emptyTitle }}</p>
-            <p class="max-w-md text-sm font-semibold" style="color: var(--text-muted)">{{ emptySubtitle }}</p>
-          </div>
-        </section>
-      </div>
-
-      <aside class="space-y-8">
-        <section v-if="chartItems.length" class="panel p-4">
-          <SectionTitle :title="displayData?.chartTitle || 'Top'" small />
-          <div class="space-y-1">
-            <button
-              v-for="(item, index) in chartItems"
-              :key="item.videoId || item.browseId || `${item.title}-${index}`"
-              class="track-row grid w-full grid-cols-[36px_1fr_auto] items-center gap-3 p-2 text-left"
-              type="button"
-              @click="openItem(item)"
-            >
-              <span class="text-xs font-black" style="color: var(--text-soft)">{{ item.label || `#${index + 1}` }}</span>
-              <span class="min-w-0">
-                <span class="block truncate text-sm font-black">{{ item.title }}</span>
-                <span class="block truncate text-xs font-semibold" style="color: var(--text-muted)">{{ item.subtitle }}</span>
-              </span>
-              <TrendingUp :size="15" style="color: var(--success)" />
+        <section v-if="queueItems.length" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ pageData.queueTitle || t('topCharts') }}</h2>
+            <button class="link-btn" type="button" @click="playPageQueue(false)">
+              <Play :size="14" fill="currentColor" />
+              {{ pageData.queueAction || t('playAll') }}
             </button>
-          </div>
+          </header>
+          <TrackList
+            :tracks="queueItems"
+            :now-playing="appState.nowPlaying.value"
+            :favorite-keys="appState.favoriteKeys.value"
+            @play="(track) => playFromList(track, queueItems)"
+            @add-queue="appState.addToQueue"
+            @play-next="appState.playNext"
+            @toggle-favorite="appState.toggleFavoriteTrack"
+          />
         </section>
 
-        <section v-if="secondaryItems.length">
-          <SectionTitle :title="displayData?.secondarySection?.title || 'Rekomendacje'" small />
-          <MediaGrid :items="secondaryItems.slice(0, 6)" @open="openItem" />
+        <section v-if="secondaryItems.length" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ pageData.secondarySection.title }}</h2>
+          </header>
+          <MediaGrid
+            :items="secondaryItems"
+            :circle="circleSecondary"
+            @open="openItem"
+            @play="playMediaItem"
+          />
         </section>
-      </aside>
+
+        <section v-if="tertiaryItems.length" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ pageData.tertiarySection.title }}</h2>
+          </header>
+          <MediaGrid
+            :items="tertiaryItems"
+            @open="openItem"
+            @play="playMediaItem"
+          />
+        </section>
+
+        <section v-if="chartItems.length" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ pageData.chartTitle || t('chartTitle') }}</h2>
+          </header>
+          <ol class="chart">
+            <li v-for="(item, index) in chartItems" :key="`${item.title}-${index}`" class="chart-row">
+              <span class="chart-pos">{{ String(index + 1).padStart(2, '0') }}</span>
+              <span class="chart-text">
+                <span class="chart-title">{{ item.title }}</span>
+                <span class="chart-sub">{{ item.subtitle }}</span>
+              </span>
+              <button
+                v-if="item.videoId"
+                class="icon-btn"
+                type="button"
+                :title="t('play')"
+                @click="appState.play({ ...item, videoId: item.videoId })"
+              >
+                <Play :size="16" fill="currentColor" />
+              </button>
+              <button
+                v-else-if="item.browseId"
+                class="icon-btn"
+                type="button"
+                :title="t('navArtists')"
+                @click="$router.push(`/artist/${item.browseId}`)"
+              >
+                <ChevronRight :size="16" />
+              </button>
+            </li>
+          </ol>
+        </section>
+
+        <section v-if="pageKey === 'home' || pageKey === 'discover'" class="section">
+          <header class="section-head">
+            <h2 class="section-title">{{ t('flowComposer') }}</h2>
+          </header>
+          <FlowComposer />
+        </section>
+      </template>
+
+      <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
+    </template>
+
+    <!-- Playlist composer -->
+    <div v-if="showPlaylistComposer" class="modal-overlay animate-fade" @click.self="showPlaylistComposer = false">
+      <section class="modal animate-slide-up">
+        <header class="modal-header">
+          <h2 class="modal-title">{{ t('newPlaylist') }}</h2>
+          <button class="icon-btn" type="button" :title="t('close')" @click="showPlaylistComposer = false">
+            <X :size="18" />
+          </button>
+        </header>
+        <div class="modal-body">
+          <label class="form-row">
+            <span class="form-label">{{ t('playlistName') }}</span>
+            <input v-model="newPlaylistName" type="text" />
+          </label>
+          <button class="btn-primary" type="button" :disabled="!newPlaylistName.trim()" @click="createPlaylist">
+            {{ t('create') }}
+          </button>
+
+          <div class="form-divider" />
+
+          <label class="form-row">
+            <span class="form-label">{{ t('youtubePlaylistId') }}</span>
+            <input v-model="importPlaylistId" type="text" placeholder="VLPL..." />
+          </label>
+          <button class="btn-secondary" type="button" :disabled="!importPlaylistId.trim() || importing" @click="importPlaylist">
+            <Download :size="14" />
+            {{ importing ? t('searching') : t('importPlaylist') }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, inject, ref, watch } from "vue";
+import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Download, Music2, Play, Plus, Sparkles, TrendingUp } from "lucide-vue-next";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Play,
+  Plus,
+  RefreshCw,
+  X,
+} from "lucide-vue-next";
 import MediaGrid from "../components/MediaGrid.vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
-import HomeGamesPanel from "../components/HomeGamesPanel.vue";
-
+import FlowComposer from "../components/FlowComposer.vue";
 import { fetchJson } from "../lib/api";
 import { cleanData, normalizeTrack, trackKey } from "../lib/format";
-import { estimateEnergy } from "../lib/energy";
 
 const props = defineProps({
-  pageKey: { type: String, required: true },
+  pageKey: { type: String, default: "home" },
 });
 
-const app = inject("appState");
+const appState = inject("appState");
 const route = useRoute();
 const router = useRouter();
 
-const loading = ref(false);
-const actionLoading = ref(false);
-const error = ref("");
+function t(key, vars) {
+  return appState?.t?.(key, vars) ?? key;
+}
+
 const pageData = ref(null);
-const localData = ref(null);
-const newPlaylistTitle = ref("");
+const loading = ref(false);
+const errorMessage = ref("");
+
+const selectedPlaylist = ref(null);
+const showPlaylistComposer = ref(false);
+const newPlaylistName = ref("");
 const importPlaylistId = ref("");
-const flowPreset = ref("discover");
-const flowMinutes = ref(35);
-const flowNovelty = ref(55);
-const flowQueue = ref([]);
-const flowLoading = ref(false);
-const flowError = ref("");
+const importing = ref(false);
 
-const flowPresets = [
-  { key: "focus", label: "Focus" },
-  { key: "energy", label: "Energy" },
-  { key: "chill", label: "Chill" },
-  { key: "discover", label: "Discover" },
-];
-const controlStyle = "border-color: var(--surface-line); background: var(--bg-card); color: var(--text-muted)";
-const selectedControlStyle = "border-color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, var(--bg-card)); color: var(--text-main)";
-
-const selectedPlaylistId = computed(() => route.query.playlist || "");
-const displayData = computed(() => {
-  if (props.pageKey === "favorites") return favoritePageData();
-  if (props.pageKey === "recent") return recentPageData();
-  return localData.value || pageData.value;
+const heroTitle = computed(() => {
+  if (props.pageKey === "favorites") return t("navFavorites");
+  if (props.pageKey === "recent") return t("navRecent");
+  if (props.pageKey === "home") return t("listenNow");
+  return pageData.value?.title || "";
 });
-const tracks = computed(() => normalizeList(displayData.value?.tracks || displayData.value?.songs || displayData.value?.queue || []));
-const primaryItems = computed(() => normalizeList(displayData.value?.primarySection?.items || []));
-const secondaryItems = computed(() => normalizeList(displayData.value?.secondarySection?.items || []));
-const tertiaryItems = computed(() => normalizeList(displayData.value?.tertiarySection?.items || []));
-const chartItems = computed(() => normalizeList(displayData.value?.chartItems || []));
-const chips = computed(() => displayData.value?.chips || []);
-const displayStats = computed(() => {
-  const base = displayData.value?.stats || [];
-  if (props.pageKey === "favorites") return [{ label: "Ulubione", value: String(app.favoriteItems.value.length) }];
-  if (props.pageKey === "recent") return [{ label: "Historia", value: String(app.recentPlays.value.length) }];
-  return base;
+
+const heroSubtitle = computed(() => {
+  if (props.pageKey === "favorites") return t("emptyFavorites");
+  if (props.pageKey === "recent") return t("emptyRecent");
+  if (props.pageKey === "home") return t("listenNowSubtitle");
+  return pageData.value?.description || "";
 });
-const heroTitle = computed(() => displayData.value?.title || displayData.value?.name || "AetherPulse Music");
-const heroSubtitle = computed(() => displayData.value?.description || displayData.value?.author || "Muzyka, playlisty i odtwarzanie z YouTube Music.");
-const emptyTitle = computed(() => (props.pageKey === "favorites" ? app.t("emptyFavorites") : props.pageKey === "recent" ? app.t("emptyRecent") : "Brak danych"));
-const emptySubtitle = computed(() => (props.pageKey === "playlists" ? "Utworz lokalna playliste albo polacz konto Google." : "Sprobuj odswiezyc strone lub wyszukac muzyke."));
 
-function normalizeList(list) {
-  return Array.isArray(list) ? list.map(normalizeTrack).filter(Boolean) : [];
+const heroEyebrow = computed(() => {
+  if (props.pageKey === "home") return "";
+  return pageData.value?.eyebrow || "";
+});
+
+const heroCover = computed(() => {
+  const items = primaryItems.value;
+  return items[0]?.thumbnail || items[0]?.cover || "";
+});
+
+const heroStats = computed(() => pageData.value?.stats || []);
+
+const primaryItems = computed(() =>
+  filterItems(pageData.value?.primarySection?.items || []),
+);
+const secondaryItems = computed(() =>
+  filterItems(pageData.value?.secondarySection?.items || []),
+);
+const tertiaryItems = computed(() =>
+  filterItems(pageData.value?.tertiarySection?.items || []),
+);
+const chartItems = computed(() => pageData.value?.chartItems || []);
+const queueItems = computed(() => pageData.value?.queue || []);
+
+const circleSecondary = computed(() => props.pageKey === "artists");
+
+const canPlayHero = computed(() => {
+  if (props.pageKey === "favorites") return appState?.favoriteItems?.value?.length > 0;
+  if (props.pageKey === "recent") return appState?.recentPlays?.value?.length > 0;
+  return queueItems.value.length > 0;
+});
+
+const canRefresh = computed(() =>
+  ["home", "discover", "chill", "energy", "playlists", "albums", "artists"].includes(props.pageKey),
+);
+
+function filterItems(items) {
+  return (items || []).filter((item) => item && (item.title || item.name));
 }
 
-function favoritePageData() {
-  return {
-    eyebrow: "Biblioteka",
-    title: app.t("favorites"),
-    description: "Utwory zapisane w tej przegladarce i synchronizowane z backendem, jesli jest dostepny.",
-    chips: ["Local", "Quick play"],
-    tracks: app.favoriteItems.value,
-  };
-}
-
-function recentPageData() {
-  return {
-    eyebrow: "Historia",
-    title: app.t("recentlyPlayed"),
-    description: "Ostatnio odtwarzane utwory z tej przegladarki.",
-    chips: ["Historia", "Local"],
-    tracks: app.recentPlays.value,
-  };
-}
-
-async function loadPage() {
-  error.value = "";
+async function loadPage(force = false) {
   if (props.pageKey === "favorites" || props.pageKey === "recent") {
+    pageData.value = makeLocalPage();
     loading.value = false;
     return;
   }
-
   loading.value = true;
-  localData.value = null;
+  errorMessage.value = "";
   try {
-    if (props.pageKey === "playlists" && selectedPlaylistId.value) {
-      const rawId = String(selectedPlaylistId.value);
-      const isLocal = rawId.startsWith("local-");
-      const id = isLocal ? rawId.replace("local-", "") : rawId;
-      const data = await fetchJson(isLocal ? `/api/local/playlists/${encodeURIComponent(id)}` : `/api/ytmusic/playlist/${encodeURIComponent(id)}`, { timeout: 15000 });
-      localData.value = cleanData(playlistToPage(data, rawId));
-    } else {
-      const params = new URLSearchParams();
-      if (props.pageKey === "home" && app.recentPlays.value.length) {
-        params.set("recent", app.recentPlays.value.map((track) => track.videoId).filter(Boolean).slice(0, 5).join(","));
-      }
-      const suffix = params.toString() ? `?${params.toString()}` : "";
-      pageData.value = cleanData(await fetchJson(`/api/page/${props.pageKey}${suffix}`, { timeout: 18000 }));
-    }
-  } catch (err) {
-    error.value = err.message || app.t("backendError");
+    const params = new URLSearchParams();
+    const recentIds = (appState?.recentPlays?.value || [])
+      .map((track) => track.videoId)
+      .filter(Boolean)
+      .slice(0, 5);
+    if (recentIds.length) params.set("recent", recentIds.join(","));
+    if (force) params.set("ts", Date.now().toString());
+    const data = await fetchJson(`/api/page/${props.pageKey}?${params.toString()}`, { timeout: 15000 });
+    pageData.value = cleanData(data);
+  } catch (error) {
+    errorMessage.value = error.message;
+    pageData.value = makeLocalPage();
   } finally {
     loading.value = false;
   }
 }
 
-function playlistToPage(data, rawId) {
-  const tracksList = data.tracks || data.songs || [];
+function makeLocalPage() {
   return {
-    eyebrow: rawId.startsWith("local-") ? "Lokalna playlista" : "YouTube Music",
-    title: data.title || data.name || "Playlista",
-    description: data.description || data.author || `${tracksList.length} utworow`,
-    thumbnail: data.thumbnail || data.cover,
-    chips: [rawId.startsWith("local-") ? "Local" : "YouTube", `${tracksList.length} tracks`],
-    stats: [
-      { label: "Utwory", value: String(tracksList.length) },
-      { label: "Zrodlo", value: rawId.startsWith("local-") ? "Local" : "YouTube" },
-    ],
-    tracks: tracksList,
+    eyebrow: "",
+    title: t(props.pageKey === "favorites" ? "navFavorites" : props.pageKey === "recent" ? "navRecent" : "listenNow"),
+    description: "",
+    stats: [],
+    primarySection: { title: "", items: [] },
+    secondarySection: { title: "", items: [] },
+    tertiarySection: { title: "", items: [] },
+    chartTitle: "",
+    chartItems: [],
+    queueTitle: "",
+    queueAction: "",
+    queue: [],
   };
 }
 
-function openItem(item) {
-  if (item.videoId) {
-    app.play(item, [...tracks.value, ...primaryItems.value, ...secondaryItems.value, ...tertiaryItems.value].filter((entry) => entry.videoId));
+function playFromList(track, list) {
+  appState?.play(track, list);
+}
+
+function playMediaItem(item) {
+  if (item?.videoId) {
+    const list = primaryItems.value.filter((entry) => entry.videoId);
+    appState?.play(item, list);
     return;
   }
-  app.openMediaItem(item);
+  openItem(item);
+}
+
+function openItem(item) {
+  if (!item) return;
+  if (item.videoId) {
+    appState?.play(item);
+    return;
+  }
+  const id = item.browseId || item.playlistId;
+  if (!id) return;
+  if (typeof id === "string" && id.startsWith("local-")) {
+    openLocalPlaylist(id.replace("local-", ""));
+    return;
+  }
+  if (item.resultType === "artist" || id.startsWith?.("UC")) {
+    router.push(`/artist/${id}`);
+  } else if (item.resultType === "album") {
+    router.push(`/album/${id}`);
+  } else if (item.resultType === "playlist") {
+    openYtPlaylist(id);
+  } else {
+    router.push(`/album/${id}`);
+  }
+}
+
+async function openLocalPlaylist(id) {
+  try {
+    const data = await fetchJson(`/api/local/playlists/${id}`);
+    selectedPlaylist.value = {
+      id: data.id,
+      title: data.title,
+      tracks: (data.tracks || []).map(normalizeTrack),
+    };
+  } catch (error) {
+    appState?.showToast(error.message, "error");
+  }
+}
+
+async function openYtPlaylist(id) {
+  try {
+    const data = await fetchJson(`/api/ytmusic/playlist/${id}?limit=200`, { timeout: 15000 });
+    const tracks = (data?.tracks || []).map(normalizeTrack);
+    selectedPlaylist.value = {
+      id,
+      title: data?.title || t("playlistName"),
+      tracks,
+    };
+  } catch (error) {
+    appState?.showToast(error.message, "error");
+  }
+}
+
+function closePlaylist() {
+  selectedPlaylist.value = null;
+}
+
+function playHero(shuffle) {
+  if (props.pageKey === "favorites") {
+    const list = [...(appState?.favoriteItems?.value || [])];
+    if (!list.length) return;
+    const ordered = shuffle ? shuffleList(list) : list;
+    appState?.play(ordered[0], ordered);
+    return;
+  }
+  if (props.pageKey === "recent") {
+    const list = [...(appState?.recentPlays?.value || [])];
+    if (!list.length) return;
+    const ordered = shuffle ? shuffleList(list) : list;
+    appState?.play(ordered[0], ordered);
+    return;
+  }
+  playPageQueue(shuffle);
+}
+
+function playPageQueue(shuffle) {
+  const list = [...queueItems.value].filter((track) => track.videoId);
+  if (!list.length) return;
+  const ordered = shuffle ? shuffleList(list) : list;
+  appState?.play(ordered[0], ordered);
+}
+
+function shuffleList(list) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 async function createPlaylist() {
-  actionLoading.value = true;
+  const name = newPlaylistName.value.trim();
+  if (!name) return;
   try {
     await fetchJson("/api/local/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newPlaylistTitle.value.trim() }),
-      timeout: 6000,
+      body: JSON.stringify({ title: name }),
     });
-    newPlaylistTitle.value = "";
-    app.showToast("Playlista utworzona", "success");
-    await loadPage();
-  } catch (err) {
-    app.showToast(err.message, "error");
-  } finally {
-    actionLoading.value = false;
+    appState?.showToast(t("playlistCreated"), "success");
+    showPlaylistComposer.value = false;
+    newPlaylistName.value = "";
+    if (props.pageKey === "playlists") loadPage(true);
+  } catch (error) {
+    appState?.showToast(error.message, "error");
   }
 }
 
 async function importPlaylist() {
-  actionLoading.value = true;
+  const id = importPlaylistId.value.trim();
+  if (!id) return;
+  importing.value = true;
   try {
-    const id = importPlaylistId.value.trim();
-    const result = await fetchJson(`/api/local/playlists/import-yt/${encodeURIComponent(id)}`, {
+    await fetchJson(`/api/local/playlists/import-yt/${encodeURIComponent(id)}`, {
       method: "POST",
-      timeout: 20000,
+      timeout: 60000,
     });
+    appState?.showToast(t("playlistImported"), "success");
+    showPlaylistComposer.value = false;
     importPlaylistId.value = "";
-    app.showToast(result.title ? `Zaimportowano: ${result.title}` : "Playlista zaimportowana", "success");
-    await loadPage();
-  } catch (err) {
-    app.showToast(err.message, "error");
+    if (props.pageKey === "playlists") loadPage(true);
+  } catch (error) {
+    appState?.showToast(error.message, "error");
   } finally {
-    actionLoading.value = false;
+    importing.value = false;
   }
 }
 
-async function generateFlow() {
-  const pool = [...tracks.value, ...primaryItems.value, ...secondaryItems.value, ...tertiaryItems.value, ...chartItems.value].filter((item) => item.videoId);
-  flowLoading.value = true;
-  flowError.value = "";
-  try {
-    const data = await fetchJson("/api/flows/revolution", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        preset: flowPreset.value,
-        sessionMinutes: flowMinutes.value,
-        novelty: flowNovelty.value,
-        pool,
-        recentTracks: app.recentPlays.value,
-        favoriteTracks: app.favoriteItems.value,
-      }),
-      timeout: 16000,
-    });
-    flowQueue.value = normalizeList(data.queue || []);
-  } catch {
-    flowQueue.value = buildLocalFlow(pool);
-    flowError.value = app.t("fallbackFlow");
-  } finally {
-    flowLoading.value = false;
-  }
-}
-
-function buildLocalFlow(pool) {
-  const unique = new Map();
-  pool.forEach((track) => {
-    if (track.videoId && !unique.has(track.videoId)) unique.set(track.videoId, normalizeTrack(track));
-  });
-  const targets = {
-    focus: [35, 58, 42],
-    energy: [45, 82, 60],
-    chill: [28, 46, 26],
-    discover: [52, 72, 44],
-  }[flowPreset.value] || [52, 72, 44];
-  const count = Math.max(8, Math.round(flowMinutes.value / 3));
-  const used = new Set();
-  return Array.from({ length: count })
-    .map((_, index) => {
-      const target = targets[Math.min(2, Math.floor((index / count) * 3))];
-      const next = Array.from(unique.values())
-        .filter((track) => !used.has(trackKey(track)))
-        .map((track) => ({ track, score: Math.abs(estimateEnergy(track) - target) + Math.random() * 6 }))
-        .sort((a, b) => a.score - b.score)[0]?.track;
-      if (next) used.add(trackKey(next));
-      return next;
-    })
-    .filter(Boolean);
-}
-
-watch(() => [props.pageKey, route.query.playlist], loadPage, { immediate: true });
-
-const SectionTitle = defineComponent({
-  props: {
-    title: { type: String, required: true },
-    count: { type: Number, default: null },
-    small: { type: Boolean, default: false },
+watch(
+  () => props.pageKey,
+  () => {
+    selectedPlaylist.value = null;
+    loadPage(false);
   },
-  setup(sectionProps) {
-    return () => h("div", { class: "mb-4 flex items-center justify-between gap-3" }, [
-      h(sectionProps.small ? "h3" : "h2", { class: sectionProps.small ? "text-lg font-black" : "text-2xl font-black" }, sectionProps.title),
-      sectionProps.count !== null
-        ? h("span", { class: "rounded-full px-2.5 py-1 text-xs font-black", style: "background: color-mix(in srgb, var(--primary) 14%, var(--bg-card)); color: var(--primary)" }, String(sectionProps.count))
-        : null,
-    ]);
+  { immediate: true },
+);
+
+watch(
+  () => route.query.playlist,
+  (id) => {
+    if (id) {
+      const decoded = String(id);
+      if (decoded.startsWith("local-")) openLocalPlaylist(decoded.replace("local-", ""));
+      else openYtPlaylist(decoded);
+    }
   },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  selectedPlaylist.value = null;
 });
 </script>
+
+<style scoped>
+.music-page {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.chart {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+}
+
+.chart-row:hover {
+  background: var(--bg-hover);
+}
+
+.chart-pos {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.chart-text {
+  min-width: 0;
+}
+
+.chart-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.error-banner {
+  font-size: 12px;
+  color: var(--danger);
+  background: rgba(255, 69, 58, 0.1);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 12px;
+}
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-card-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-strong);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.form-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 8px 0;
+}
+</style>

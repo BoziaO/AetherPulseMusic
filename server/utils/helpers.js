@@ -73,10 +73,14 @@ function wrap(fn) {
   return async (req, res) => {
     try {
       const result = await fn(req, res);
-      if (result !== undefined) res.json(result);
+      if (result !== undefined && !res.headersSent) {
+        res.json(result);
+      }
     } catch (err) {
-      console.error("[ERROR]", req.path, err.message);
-      res.status(500).json({ error: err.message });
+      console.error("[ERROR]", req.path, err.message, err.stack);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err.message || 'Internal server error' });
+      }
     }
   };
 }
@@ -94,8 +98,8 @@ function pickThumbnailUrl(item) {
 function toMediaItem(item) {
   if (!item) return null;
   return {
-    title: item.title,
-    subtitle: item.subtitle || item.author || item.artist || (Array.isArray(item.artists) ? item.artists.map((a) => a.name).join(", ") : "") || "",
+    title: item.title || 'Untitled',
+    subtitle: item.subtitle || item.author || item.artist || (Array.isArray(item.artists) ? item.artists.map((a) => a?.name || '').filter(Boolean).join(", ") : "") || "",
     meta: item.meta || item.resultType || "",
     cover: pickThumbnailUrl(item),
     videoId: item.videoId || null,
@@ -108,7 +112,7 @@ function toQueueItem(track) {
   if (!track) return null;
   const artist =
     track.artist ||
-    (Array.isArray(track.artists) ? track.artists.map((a) => a.name).join(", ") : "") ||
+    (Array.isArray(track.artists) ? track.artists.map((a) => a?.name || '').filter(Boolean).join(", ") : "") ||
     "";
   const textBlob = `${track.title || ""} ${artist || ""}`.toLowerCase();
   let energy = 58;
@@ -120,7 +124,7 @@ function toQueueItem(track) {
   });
   energy = Math.max(12, Math.min(95, energy));
   return {
-    title: track.title,
+    title: track.title || 'Unknown track',
     artist,
     detail: track.album?.name || track.subtitle || "",
     duration: track.duration || null,

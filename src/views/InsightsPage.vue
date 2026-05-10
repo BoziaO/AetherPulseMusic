@@ -10,6 +10,8 @@
     </div>
 
     <template v-else>
+      <MyWrapped />
+
       <section class="kpi-grid">
         <div class="kpi">
           <span class="kpi-value">{{ recentPlays.length }}</span>
@@ -80,6 +82,7 @@
 import { computed, inject } from "vue";
 import { RouterLink } from "vue-router";
 import TrackList from "../components/TrackList.vue";
+import MyWrapped from "../components/MyWrapped.vue";
 import { secondsFromDuration } from "../lib/format";
 
 const appState = inject("appState");

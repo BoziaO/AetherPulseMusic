@@ -16,89 +16,105 @@
         />
       </div>
 
-      <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 py-3">
-        <!-- Track info -->
-        <div class="track-info">
-          <button
-            class="track-trigger"
-            type="button"
-            :title="t('expandPlayer')"
-            @click="$emit('expand')"
-          >
-            <span class="cover">
-              <img v-if="cover" :src="cover" alt="" loading="lazy" />
-              <Music2 v-else :size="20" :style="{ color: 'var(--text-tertiary)' }" />
-            </span>
-            <span class="meta">
-              <span class="title">{{ track?.title }}</span>
-              <span class="artist">{{ artist }}</span>
-            </span>
-          </button>
-          <button
-            class="icon-btn fav-btn"
-            type="button"
-            :title="t('favorites')"
-            @click.stop="$emit('toggle-favorite')"
-          >
-            <Heart
-              :size="18"
-              :fill="favorite ? 'var(--primary)' : 'none'"
-              :style="{ color: favorite ? 'var(--primary)' : 'var(--text-secondary)' }"
-            />
-          </button>
-        </div>
+      <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 py-3" :class="{ 'hidden': minimized }">
+         <!-- Track info -->
+         <div class="track-info">
+           <button
+             class="track-trigger"
+             type="button"
+             :title="t('expandPlayer')"
+             @click="$emit('expand')"
+           >
+             <span class="cover">
+               <img v-if="cover" :src="cover" alt="" loading="lazy" />
+               <Music2 v-else :size="20" :style="{ color: 'var(--text-tertiary)' }" />
+             </span>
+             <span class="meta">
+               <span class="title">{{ track?.title }}</span>
+               <span class="artist">{{ artist }}</span>
+             </span>
+           </button>
+           <button
+             class="icon-btn fav-btn"
+             type="button"
+             :title="t('favorites')"
+             @click.stop="$emit('toggle-favorite')"
+           >
+             <Heart
+               :size="18"
+               :fill="favorite ? 'var(--primary)' : 'none'"
+               :style="{ color: favorite ? 'var(--primary)' : 'var(--text-secondary)' }"
+             />
+           </button>
+         </div>
 
-        <!-- Center controls + time -->
-        <div class="center">
-          <div class="flex items-center gap-2">
-            <button class="icon-btn" type="button" :title="t('shuffle')" @click="$emit('shuffle')">
-              <Shuffle :size="16" :style="shuffle ? 'color: var(--primary)' : ''" />
-            </button>
-            <button class="icon-btn" type="button" :title="t('previous')" @click="$emit('prev')">
-              <SkipBack :size="20" fill="currentColor" />
-            </button>
-            <button class="play-btn" type="button" :title="isPlaying ? t('pause') : t('play')" @click="$emit('toggle-play')">
-              <Pause v-if="isPlaying" :size="20" fill="currentColor" />
-              <Play v-else :size="20" fill="currentColor" class="translate-x-[1px]" />
-            </button>
-            <button class="icon-btn" type="button" :title="t('next')" @click="$emit('next')">
-              <SkipForward :size="20" fill="currentColor" />
-            </button>
-            <button class="icon-btn relative-btn" type="button" :title="t('repeat')" @click="$emit('repeat')">
-              <Repeat :size="16" :style="repeatMode !== 'none' ? 'color: var(--primary)' : ''" />
-              <span v-if="repeatMode === 'one'" class="repeat-one">1</span>
-            </button>
-          </div>
-          <div class="time-row">
-            <span>{{ formatClock(currentTime) }}</span>
-            <span>-{{ formatClock(Math.max(0, safeDuration - currentTime)) }}</span>
-          </div>
-        </div>
+         <!-- Center controls + time -->
+         <div class="center">
+           <div class="flex items-center gap-2">
+             <button class="icon-btn" type="button" :title="t('shuffle')" @click="$emit('shuffle')">
+               <Shuffle :size="16" :style="shuffle ? 'color: var(--primary)' : ''" />
+             </button>
+             <button class="icon-btn" type="button" :title="t('previous')" @click="$emit('prev')">
+               <SkipBack :size="20" fill="currentColor" />
+             </button>
+             <button class="play-btn" type="button" :title="isPlaying ? t('pause') : t('play')" @click="$emit('toggle-play')">
+               <Pause v-if="isPlaying" :size="20" fill="currentColor" />
+               <Play v-else :size="20" fill="currentColor" class="translate-x-[1px]" />
+             </button>
+             <button class="icon-btn" type="button" :title="t('next')" @click="$emit('next')">
+               <SkipForward :size="20" fill="currentColor" />
+             </button>
+             <button class="icon-btn relative-btn" type="button" :title="t('repeat')" @click="$emit('repeat')">
+               <Repeat :size="16" :style="repeatMode !== 'none' ? 'color: var(--primary)' : ''" />
+               <span v-if="repeatMode === 'one'" class="repeat-one">1</span>
+             </button>
+           </div>
+           <div class="time-row">
+             <span>{{ formatClock(currentTime) }}</span>
+             <span>-{{ formatClock(Math.max(0, safeDuration - currentTime)) }}</span>
+           </div>
+         </div>
 
-        <!-- Right controls -->
-        <div class="right">
-          <button class="icon-btn hidden md:inline-flex" type="button" :title="t('lyrics')" @click="$emit('lyrics')">
-            <Captions :size="18" />
-          </button>
-          <button class="icon-btn" type="button" :title="t('queue')" @click="$emit('queue')">
-            <ListMusic :size="18" />
-          </button>
-          <div class="volume hidden md:flex">
-            <Volume2 v-if="volume > 0" :size="16" :style="{ color: 'var(--text-secondary)' }" />
-            <VolumeX v-else :size="16" :style="{ color: 'var(--text-secondary)' }" />
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              :value="volume"
-              class="am-slider am-slider-pink"
-              :style="{ '--progress': `${volume}%` }"
-              @input="$emit('volume', Number($event.target.value))"
-            />
-          </div>
-        </div>
-      </div>
+         <!-- Right controls -->
+         <div class="right">
+           <button class="icon-btn hidden md:inline-flex" type="button" :title="t('lyrics')" @click="$emit('lyrics')">
+             <Captions :size="18" />
+           </button>
+           <button class="icon-btn" type="button" :title="t('queue')" @click="$emit('queue')">
+             <ListMusic :size="18" />
+           </button>
+           <div class="volume hidden md:flex">
+             <Volume2 v-if="volume > 0" :size="16" :style="{ color: 'var(--text-secondary)' }" />
+             <VolumeX v-else :size="16" :style="{ color: 'var(--text-secondary)' }" />
+             <input
+               type="range"
+               min="0"
+               max="100"
+               step="1"
+               :value="volume"
+               class="am-slider am-slider-pink"
+               :style="{ '--progress': `${volume}%` }"
+               @input="$emit('volume', Number($event.target.value))"
+             />
+           </div>
+           <button class="icon-btn" type="button" :title="t('collapsePlayer')" @click="$emit('minimize')">
+             <ChevronUp :size="18" />
+           </button>
+         </div>
+       </div>
+       <!-- Minimized player controls -->
+       <div v-if="minimized" class="minimized-controls">
+         <button class="icon-btn" type="button" :title="isPlaying ? t('pause') : t('play')" @click="$emit('toggle-play')">
+           <Pause v-if="isPlaying" :size="18" fill="currentColor" />
+           <Play v-else :size="18" fill="currentColor" />
+         </button>
+         <button class="icon-btn" type="button" :title="t('expandPlayer')" @click="$emit('expand')">
+           <ChevronDown :size="18" />
+         </button>
+         <button class="icon-btn" type="button" :title="t('collapsePlayer')" @click="$emit('minimize')">
+           <ChevronUp :size="18" />
+         </button>
+       </div>
     </div>
   </section>
 </template>
@@ -107,6 +123,8 @@
 import { computed, inject } from "vue";
 import {
   Captions,
+  ChevronDown,
+  ChevronUp,
   Heart,
   ListMusic,
   Music2,
@@ -130,6 +148,7 @@ const props = defineProps({
   shuffle: { type: Boolean, default: false },
   repeatMode: { type: String, default: "none" },
   favorite: { type: Boolean, default: false },
+  minimized: { type: Boolean, default: false },
 });
 
 defineEmits([
@@ -144,6 +163,7 @@ defineEmits([
   "queue",
   "lyrics",
   "expand",
+  "minimize",
 ]);
 
 const app = inject("appState");
@@ -345,5 +365,13 @@ const progressPercent = computed(() =>
   .center .time-row {
     display: none;
   }
+}
+
+.minimized-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
 }
 </style>

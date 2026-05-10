@@ -17,6 +17,12 @@
         @shuffle="playAll(true)"
       />
 
+      <ContextNotes
+        :item-id="props.albumId"
+        :item-type="'album'"
+        :item-title="album.title"
+      />
+
       <section v-if="tracks.length" class="section">
         <TrackList
           :tracks="tracks"
@@ -39,6 +45,7 @@ import { computed, inject, ref, watch } from "vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
+import ContextNotes from "../components/ContextNotes.vue";
 import { fetchJson } from "../lib/api";
 import { cleanData, normalizeTrack } from "../lib/format";
 

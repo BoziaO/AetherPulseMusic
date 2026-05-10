@@ -177,6 +177,21 @@ textarea:focus-visible {
 /* ============================================================
    Component primitives
    ============================================================ */
+.privacy-banner {
+  background-color: var(--primary); /* Using primary accent color for visibility */
+  color: var(--bg-base); /* Text color that contrasts with primary */
+  text-align: center;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--line);
+}
+
+.privacy-banner p {
+  margin: 0;
+}
+
 .app-shell {
   min-height: 100vh;
   background: var(--bg-base);

@@ -38,55 +38,53 @@
                 </button>
               </div>
 
-              <div class="search-results">
-                <div v-if="!query.trim() && searchHistory.length">
-                  <div class="search-history-head">
-                    <p>{{ t('recentSearches') }}</p>
-                    <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
-                  </div>
-                  <button
-                    v-for="entry in searchHistory"
-                    :key="entry"
-                    class="history-row"
-                    type="button"
-                    @click="query = entry"
-                  >
-                    <Search :size="14" :style="{ color: 'var(--text-tertiary)' }" />
-                    <span class="truncate">{{ entry }}</span>
-                  </button>
+              <div v-if="!query.trim() && searchHistory.length" class="search-results">
+                <div class="search-history-head">
+                  <p>{{ t('recentSearches') }}</p>
+                  <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
                 </div>
-
-                <div v-else-if="query.trim().length > 0 && query.trim().length < 2" class="state-msg">
-                  {{ t('minTwoChars') }}
-                </div>
-
-                <div v-else-if="searchLoading" class="state-msg">
-                  {{ t('searching') }}
-                </div>
-
-                <div v-else-if="searchResults.length" class="result-list">
-                  <button
-                    v-for="(item, index) in searchResults"
-                    :key="item.videoId || item.browseId || `${item.title}-${index}`"
-                    class="result-row"
-                    type="button"
-                    @click="handleSearchResultClick(item)"
-                  >
-                    <span class="result-cover">
-                      <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" />
-                    </span>
-                    <span class="result-text">
-                      <span class="result-title">{{ item.title }}</span>
-                      <span class="result-sub">
-                        {{ item.artist || item.author || item.subtitle || artistsText(item) || "YouTube Music" }}
-                      </span>
-                    </span>
-                    <span class="result-tag">{{ item.resultType || searchFilter }}</span>
-                  </button>
-                </div>
-
-                <div v-else class="state-msg">{{ t('noResults') }}</div>
+                <button
+                  v-for="entry in searchHistory"
+                  :key="entry"
+                  class="history-row"
+                  type="button"
+                  @click="query = entry"
+                >
+                  <Search :size="14" :style="{ color: 'var(--text-tertiary)' }" />
+                  <span class="truncate">{{ entry }}</span>
+                </button>
               </div>
+
+              <div v-else-if="query.trim().length > 0 && query.trim().length < 2" class="state-msg">
+                {{ t('minTwoChars') }}
+              </div>
+
+              <div v-else-if="searchLoading" class="state-msg">
+                {{ t('searching') }}
+              </div>
+
+              <div v-else-if="searchResults.length" class="result-list">
+                <button
+                  v-for="(item, index) in searchResults"
+                  :key="item.videoId || item.browseId || `${item.title}-${index}`"
+                  class="result-row"
+                  type="button"
+                  @click="handleSearchResultClick(item)"
+                >
+                  <span class="result-cover">
+                    <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" />
+                  </span>
+                  <span class="result-text">
+                    <span class="result-title">{{ item.title }}</span>
+                    <span class="result-sub">
+                      {{ item.artist || item.author || item.subtitle || artistsText(item) || "YouTube Music" }}
+                    </span>
+                  </span>
+                  <span class="result-tag">{{ item.resultType || searchFilter }}</span>
+                </button>
+              </div>
+
+              <div v-else class="state-msg">{{ t('noResults') }}</div>
             </div>
           </div>
 
@@ -105,6 +103,17 @@
               {{ t('signIn') }}
             </a>
           </div>
+        </div>
+        <div v-if="showPrivacyBanner" class="privacy-banner">
+          <p>{{ t('privacyBanner') }}</p>
+          <button
+            class="privacy-close-btn"
+            type="button"
+            :title="t('close')"
+            @click="showPrivacyBanner = false"
+          >
+            <X :size="16" />
+          </button>
         </div>
       </header>
 
@@ -125,6 +134,7 @@
       :shuffle="isShuffled"
       :repeat-mode="repeatMode"
       :favorite="favoriteKeys.has(trackKey(nowPlaying))"
+      :minimized="playerMinimized"
       @toggle-play="togglePlay"
       @seek="seekTo"
       @volume="setVolume"
@@ -136,6 +146,7 @@
       @queue="showQueueModal = true"
       @lyrics="showLyricsModal = true"
       @expand="showFullPlayer = true"
+      @minimize="playerMinimized = !playerMinimized"
     />
 
     <FullPlayer
@@ -223,6 +234,7 @@ const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchOpen = ref(false);
 const searchHistory = ref(readJson("ap:search-history", []));
+const showPrivacyBanner = ref(true);
 const toasts = ref([]);
 
 const authSession = ref({ auth: { enabled: false, connected: false } });
@@ -243,6 +255,7 @@ const repeatMode = ref("none");
 const showQueueModal = ref(false);
 const showLyricsModal = ref(false);
 const showFullPlayer = ref(false);
+const playerMinimized = ref(false);
 
 const recentPlays = ref(readJson("boziamusic:recent", []));
 const favorites = ref(new Set(readJson("boziamusic:favorites", [])));
@@ -896,6 +909,45 @@ onBeforeUnmount(() => {
   padding: 12px 24px;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.privacy-banner {
+  background-color: var(--primary); /* Using primary accent color for visibility */
+  color: var(--bg-base); /* Text color that contrasts with primary */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+
+.privacy-banner p {
+  margin: 0;
+}
+
+.privacy-close-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.privacy-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .search-wrap {

@@ -17,6 +17,12 @@
         @shuffle="playAll(true)"
       />
 
+      <ContextNotes
+        :item-id="props.artistId"
+        :item-type="'artist'"
+        :item-title="artist.name"
+      />
+
       <section v-if="topSongs.length" class="section">
         <h2 class="section-title">{{ t('topCharts') }}</h2>
         <TrackList
@@ -57,6 +63,7 @@ import MediaGrid from "../components/MediaGrid.vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
+import ContextNotes from "../components/ContextNotes.vue";
 import { fetchJson } from "../lib/api";
 import { cleanData, normalizeTrack } from "../lib/format";
 

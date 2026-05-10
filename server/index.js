@@ -123,6 +123,7 @@ app.use(session({
 }));
 
 app.use((req, res, next) => {
+  // Content Security Policy — allows YouTube embeds, local assets, Google APIs
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self'; " +
@@ -131,8 +132,22 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "frame-src https://www.youtube.com; " +
-    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;"
+    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;" +
+    "media-src 'self' blob: https://www.youtube.com https://s.ytimg.com"
   );
+
+  // Prevent MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // Prevent clickjacking (allows embedding in YouTube iframes)
+  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.youtube.com');
+
+  // Disable inline scripts (mostly — unsafe-inline needed for Vite HMR)
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
+  // Referrer policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   next();
 });
 

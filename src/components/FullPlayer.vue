@@ -1,10 +1,7 @@
 <template>
-  <div class="full-player animate-fade" @click.self="$emit('close')">
-    <!-- Blurred album-art background -->
-    <div class="bg-art" aria-hidden="true">
-      <img v-if="cover" :src="cover" alt="" />
-      <div class="bg-tint" />
-    </div>
+  <div class="full-player animate-fade" @click.self="$emit('close')" :style="playerBackgroundStyle">
+    <!-- Hidden canvas for color extraction -->
+    <canvas ref="canvasRef" style="display: none;" />
 
     <header class="full-header">
       <button class="icon-btn" type="button" :title="t('collapsePlayer')" @click="$emit('close')">
@@ -82,6 +79,9 @@
           />
         </div>
         <div class="row-actions">
+          <button class="ctrl-sm" type="button" :title="t('audioVisualizer')" @click="showVisualizer = !showVisualizer">
+            ≈
+          </button>
           <button class="ctrl-sm" type="button" :title="t('lyrics')" @click="$emit('lyrics')">
             <Captions :size="22" />
           </button>
@@ -93,12 +93,17 @@
           </button>
         </div>
       </div>
+
+      <!-- Audio Visualizer toggle section -->
+      <div v-if="showVisualizer" class="visualizer-section">
+        <AudioVisualizer />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, inject } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import {
   Captions,
   ChevronDown,
@@ -114,6 +119,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-vue-next";
+import AudioVisualizer from "./AudioVisualizer.vue";
 import { formatClock } from "../lib/format";
 
 const props = defineProps({
@@ -144,6 +150,10 @@ defineEmits([
 
 const app = inject("appState");
 
+const canvasRef = ref(null);
+const showVisualizer = ref(false);
+const dominantColor = ref('rgba(0, 0, 0, 0.85)'); // Default dark background
+
 function t(key) {
   return app?.t?.(key) ?? key;
 }
@@ -160,6 +170,74 @@ const safeDuration = computed(() =>
 const progressPercent = computed(() =>
   Math.min(100, (props.currentTime / safeDuration.value) * 100),
 );
+
+async function extractDominantColor(imageUrl) {
+  if (!imageUrl || !canvasRef.value) {
+    dominantColor.value = 'rgba(0, 0, 0, 0.85)'; // Reset to default
+    return;
+  }
+
+  const canvas = canvasRef.value;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    dominantColor.value = 'rgba(0, 0, 0, 0.85)';
+    return;
+  }
+
+  const img = new Image();
+  img.crossOrigin = "Anonymous"; // Required for loading images from other origins
+  img.src = imageUrl;
+
+  img.onload = () => {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0, img.width, img.height);
+
+    const imageData = ctx.getImageData(0, 0, img.width, img.height).data;
+    let r = 0, g = 0, b = 0;
+    let count = 0;
+    const step = 4 * 5; // Sample every 5th pixel (4 bytes per pixel)
+
+    for (let i = 0; i < imageData.length; i += step) {
+      r += imageData[i];
+      g += imageData[i + 1];
+      b += imageData[i + 2];
+      count++;
+    }
+
+    r = Math.floor(r / count);
+    g = Math.floor(g / count);
+    b = Math.floor(b / count);
+
+    // Darken the color slightly for better contrast with white text
+    const darkenFactor = 0.7; // Adjust as needed
+    r = Math.floor(r * darkenFactor);
+    g = Math.floor(g * darkenFactor);
+    b = Math.floor(b * darkenFactor);
+
+    dominantColor.value = `rgba(${r}, ${g}, ${b}, 0.85)`; // Use 0.85 alpha for consistency
+  };
+
+  img.onerror = () => {
+    console.warn("Failed to load image for color extraction:", imageUrl);
+    dominantColor.value = 'rgba(0, 0, 0, 0.85)'; // Fallback
+  };
+}
+
+// Watch for changes in the cover image
+watch(cover, (newCover) => {
+  extractDominantColor(newCover);
+}, { immediate: true }); // Run immediately on component mount if cover already exists
+
+// Computed style for the full-player background
+const playerBackgroundStyle = computed(() => {
+  return {
+    backgroundColor: dominantColor.value,
+    backdropFilter: 'blur(70px) brightness(0.7)', // Apply blur and brightness directly
+    WebkitBackdropFilter: 'blur(70px) brightness(0.7)',
+    transition: 'background-color 0.5s ease-in-out', // Smooth transition
+  };
+});
 </script>
 
 <style scoped>
@@ -171,28 +249,13 @@ const progressPercent = computed(() =>
   flex-direction: column;
   color: #fff;
   overflow: hidden;
+  /* Background color and backdrop filter are now applied via inline style */
 }
 
-.bg-art {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-}
-
-.bg-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(70px) saturate(140%);
-  transform: scale(1.2);
-  opacity: 0.55;
-}
-
+/* Remove bg-art and bg-tint styles as they are replaced */
+.bg-art,
 .bg-tint {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 80% at 50% 0%, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.85) 100%);
-  backdrop-filter: brightness(0.7);
+  display: none;
 }
 
 .full-header {
@@ -403,5 +466,10 @@ const progressPercent = computed(() =>
 .ctrl-sm:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+.visualizer-section {
+  margin-top: 16px;
+  width: 100%;
 }
 </style>

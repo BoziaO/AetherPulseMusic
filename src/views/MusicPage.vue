@@ -3,6 +3,8 @@
     <PageSkeleton v-if="loading && !pageData" />
 
     <template v-else>
+      <PrivacyBanner v-if="pageKey === 'home'" />
+
       <PageHero
         :title="heroTitle"
         :subtitle="heroSubtitle"
@@ -234,6 +236,7 @@ import {
 import MediaGrid from "../components/MediaGrid.vue";
 import PageHero from "../components/PageHero.vue";
 import PageSkeleton from "../components/PageSkeleton.vue";
+import PrivacyBanner from "../components/PrivacyBanner.vue";
 import TrackList from "../components/TrackList.vue";
 import FlowComposer from "../components/FlowComposer.vue";
 import { fetchJson } from "../lib/api";

@@ -11,45 +11,36 @@
         <h2 class="card-title">{{ t('appearance') }}</h2>
       </header>
 
-      <div class="row">
+      <div class="row row-column">
         <div>
           <p class="row-title">{{ t('theme') }}</p>
+          <p class="row-sub">{{ t('themeDesc') }}</p>
         </div>
-        <div class="seg-control">
+        <div class="theme-grid">
           <button
-            class="seg"
-            :class="appState.theme.value === 'dark' ? 'seg-active' : ''"
+            v-for="theme in THEMES"
+            :key="theme.id"
+            class="theme-card"
+            :class="appState.themeId.value === theme.id ? 'theme-card-active' : ''"
             type="button"
-            @click="appState.setTheme('dark')"
+            @click="appState.setTheme(theme.id)"
           >
-            {{ t('themeDark') }}
+            <div class="theme-swatch">
+              <span
+                v-for="(color, idx) in theme.swatch"
+                :key="idx"
+                class="swatch-color"
+                :style="{ background: color }"
+              />
+            </div>
+            <div class="theme-info">
+              <p class="theme-name">{{ t(theme.name) }}</p>
+              <p class="theme-vibe">{{ theme.vibe }}</p>
+            </div>
+            <div v-if="appState.themeId.value === theme.id" class="theme-check">
+              <Check :size="16" />
+            </div>
           </button>
-          <button
-            class="seg"
-            :class="appState.theme.value === 'light' ? 'seg-active' : ''"
-            type="button"
-            @click="appState.setTheme('light')"
-          >
-            {{ t('themeLight') }}
-          </button>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <p class="row-title">{{ t('accentColor') }}</p>
-        </div>
-        <div class="accent-row">
-          <button
-            v-for="color in accentColors"
-            :key="color"
-            class="accent-dot"
-            :class="appState.accent.value.toLowerCase() === color.toLowerCase() ? 'accent-active' : ''"
-            type="button"
-            :style="{ background: color }"
-            :title="color"
-            @click="appState.setAccent(color)"
-          />
         </div>
       </div>
 
@@ -111,6 +102,127 @@
           :class="appState.lyricsFollowMode.value ? 'toggle-on' : ''"
           type="button"
           @click="appState.lyricsFollowMode.value = !appState.lyricsFollowMode.value"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <Monitor :size="18" />
+        <h2 class="card-title">{{ t('display') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('showAnimations') }}</p>
+          <p class="row-sub">{{ t('showAnimationsDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="showAnimations ? 'toggle-on' : ''"
+          type="button"
+          @click="showAnimations = !showAnimations"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('themeEffects') }}</p>
+          <p class="row-sub">{{ t('themeEffectsDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="themeEffects ? 'toggle-on' : ''"
+          type="button"
+          @click="themeEffects = !themeEffects"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('reduceMotion') }}</p>
+          <p class="row-sub">{{ t('reduceMotionDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="reduceMotion ? 'toggle-on' : ''"
+          type="button"
+          @click="reduceMotion = !reduceMotion"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <Speaker :size="18" />
+        <h2 class="card-title">{{ t('playback') }} — {{ t('advanced') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('crossfade') }}</p>
+          <p class="row-sub">{{ t('crossfadeDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="crossfade ? 'toggle-on' : ''"
+          type="button"
+          @click="crossfade = !crossfade"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+
+      <div v-if="crossfade" class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('crossfadeDuration') }}</p>
+          <p class="row-sub">{{ crossfadeDuration }}ms</p>
+        </div>
+        <input
+          type="range"
+          min="1000"
+          max="8000"
+          step="500"
+          :value="crossfadeDuration"
+          class="am-slider am-slider-pink volume-slider"
+          :style="{ '--progress': `${((crossfadeDuration - 1000) / 7000) * 100}%` }"
+          @input="(event) => crossfadeDuration = Number(event.target.value)"
+        />
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('normalizer') }}</p>
+          <p class="row-sub">{{ t('normalizerDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="normalizer ? 'toggle-on' : ''"
+          type="button"
+          @click="normalizer = !normalizer"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('highQuality') }}</p>
+          <p class="row-sub">{{ t('highQualityDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="highQuality ? 'toggle-on' : ''"
+          type="button"
+          @click="highQuality = !highQuality"
         >
           <span class="toggle-thumb" />
         </button>
@@ -225,6 +337,50 @@
 
     <section class="card-block">
       <header class="card-head">
+        <Settings2 :size="18" />
+        <h2 class="card-title">{{ t('advanced') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('debugMode') }}</p>
+          <p class="row-sub">{{ t('debugModeDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="debugMode ? 'toggle-on' : ''"
+          type="button"
+          @click="debugMode = !debugMode"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('clearCache') }}</p>
+          <p class="row-sub">{{ t('cacheSizeDesc') }}</p>
+        </div>
+        <button class="btn-secondary" type="button" @click="clearCache">
+          <Trash2 :size="14" />
+          {{ t('clearCache') }}
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('resetSettings') }}</p>
+          <p class="row-sub">{{ t('resetSettingsDesc') }}</p>
+        </div>
+        <button class="btn-secondary" type="button" @click="resetSettings">
+          <RefreshCw :size="14" />
+          {{ t('resetSettings') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
         <Keyboard :size="18" />
         <h2 class="card-title">{{ t('keyboardShortcuts') }}</h2>
       </header>
@@ -253,8 +409,13 @@ import {
   Sliders,
   Trash2,
   UserCircle,
+  Monitor,
+  Settings2,
+  Speaker,
+  Check,
 } from "lucide-vue-next";
 import { fetchJson } from "../lib/api";
+import { THEMES } from "../data/themes";
 
 const appState = inject("appState");
 function t(key, vars) {
@@ -262,6 +423,16 @@ function t(key, vars) {
 }
 
 const accentColors = ["#fa243c", "#ff375f", "#ff9f0a", "#30d158", "#0a84ff", "#bf5af2"];
+
+// Settings state
+const showAnimations = ref(true);
+const themeEffects = ref(true);
+const reduceMotion = ref(false);
+const crossfade = ref(false);
+const crossfadeDuration = ref(3000);
+const normalizer = ref(false);
+const highQuality = ref(true);
+const debugMode = ref(false);
 
 function updateVolume(value) {
   appState.volume.value = value;
@@ -276,6 +447,31 @@ function clearLocalData() {
     localStorage.removeItem(key);
   });
   window.location.reload();
+}
+
+function clearCache() {
+  if (!window.confirm(t("confirmClear"))) return;
+  // Clear any cached data
+  if ("caches" in window) {
+    caches.keys().then((names) => {
+      names.forEach((name) => caches.delete(name));
+    });
+  }
+  appState?.showToast?.(t("cacheCleared"), "success");
+}
+
+function resetSettings() {
+  if (!window.confirm(t("confirmClear"))) return;
+  // Reset all settings to defaults
+  showAnimations.value = true;
+  themeEffects.value = true;
+  reduceMotion.value = false;
+  crossfade.value = false;
+  crossfadeDuration.value = 3000;
+  normalizer.value = false;
+  highQuality.value = true;
+  debugMode.value = false;
+  appState?.showToast?.(t("settingsReset"), "success");
 }
 
 const shortcuts = computed(() => [
@@ -611,6 +807,96 @@ watch(
 
 .accent-dot.accent-active {
   border-color: var(--text-primary);
+}
+
+/* Theme Grid */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+}
+
+.theme-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.theme-card-active {
+  border-color: var(--primary);
+  background: var(--bg-active);
+  box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.2);
+}
+
+.theme-swatch {
+  display: flex;
+  gap: 4px;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.swatch-color {
+  flex: 1;
+  transition: transform var(--transition-fast);
+}
+
+.theme-card:hover .swatch-color {
+  transform: scaleY(1.1);
+}
+
+.theme-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.theme-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.theme-vibe {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+.theme-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.4);
 }
 
 .toggle {

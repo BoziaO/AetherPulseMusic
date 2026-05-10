@@ -12,7 +12,7 @@ build/
 .vite/
 *.local
 
-# ── Lockfiles (uncomment to track) ──────────────────────────
+# Lockfiles
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -25,9 +25,7 @@ pnpm-lock.yaml
 .env.production
 headers.json
 
-# ── Persisted server data ───────────────────────────────────
-# Local playlists and user state (only relevant if the server
-# is configured to write under the project tree).
+# Persisted server data
 server/.data/
 server/data/
 server/ytmusic-snapshots/

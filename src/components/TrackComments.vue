@@ -65,6 +65,8 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue';
 
+const emit = defineEmits(['seek']);
+
 const appState = inject('appState');
 
 const nowPlaying = computed(() => appState.nowPlaying);
@@ -135,8 +137,7 @@ function deleteComment(id) {
 }
 
 function seekToComment(timestamp) {
-  // This would need access to the player's seek functionality
-  // For now, just shows timestamp
+  emit('seek', timestamp);
 }
 
 function formatTime(seconds) {

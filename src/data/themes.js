@@ -1,0 +1,462 @@
+/**
+ * Theme catalogue.
+ *
+ * Every theme supplies:
+ *  - `id`          stable identifier (used in localStorage, URLs)
+ *  - `name`        translation key in src/data/i18n.js (theme_<id>)
+ *  - `mode`        "dark" | "light" — drives `color-scheme`
+ *  - `vibe`        2–3 word descriptor shown in the picker
+ *  - `swatch`      three hex colors used to render the preview swatch
+ *  - `vars`        CSS custom properties applied to <html>
+ *  - `effects?`    optional list of CSS classes added to <html>.dataset.themeFx
+ *                  for theme-specific page animations (glitch, scanline, etc.)
+ *
+ * Adding a theme = append an entry here. The Settings page and theme engine
+ * are fully data-driven.
+ */
+
+export const THEMES = [
+  /* ------------------------------------------------------------------ */
+  /*  Default Apple-Music-inspired palettes                             */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "apple-dark",
+    name: "themeAppleDark",
+    mode: "dark",
+    vibe: "Clean · Dark",
+    swatch: ["#000000", "#1c1c1e", "#fa243c"],
+    vars: {
+      "--bg-base": "#000000",
+      "--bg-elevated": "#1c1c1e",
+      "--bg-card": "rgba(28, 28, 30, 0.6)",
+      "--bg-card-strong": "#1c1c1e",
+      "--bg-hover": "rgba(255, 255, 255, 0.06)",
+      "--bg-active": "rgba(255, 255, 255, 0.10)",
+      "--bg-input": "rgba(255, 255, 255, 0.07)",
+      "--bg-sidebar": "rgba(22, 22, 23, 0.85)",
+      "--bg-player": "rgba(28, 28, 30, 0.92)",
+      "--text-primary": "#ffffff",
+      "--text-secondary": "rgba(255, 255, 255, 0.72)",
+      "--text-tertiary": "rgba(255, 255, 255, 0.45)",
+      "--text-quaternary": "rgba(255, 255, 255, 0.28)",
+      "--line": "rgba(255, 255, 255, 0.08)",
+      "--line-strong": "rgba(255, 255, 255, 0.14)",
+      "--primary": "#fa243c",
+      "--primary-hover": "#ff375f",
+      "--primary-rgb": "250, 36, 60",
+      "--accent": "#0a84ff",
+      // Font & Icon styles
+      "--font-weight-display": "700",
+      "--font-weight-body": "400",
+      "--icon-style": "outline",
+      "--icon-stroke-width": "2",
+      "--letter-spacing": "-0.01em",
+    },
+  },
+  {
+    id: "apple-light",
+    name: "themeAppleLight",
+    mode: "light",
+    vibe: "Clean · Light",
+    swatch: ["#ffffff", "#f5f5f7", "#fa243c"],
+    vars: {
+      "--bg-base": "#ffffff",
+      "--bg-elevated": "#f5f5f7",
+      "--bg-card": "rgba(245, 245, 247, 0.7)",
+      "--bg-card-strong": "#f5f5f7",
+      "--bg-hover": "rgba(0, 0, 0, 0.04)",
+      "--bg-active": "rgba(0, 0, 0, 0.08)",
+      "--bg-input": "rgba(0, 0, 0, 0.05)",
+      "--bg-sidebar": "rgba(245, 245, 247, 0.85)",
+      "--bg-player": "rgba(255, 255, 255, 0.92)",
+      "--text-primary": "#1d1d1f",
+      "--text-secondary": "rgba(29, 29, 31, 0.72)",
+      "--text-tertiary": "rgba(29, 29, 31, 0.5)",
+      "--text-quaternary": "rgba(29, 29, 31, 0.3)",
+      "--line": "rgba(0, 0, 0, 0.08)",
+      "--line-strong": "rgba(0, 0, 0, 0.14)",
+      "--primary": "#fa243c",
+      "--primary-hover": "#ff375f",
+      "--primary-rgb": "250, 36, 60",
+      "--accent": "#0a84ff",
+      "--font-weight-display": "700",
+      "--font-weight-body": "400",
+      "--icon-style": "outline",
+      "--icon-stroke-width": "2",
+      "--letter-spacing": "-0.01em",
+    },
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Cyberpunk: Edgerunners — yellow/magenta/cyan on deep violet black */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "edgerunners",
+    name: "themeEdgerunners",
+    mode: "dark",
+    vibe: "Neon · Glitch",
+    swatch: ["#0a0514", "#fcee0a", "#ff2e63"],
+    vars: {
+      "--bg-base": "#06030f",
+      "--bg-elevated": "#120826",
+      "--bg-card": "rgba(24, 12, 46, 0.65)",
+      "--bg-card-strong": "#1a0d35",
+      "--bg-hover": "rgba(252, 238, 10, 0.08)",
+      "--bg-active": "rgba(252, 238, 10, 0.14)",
+      "--bg-input": "rgba(252, 238, 10, 0.06)",
+      "--bg-sidebar": "rgba(10, 5, 24, 0.85)",
+      "--bg-player": "rgba(14, 6, 30, 0.92)",
+      "--text-primary": "#fcee0a",
+      "--text-secondary": "rgba(252, 238, 10, 0.76)",
+      "--text-tertiary": "rgba(234, 210, 255, 0.55)",
+      "--text-quaternary": "rgba(234, 210, 255, 0.3)",
+      "--line": "rgba(255, 46, 99, 0.18)",
+      "--line-strong": "rgba(0, 229, 255, 0.35)",
+      "--primary": "#ff2e63",
+      "--primary-hover": "#ff5c8a",
+      "--primary-rgb": "255, 46, 99",
+      "--accent": "#00e5ff",
+    },
+    effects: ["theme-glitch", "theme-scanlines"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Goth: deep blood red over obsidian, crimson blooms, serif vibe    */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "goth",
+    name: "themeGoth",
+    mode: "dark",
+    vibe: "Crimson · Victorian",
+    swatch: ["#0b0608", "#1a0a0c", "#8c0f1f"],
+    vars: {
+      "--bg-base": "#0a0607",
+      "--bg-elevated": "#160a0c",
+      "--bg-card": "rgba(26, 10, 14, 0.65)",
+      "--bg-card-strong": "#1a0d10",
+      "--bg-hover": "rgba(140, 15, 31, 0.08)",
+      "--bg-active": "rgba(140, 15, 31, 0.15)",
+      "--bg-input": "rgba(255, 236, 230, 0.04)",
+      "--bg-sidebar": "rgba(12, 6, 7, 0.9)",
+      "--bg-player": "rgba(18, 8, 10, 0.94)",
+      "--text-primary": "#f4e5e8",
+      "--text-secondary": "rgba(244, 229, 232, 0.72)",
+      "--text-tertiary": "rgba(244, 229, 232, 0.42)",
+      "--text-quaternary": "rgba(244, 229, 232, 0.22)",
+      "--line": "rgba(140, 15, 31, 0.22)",
+      "--line-strong": "rgba(140, 15, 31, 0.42)",
+      "--primary": "#8c0f1f",
+      "--primary-hover": "#c41e3a",
+      "--primary-rgb": "140, 15, 31",
+      "--accent": "#6b2f3e",
+    },
+    effects: ["theme-flicker"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Metal: blackened steel, chrome edges, sharp crimson               */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "metal",
+    name: "themeMetal",
+    mode: "dark",
+    vibe: "Industrial · Chrome",
+    swatch: ["#0d0d0d", "#2a2a2d", "#e60000"],
+    vars: {
+      "--bg-base": "#0d0d0d",
+      "--bg-elevated": "#1a1a1c",
+      "--bg-card": "rgba(32, 32, 36, 0.65)",
+      "--bg-card-strong": "#26262a",
+      "--bg-hover": "rgba(230, 230, 230, 0.06)",
+      "--bg-active": "rgba(230, 230, 230, 0.12)",
+      "--bg-input": "rgba(230, 230, 230, 0.06)",
+      "--bg-sidebar": "rgba(16, 16, 18, 0.9)",
+      "--bg-player": "rgba(20, 20, 24, 0.94)",
+      "--text-primary": "#f5f5f7",
+      "--text-secondary": "rgba(245, 245, 247, 0.74)",
+      "--text-tertiary": "rgba(245, 245, 247, 0.44)",
+      "--text-quaternary": "rgba(245, 245, 247, 0.24)",
+      "--line": "rgba(230, 0, 0, 0.16)",
+      "--line-strong": "rgba(230, 0, 0, 0.36)",
+      "--primary": "#e60000",
+      "--primary-hover": "#ff1a1a",
+      "--primary-rgb": "230, 0, 0",
+      "--accent": "#cfcfd4",
+    },
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Kai Angel: blushed-pink, icy blue, dreamy haze                    */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "kai-angel",
+    name: "themeKaiAngel",
+    mode: "dark",
+    vibe: "Dreampop · Pastel",
+    swatch: ["#1a0820", "#ff9fd6", "#c7b0ff"],
+    vars: {
+      "--bg-base": "#14081b",
+      "--bg-elevated": "#24112f",
+      "--bg-card": "rgba(42, 20, 56, 0.6)",
+      "--bg-card-strong": "#2d1640",
+      "--bg-hover": "rgba(255, 159, 214, 0.08)",
+      "--bg-active": "rgba(255, 159, 214, 0.16)",
+      "--bg-input": "rgba(255, 214, 235, 0.06)",
+      "--bg-sidebar": "rgba(18, 8, 24, 0.86)",
+      "--bg-player": "rgba(24, 12, 32, 0.92)",
+      "--text-primary": "#fdeaff",
+      "--text-secondary": "rgba(253, 234, 255, 0.78)",
+      "--text-tertiary": "rgba(253, 234, 255, 0.5)",
+      "--text-quaternary": "rgba(253, 234, 255, 0.3)",
+      "--line": "rgba(255, 159, 214, 0.2)",
+      "--line-strong": "rgba(199, 176, 255, 0.4)",
+      "--primary": "#ff9fd6",
+      "--primary-hover": "#ffb3e0",
+      "--primary-rgb": "255, 159, 214",
+      "--accent": "#c7b0ff",
+    },
+    effects: ["theme-dream-haze"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Synthwave: sunset grid — magenta/purple/cyan                      */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "synthwave",
+    name: "themeSynthwave",
+    mode: "dark",
+    vibe: "Retrowave · Sunset",
+    swatch: ["#14052b", "#ff006e", "#00e5ff"],
+    vars: {
+      "--bg-base": "#0c0320",
+      "--bg-elevated": "#1e0a3f",
+      "--bg-card": "rgba(38, 13, 80, 0.65)",
+      "--bg-card-strong": "#2a0e55",
+      "--bg-hover": "rgba(255, 0, 110, 0.1)",
+      "--bg-active": "rgba(255, 0, 110, 0.18)",
+      "--bg-input": "rgba(255, 0, 110, 0.07)",
+      "--bg-sidebar": "rgba(14, 5, 34, 0.86)",
+      "--bg-player": "rgba(20, 8, 44, 0.92)",
+      "--text-primary": "#fde8ff",
+      "--text-secondary": "rgba(253, 232, 255, 0.78)",
+      "--text-tertiary": "rgba(253, 232, 255, 0.5)",
+      "--text-quaternary": "rgba(253, 232, 255, 0.28)",
+      "--line": "rgba(255, 0, 110, 0.2)",
+      "--line-strong": "rgba(0, 229, 255, 0.35)",
+      "--primary": "#ff006e",
+      "--primary-hover": "#ff3a8a",
+      "--primary-rgb": "255, 0, 110",
+      "--accent": "#00e5ff",
+    },
+    effects: ["theme-scanlines"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Vampire: deep burgundy, bone white, candle gold                   */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "vampire",
+    name: "themeVampire",
+    mode: "dark",
+    vibe: "Bloodmoon · Baroque",
+    swatch: ["#14070a", "#5a0d1b", "#f3e9d2"],
+    vars: {
+      "--bg-base": "#110608",
+      "--bg-elevated": "#1f0a0e",
+      "--bg-card": "rgba(36, 12, 18, 0.7)",
+      "--bg-card-strong": "#2a0e14",
+      "--bg-hover": "rgba(243, 233, 210, 0.06)",
+      "--bg-active": "rgba(243, 233, 210, 0.12)",
+      "--bg-input": "rgba(243, 233, 210, 0.05)",
+      "--bg-sidebar": "rgba(17, 6, 8, 0.9)",
+      "--bg-player": "rgba(22, 8, 12, 0.94)",
+      "--text-primary": "#f3e9d2",
+      "--text-secondary": "rgba(243, 233, 210, 0.76)",
+      "--text-tertiary": "rgba(243, 233, 210, 0.48)",
+      "--text-quaternary": "rgba(243, 233, 210, 0.28)",
+      "--line": "rgba(90, 13, 27, 0.35)",
+      "--line-strong": "rgba(90, 13, 27, 0.55)",
+      "--primary": "#a51c2f",
+      "--primary-hover": "#c72943",
+      "--primary-rgb": "165, 28, 47",
+      "--accent": "#c9a25a",
+    },
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Matrix: classic terminal green on pitch black                     */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "matrix",
+    name: "themeMatrix",
+    mode: "dark",
+    vibe: "Terminal · Lime",
+    swatch: ["#000000", "#021a05", "#00ff66"],
+    vars: {
+      "--bg-base": "#000704",
+      "--bg-elevated": "#03140a",
+      "--bg-card": "rgba(5, 28, 12, 0.6)",
+      "--bg-card-strong": "#071c0e",
+      "--bg-hover": "rgba(0, 255, 102, 0.06)",
+      "--bg-active": "rgba(0, 255, 102, 0.12)",
+      "--bg-input": "rgba(0, 255, 102, 0.06)",
+      "--bg-sidebar": "rgba(2, 10, 5, 0.9)",
+      "--bg-player": "rgba(3, 20, 10, 0.94)",
+      "--text-primary": "#a9ffc9",
+      "--text-secondary": "rgba(169, 255, 201, 0.74)",
+      "--text-tertiary": "rgba(169, 255, 201, 0.48)",
+      "--text-quaternary": "rgba(169, 255, 201, 0.26)",
+      "--line": "rgba(0, 255, 102, 0.16)",
+      "--line-strong": "rgba(0, 255, 102, 0.36)",
+      "--primary": "#00ff66",
+      "--primary-hover": "#3bff88",
+      "--primary-rgb": "0, 255, 102",
+      "--accent": "#7dffb0",
+    },
+    effects: ["theme-scanlines"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Phonk: dark purple, neon orange, drift phonk vibes                */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "phonk",
+    name: "themePhonk",
+    mode: "dark",
+    vibe: "Drift · Aggressive",
+    swatch: ["#0a0510", "#ff6b1a", "#9d4edd"],
+    vars: {
+      "--bg-base": "#08030d",
+      "--bg-elevated": "#140820",
+      "--bg-card": "rgba(26, 12, 42, 0.65)",
+      "--bg-card-strong": "#1e0e30",
+      "--bg-hover": "rgba(255, 107, 26, 0.08)",
+      "--bg-active": "rgba(255, 107, 26, 0.15)",
+      "--bg-input": "rgba(255, 107, 26, 0.06)",
+      "--bg-sidebar": "rgba(12, 5, 20, 0.9)",
+      "--bg-player": "rgba(16, 8, 28, 0.94)",
+      "--text-primary": "#ffeedd",
+      "--text-secondary": "rgba(255, 238, 221, 0.76)",
+      "--text-tertiary": "rgba(255, 238, 221, 0.48)",
+      "--text-quaternary": "rgba(255, 238, 221, 0.28)",
+      "--line": "rgba(255, 107, 26, 0.2)",
+      "--line-strong": "rgba(255, 107, 26, 0.4)",
+      "--primary": "#ff6b1a",
+      "--primary-hover": "#ff8533",
+      "--primary-rgb": "255, 107, 26",
+      "--accent": "#9d4edd",
+    },
+    effects: ["theme-glitch", "theme-bass-pulse"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Y2K: chrome, hot pink, futuristic millennium aesthetic            */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "y2k",
+    name: "themeY2K",
+    mode: "dark",
+    vibe: "Futuristic · Chrome",
+    swatch: ["#0a0a0f", "#ff1493", "#00ffff"],
+    vars: {
+      "--bg-base": "#08080d",
+      "--bg-elevated": "#14141f",
+      "--bg-card": "rgba(26, 26, 40, 0.65)",
+      "--bg-card-strong": "#1e1e2e",
+      "--bg-hover": "rgba(255, 20, 147, 0.08)",
+      "--bg-active": "rgba(255, 20, 147, 0.15)",
+      "--bg-input": "rgba(255, 20, 147, 0.06)",
+      "--bg-sidebar": "rgba(12, 12, 18, 0.9)",
+      "--bg-player": "rgba(16, 16, 24, 0.94)",
+      "--text-primary": "#ffe6f5",
+      "--text-secondary": "rgba(255, 230, 245, 0.78)",
+      "--text-tertiary": "rgba(255, 230, 245, 0.5)",
+      "--text-quaternary": "rgba(255, 230, 245, 0.3)",
+      "--line": "rgba(255, 20, 147, 0.22)",
+      "--line-strong": "rgba(0, 255, 255, 0.4)",
+      "--primary": "#ff1493",
+      "--primary-hover": "#ff33a8",
+      "--primary-rgb": "255, 20, 147",
+      "--accent": "#00ffff",
+    },
+    effects: ["theme-scanlines", "theme-chrome-glow"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Emo Revival: black, blood red, midwest emo nostalgia              */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "emo",
+    name: "themeEmo",
+    mode: "dark",
+    vibe: "Raw · Emotional",
+    swatch: ["#0a0a0a", "#8b0000", "#d4d4d4"],
+    vars: {
+      "--bg-base": "#080808",
+      "--bg-elevated": "#141414",
+      "--bg-card": "rgba(26, 26, 26, 0.65)",
+      "--bg-card-strong": "#1a1a1a",
+      "--bg-hover": "rgba(139, 0, 0, 0.08)",
+      "--bg-active": "rgba(139, 0, 0, 0.15)",
+      "--bg-input": "rgba(212, 212, 212, 0.06)",
+      "--bg-sidebar": "rgba(10, 10, 10, 0.92)",
+      "--bg-player": "rgba(14, 14, 14, 0.95)",
+      "--text-primary": "#e8e8e8",
+      "--text-secondary": "rgba(232, 232, 232, 0.74)",
+      "--text-tertiary": "rgba(232, 232, 232, 0.46)",
+      "--text-quaternary": "rgba(232, 232, 232, 0.26)",
+      "--line": "rgba(139, 0, 0, 0.24)",
+      "--line-strong": "rgba(139, 0, 0, 0.44)",
+      "--primary": "#dc143c",
+      "--primary-hover": "#ff1a4a",
+      "--primary-rgb": "220, 20, 60",
+      "--accent": "#8b0000",
+    },
+    effects: ["theme-flicker"],
+  },
+  /* ------------------------------------------------------------------ */
+  /*  Industrial: steel gray, hazard yellow, mechanized                 */
+  /* ------------------------------------------------------------------ */
+  {
+    id: "industrial",
+    name: "themeIndustrial",
+    mode: "dark",
+    vibe: "Mechanical · Raw",
+    swatch: ["#1a1a1a", "#ffd700", "#708090"],
+    vars: {
+      "--bg-base": "#141414",
+      "--bg-elevated": "#1e1e1e",
+      "--bg-card": "rgba(36, 36, 36, 0.7)",
+      "--bg-card-strong": "#242424",
+      "--bg-hover": "rgba(255, 215, 0, 0.06)",
+      "--bg-active": "rgba(255, 215, 0, 0.12)",
+      "--bg-input": "rgba(255, 215, 0, 0.05)",
+      "--bg-sidebar": "rgba(18, 18, 18, 0.92)",
+      "--bg-player": "rgba(22, 22, 22, 0.95)",
+      "--text-primary": "#d8d8d8",
+      "--text-secondary": "rgba(216, 216, 216, 0.76)",
+      "--text-tertiary": "rgba(216, 216, 216, 0.48)",
+      "--text-quaternary": "rgba(216, 216, 216, 0.28)",
+      "--line": "rgba(255, 215, 0, 0.18)",
+      "--line-strong": "rgba(255, 215, 0, 0.38)",
+      "--primary": "#ffd700",
+      "--primary-hover": "#ffe533",
+      "--primary-rgb": "255, 215, 0",
+      "--accent": "#708090",
+    },
+    effects: ["theme-scanlines"],
+  },
+];
+
+/** Quick lookup by id. */
+export const THEME_MAP = Object.fromEntries(THEMES.map((t) => [t.id, t]));
+
+/** Default theme when none is stored. */
+export const DEFAULT_THEME_ID = "apple-dark";
+
+/** Legacy ids that used to live in localStorage under `ap:theme`. */
+const LEGACY_MAP = {
+  dark: "apple-dark",
+  light: "apple-light",
+};
+
+export function resolveThemeId(stored) {
+  if (!stored) return DEFAULT_THEME_ID;
+  if (THEME_MAP[stored]) return stored;
+  if (LEGACY_MAP[stored]) return LEGACY_MAP[stored];
+  return DEFAULT_THEME_ID;
+}
+
+export function getTheme(id) {
+  return THEME_MAP[resolveThemeId(id)];
+}

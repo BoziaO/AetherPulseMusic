@@ -11,7 +11,7 @@
         </button>
       </header>
 
-      <div ref="containerRef" class="modal-body">
+      <div ref="containerRef" class="modal-body custom-scroll">
         <div v-if="loading" class="state-msg">{{ t('searching') }}</div>
 
         <div v-else-if="timedLines.length" class="lines">
@@ -141,9 +141,9 @@ function parseTimedLyrics(text) {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  padding: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 16px;
 }
 
 @media (min-width: 720px) {
@@ -154,37 +154,44 @@ function parseTimedLyrics(text) {
 
 .modal {
   width: 100%;
-  max-width: 540px;
-  max-height: 86vh;
+  max-width: 600px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card-strong);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(30, 30, 35, 0.98) 0%, rgba(20, 20, 25, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-strong);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .modal-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .modal-subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
+  margin: 4px 0 0;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.5);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,46 +200,99 @@ function parseTimedLyrics(text) {
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 32px 24px;
+  scroll-behavior: smooth;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .state-msg {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
-  color: var(--text-tertiary);
-  font-size: 14px;
+  min-height: 200px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .line {
   text-align: left;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.6;
   letter-spacing: -0.01em;
-  padding: 6px 8px;
-  border-radius: var(--radius-md);
-  color: var(--text-tertiary);
-  transition: color var(--transition-fast);
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb, 255, 255, 255), 0.1) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.line:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(4px);
+}
+
+.line:hover::before {
+  opacity: 1;
 }
 
 .line.is-active {
-  color: var(--text-primary);
+  color: #fff;
+  background: rgba(var(--primary-rgb, 255, 255, 255), 0.12);
+  font-weight: 800;
+  transform: translateX(6px);
+  box-shadow: 0 4px 20px rgba(var(--primary-rgb, 255, 255, 255), 0.15);
+}
+
+.line.is-active::before {
+  opacity: 1;
 }
 
 .plain {
   margin: 0;
   white-space: pre-wrap;
   font-family: inherit;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.01em;
 }
 </style>

@@ -1,0 +1,304 @@
+/* ============================================================
+   Theme-specific page effects
+   Activated by `html[data-theme-fx~="<name>"]`.
+   Intentionally GPU-cheap — single pseudo-element per effect.
+   ============================================================ */
+
+html[data-theme-fx~="theme-scanlines"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.18) 2px,
+    rgba(0, 0, 0, 0.18) 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.35;
+}
+
+html[data-theme-fx~="theme-glitch"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 229, 255, 0.06) 50%,
+      transparent 100%
+    );
+  animation: theme-glitch-sweep 7s linear infinite;
+  opacity: 0;
+}
+
+@keyframes theme-glitch-sweep {
+  0%, 92%, 100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  93% {
+    opacity: 0.8;
+    transform: translateX(-2%);
+  }
+  94% {
+    opacity: 0.4;
+    transform: translateX(1%);
+  }
+  95% {
+    opacity: 0.8;
+    transform: translateX(-1%);
+  }
+  96% {
+    opacity: 0;
+  }
+}
+
+html[data-theme-fx~="theme-flicker"] .page-title,
+html[data-theme-fx~="theme-flicker"] .card-title,
+html[data-theme-fx~="theme-flicker"] .wrapped-title {
+  animation: theme-candle-flicker 6s ease-in-out infinite;
+}
+
+@keyframes theme-candle-flicker {
+  0%, 100% { opacity: 1; text-shadow: 0 0 6px rgba(var(--primary-rgb), 0.25); }
+  43% { opacity: 0.92; }
+  44% { opacity: 0.75; }
+  45% { opacity: 0.95; }
+  47% { opacity: 0.85; }
+  48% { opacity: 1; }
+}
+
+html[data-theme-fx~="theme-dream-haze"] body::before {
+  content: "";
+  position: fixed;
+  top: -20%;
+  right: -20%;
+  width: 60vw;
+  height: 60vw;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(
+    circle,
+    rgba(var(--primary-rgb), 0.18) 0%,
+    rgba(var(--primary-rgb), 0) 70%
+  );
+  filter: blur(40px);
+  animation: dream-drift 14s ease-in-out infinite alternate;
+}
+
+@keyframes dream-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-6vw, 8vh) scale(1.1); }
+}
+
+html[data-theme-fx~="theme-bass-pulse"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(
+    circle at 50% 100%,
+    rgba(var(--primary-rgb), 0.15) 0%,
+    transparent 60%
+  );
+  animation: bass-pulse 2s ease-in-out infinite;
+}
+
+@keyframes bass-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+html[data-theme-fx~="theme-chrome-glow"] body::before {
+  content: "";
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: -1;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(var(--primary-rgb), 0.1) 60deg,
+    transparent 120deg,
+    rgba(var(--primary-rgb), 0.08) 180deg,
+    transparent 240deg,
+    rgba(var(--primary-rgb), 0.1) 300deg,
+    transparent 360deg
+  );
+  animation: chrome-rotate 20s linear infinite;
+}
+
+@keyframes chrome-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+html[data-now-playing="true"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(
+      circle at 0% 100%,
+      rgba(var(--primary-rgb), 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(var(--primary-rgb), 0.08) 0%,
+      transparent 50%
+    );
+  animation: now-playing-breath 6s ease-in-out infinite alternate;
+}
+
+@keyframes now-playing-breath {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+html[data-now-playing="true"] .progress-strip .strip::-webkit-slider-thumb {
+  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
+  animation: thumb-pulse 2s ease-in-out infinite;
+}
+
+@keyframes thumb-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6); }
+  50% { box-shadow: 0 0 16px rgba(var(--primary-rgb), 0.9); }
+}
+
+html[data-now-playing="true"] .cover img,
+html[data-now-playing="true"] .mini-cover img {
+  animation: cover-breathe 4s ease-in-out infinite;
+}
+
+@keyframes cover-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes scroll-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::-webkit-scrollbar-thumb {
+  animation: scrollbar-entrance 0.3s ease-out;
+}
+
+@keyframes scrollbar-entrance {
+  from {
+    opacity: 0;
+    transform: scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.scroll-animate {
+  animation: scroll-fade-in 0.6s ease-out both;
+}
+
+.scroll-animate-delay-1 { animation-delay: 0.1s; }
+.scroll-animate-delay-2 { animation-delay: 0.2s; }
+.scroll-animate-delay-3 { animation-delay: 0.3s; }
+
+/* ============================================================
+   Equalizer — shown on the currently playing row / card
+   ============================================================ */
+.eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  width: 16px;
+}
+
+.eq-bars span {
+  flex: 1;
+  background: var(--primary);
+  border-radius: 1px;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.eq-bars span:nth-child(1) { animation-delay: -0.9s; }
+.eq-bars span:nth-child(2) { animation-delay: -0.6s; }
+.eq-bars span:nth-child(3) { animation-delay: -0.3s; }
+.eq-bars span:nth-child(4) { animation-delay: 0s; }
+
+.eq-bars.is-paused span {
+  animation-play-state: paused;
+}
+
+@keyframes eq-bounce {
+  0%, 100% { height: 18%; }
+  50% { height: 100%; }
+}
+
+/* ============================================================
+   Album vinyl spin (FullPlayer) while playing
+   ============================================================ */
+.album-cover.is-spinning img {
+  animation: vinyl-spin 22s linear infinite;
+}
+
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Vinyl grooves overlay (SVG background) for extra authenticity. */
+.album-cover.is-vinyl::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.02) 0px,
+      rgba(255, 255, 255, 0.02) 2px,
+      rgba(0, 0, 0, 0.18) 3px,
+      rgba(0, 0, 0, 0.18) 4px
+    );
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* ============================================================
+   Reduced-motion guard — all theme FX and listening animations
+   go silent for users who opt out.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-fx~="theme-glitch"] body::after,
+  html[data-theme-fx~="theme-flicker"] .page-title,
+  html[data-theme-fx~="theme-flicker"] .card-title,
+  html[data-theme-fx~="theme-flicker"] .wrapped-title,
+  html[data-theme-fx~="theme-dream-haze"] body::before,
+  html[data-now-playing="true"] body::after,
+  .eq-bars span,
+  .album-cover.is-spinning img {
+    animation: none !important;
+  }
+}

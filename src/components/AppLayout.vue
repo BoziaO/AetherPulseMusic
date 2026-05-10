@@ -104,17 +104,7 @@
             </a>
           </div>
         </div>
-        <div v-if="showPrivacyBanner" class="privacy-banner">
-          <p>{{ t('privacyBanner') }}</p>
-          <button
-            class="privacy-close-btn"
-            type="button"
-            :title="t('close')"
-            @click="showPrivacyBanner = false"
-          >
-            <X :size="16" />
-          </button>
-        </div>
+
       </header>
 
       <div class="page">
@@ -149,29 +139,31 @@
       @minimize="playerMinimized = !playerMinimized"
     />
 
-    <FullPlayer
-      v-if="nowPlaying && showFullPlayer"
-      :track="nowPlaying"
-      :is-playing="isPlaying"
-      :current-time="currentTime"
-      :duration="audioDuration"
-      :volume="volume"
-      :shuffle="isShuffled"
-      :repeat-mode="repeatMode"
-      :favorite="favoriteKeys.has(trackKey(nowPlaying))"
-      :playlist-name="getCurrentPlaylistName()"
-      @close="showFullPlayer = false"
-      @toggle-play="togglePlay"
-      @seek="seekTo"
-      @volume="setVolume"
-      @prev="prevTrack"
-      @next="nextTrack"
-      @shuffle="toggleShuffle"
-      @repeat="toggleRepeat"
-      @toggle-favorite="toggleFavoriteTrack(nowPlaying)"
-      @queue="showQueueModal = true"
-      @lyrics="showLyricsModal = true"
-    />
+    <Transition name="full-player">
+      <FullPlayer
+        v-if="nowPlaying && showFullPlayer"
+        :track="nowPlaying"
+        :is-playing="isPlaying"
+        :current-time="currentTime"
+        :duration="audioDuration"
+        :volume="volume"
+        :shuffle="isShuffled"
+        :repeat-mode="repeatMode"
+        :favorite="favoriteKeys.has(trackKey(nowPlaying))"
+        :playlist-name="getCurrentPlaylistName()"
+        @close="showFullPlayer = false"
+        @toggle-play="togglePlay"
+        @seek="seekTo"
+        @volume="setVolume"
+        @prev="prevTrack"
+        @next="nextTrack"
+        @shuffle="toggleShuffle"
+        @repeat="toggleRepeat"
+        @toggle-favorite="toggleFavoriteTrack(nowPlaying)"
+        @queue="showQueueModal = true"
+        @lyrics="showLyricsModal = true"
+      />
+    </Transition>
 
     <QueueModal
       :open="showQueueModal"
@@ -212,6 +204,7 @@ import ToastStack from "./ToastStack.vue";
 import { translate } from "../data/i18n";
 import { buildApiUrl, fetchJson } from "../lib/api";
 import { clamp, normalizeTrack, secondsFromDuration, trackKey } from "../lib/format";
+import { useTheme } from "../lib/useTheme";
 
 const route = useRoute();
 const router = useRouter();
@@ -234,13 +227,16 @@ const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchOpen = ref(false);
 const searchHistory = ref(readJson("ap:search-history", []));
-const showPrivacyBanner = ref(true);
 const toasts = ref([]);
 
 const authSession = ref({ auth: { enabled: false, connected: false } });
 const language = ref(localStorage.getItem("ap:language") || "pl");
-const theme = ref(localStorage.getItem("ap:theme") || "dark");
-const accent = ref(localStorage.getItem("ap:accent") || "#fa243c");
+
+// Theme engine — encapsulates dark/light + preset palettes + accent overrides.
+const themeStore = useTheme();
+const themeId = themeStore.themeId;
+const theme = themeStore.theme;
+const accent = themeStore.accent;
 
 const nowPlaying = ref(null);
 const isPlaying = ref(false);
@@ -348,7 +344,8 @@ function setLanguage(next) {
 }
 
 function setTheme(next) {
-  theme.value = next === "light" ? "light" : "dark";
+  // Use themeStore's setTheme which handles full theme IDs
+  themeStore.setTheme(next);
 }
 
 function setAccent(next) {
@@ -533,14 +530,16 @@ function play(item, newQueue = null) {
   audioDuration.value = track.durationSeconds || secondsFromDuration(track.duration) || 0;
   document.title = `${track.title} — ${t("appName")}`;
 
+  const playedAt = new Date().toISOString();
+  const stampedTrack = { ...track, playedAt };
   recentPlays.value = [
-    track,
+    stampedTrack,
     ...recentPlays.value.filter((entry) => trackKey(entry) !== trackKey(track)),
   ].slice(0, 25);
   fetchJson("/api/user/recent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ track }),
+    body: JSON.stringify({ track: stampedTrack }),
     timeout: 4500,
   }).catch(() => {});
 
@@ -790,6 +789,11 @@ watch(lyricsFollowMode, () => {
   localStorage.setItem("ap-lyrics-follow-mode", JSON.stringify(lyricsFollowMode.value));
 });
 
+// Update data-now-playing attribute for CSS animations
+watch([isPlaying, nowPlaying], ([playing, track]) => {
+  document.documentElement.dataset.nowPlaying = (playing && track) ? "true" : "false";
+});
+
 function handleDocumentClick(event) {
   if (searchRef.value && !searchRef.value.contains(event.target)) searchOpen.value = false;
 }
@@ -827,6 +831,7 @@ provide("appState", {
   t,
   setLanguage,
   theme,
+  themeId: themeStore.themeId,
   setTheme,
   accent,
   setAccent,
@@ -909,45 +914,6 @@ onBeforeUnmount(() => {
   padding: 12px 24px;
   max-width: 1400px;
   margin: 0 auto;
-}
-
-.privacy-banner {
-  background-color: var(--primary); /* Using primary accent color for visibility */
-  color: var(--bg-base); /* Text color that contrasts with primary */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 8px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  border-bottom: 1px solid var(--line);
-  position: relative;
-}
-
-.privacy-banner p {
-  margin: 0;
-}
-
-.privacy-close-btn {
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  border-radius: 4px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  cursor: pointer;
-  transition: background 0.2s;
-  padding: 0;
-}
-
-.privacy-close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 .search-wrap {

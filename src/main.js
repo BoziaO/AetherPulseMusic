@@ -2,6 +2,11 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
 import "./index.css";
+import "./styles/themes.css";
+import { useTheme } from "./lib/useTheme";
+
+// Initialize theme engine before first paint so CSS variables are live
+useTheme();
 
 createApp(App).use(router).mount("#app");
 

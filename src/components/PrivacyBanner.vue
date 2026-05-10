@@ -34,7 +34,7 @@ const visible = ref(true);
   margin: 0 16px 16px;
   margin-top: 8px;
   box-shadow: 0 4px 12px rgba(250, 36, 60, 0.15);
-  display: none;
+  display: block;
   opacity: 1;
   animation: slide-in 0.3s ease-out;
 }

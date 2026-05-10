@@ -109,10 +109,10 @@ function estimateEnergy(track) {
 }
 
 const totalListenMinutes = computed(() => {
-  const total = recentPlays.value.reduce(
-    (sum, track) => sum + (secondsFromDuration(track.duration) || 180),
-    0,
-  );
+  const total = recentPlays.value.reduce((sum, track) => {
+    const sec = Number(track?.durationSeconds) || secondsFromDuration(track?.duration);
+    return sum + (sec > 0 ? sec : 180);
+  }, 0);
   return Math.round(total / 60);
 });
 

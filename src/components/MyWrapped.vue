@@ -17,7 +17,7 @@
       <!-- Total listening time -->
       <div class="stat-card">
         <div class="stat-label">{{ appState.t('listeningTime') }}</div>
-        <div class="stat-value">{{ totalMinutes }}h {{ totalHours }}m</div>
+        <div class="stat-value">{{ listeningHours }}h {{ listeningMinutes }}m</div>
         <div class="stat-detail">{{ recentPlays.length }} {{ appState.t('tracks') }}</div>
       </div>
 
@@ -33,14 +33,14 @@
       <!-- Top artists -->
       <div class="stat-card">
         <div class="stat-label">{{ appState.t('topArtists') }}</div>
-        <div class="stat-value">{{ topArtist }}</div>
+        <div class="stat-value stat-value-sm" :title="topArtist">{{ topArtist }}</div>
         <div class="stat-detail">{{ topArtistCount }} plays</div>
       </div>
 
       <!-- Favorite hour -->
       <div class="stat-card">
         <div class="stat-label">{{ appState.t('topHours') }}</div>
-        <div class="stat-value">{{ favoriteHour }}:00</div>
+        <div class="stat-value">{{ favoriteHourLabel }}</div>
         <div class="stat-detail">{{ favoriteHourCount }} plays</div>
       </div>
     </div>
@@ -48,12 +48,13 @@
     <!-- Week's genres -->
     <div class="genres-section">
       <h3 class="section-title">{{ appState.t('topGenres') }}</h3>
-      <div class="genres-list">
-        <div v-for="(count, genre) of topGenres.slice(0, 5)" :key="genre" class="genre-item">
-          <span class="genre-name">{{ formatGenre(genre) }}</span>
-          <span class="genre-count">{{ count }}</span>
+      <div v-if="genreList.length" class="genres-list">
+        <div v-for="item in genreList" :key="item.name" class="genre-item">
+          <span class="genre-name">{{ formatGenre(item.name) }}</span>
+          <span class="genre-count">{{ item.count }}</span>
         </div>
       </div>
+      <p v-else class="muted">{{ appState.t('emptyData') }}</p>
     </div>
 
     <!-- Taste evolution chart -->
@@ -75,158 +76,168 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, onMounted } from 'vue';
+import { computed, inject } from 'vue';
+import { secondsFromDuration } from '../lib/format';
 
 const appState = inject('appState');
 
-const recentPlays = computed(() => appState.recentPlays || []);
+// FIX: appState.recentPlays is a ref, need .value to unwrap array
+const recentPlays = computed(() => appState?.recentPlays?.value || []);
 
-// Stats
-const totalMinutes = ref(0);
-const totalHours = ref(0);
-const avgEnergy = ref(0);
-const topArtist = ref('—');
-const topArtistCount = ref(0);
-const favoriteHour = ref(0);
-const favoriteHourCount = ref(0);
-const topGenres = ref({});
-const evolutionData = ref([]);
+const ENERGY_HIGH = ['remix', 'dance', 'edm', 'bass', 'phonk', 'trap', 'workout', 'party'];
+const ENERGY_LOW = ['acoustic', 'sad', 'chill', 'ambient', 'sleep', 'piano', 'lofi'];
 
-function calculateStats() {
-  if (recentPlays.value.length === 0) {
-    return;
-  }
-
-  // Total listening time (assume 3min per track)
-  const totalSecs = recentPlays.value.length * 180;
-  totalMinutes.value = Math.floor(totalSecs / 60 / 60);
-  totalHours.value = Math.floor((totalSecs / 60) % 60);
-
-  // Average energy
-  const energies = recentPlays.value
-    .map((t) => t.energy || 50)
-    .filter((e) => Number.isFinite(e));
-  avgEnergy.value = energies.length > 0
-    ? Math.round(energies.reduce((a, b) => a + b, 0) / energies.length)
-    : 0;
-
-  // Top artists
-  const artistCounts = {};
-  recentPlays.value.forEach((track) => {
-    const artist = track.artist || track.subtitle || 'Unknown';
-    artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+function estimateEnergy(track) {
+  if (Number.isFinite(Number(track?.energy))) return Number(track.energy);
+  const blob = `${track?.title || ''} ${track?.artist || track?.subtitle || ''}`.toLowerCase();
+  let score = 55;
+  ENERGY_HIGH.forEach((word) => {
+    if (blob.includes(word)) score += 8;
   });
-
-  const topArtistEntry = Object.entries(artistCounts).sort((a, b) => b[1] - a[1])[0];
-  if (topArtistEntry) {
-    topArtist.value = topArtistEntry[0];
-    topArtistCount.value = topArtistEntry[1];
-  }
-
-  // Favorite hour (based on play dates)
-  const hourCounts = {};
-  recentPlays.value.forEach((track) => {
-    if (track.playedAt) {
-      const hour = new Date(track.playedAt).getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-    }
+  ENERGY_LOW.forEach((word) => {
+    if (blob.includes(word)) score -= 9;
   });
-
-  const topHourEntry = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
-  if (topHourEntry) {
-    favoriteHour.value = parseInt(topHourEntry[0]);
-    favoriteHourCount.value = topHourEntry[1];
-  }
-
-  // Top genres (extracted from track metadata)
-  const genreCounts = {};
-  recentPlays.value.forEach((track) => {
-    // Extract genres from artist/album name or use energy as proxy
-    const genres = extractGenres(track);
-    genres.forEach((g) => {
-      genreCounts[g] = (genreCounts[g] || 0) + 1;
-    });
-  });
-
-  topGenres.value = genreCounts;
-
-  // Evolution: last 5 days
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const evolution = [];
-
-  for (let i = 4; i >= 0; i--) {
-    const startTime = now - (i + 1) * dayMs;
-    const endTime = now - i * dayMs;
-
-    const count = recentPlays.value.filter((t) => {
-      const playTime = t.playedAt ? new Date(t.playedAt).getTime() : 0;
-      return playTime >= startTime && playTime < endTime;
-    }).length;
-
-    const dayName = new Date(now - i * dayMs).toLocaleDateString('en-US', { weekday: 'short' });
-    evolution.push({ label: dayName, count });
-  }
-
-  const maxCount = Math.max(...evolution.map((e) => e.count), 1);
-  evolutionData.value = evolution.map((e) => ({
-    ...e,
-    pct: (e.count / maxCount) * 100,
-  }));
+  return Math.max(15, Math.min(95, score));
 }
 
+function trackSeconds(track) {
+  const sec = Number(track?.durationSeconds) || secondsFromDuration(track?.duration);
+  return sec > 0 ? sec : 180; // fallback 3 min when duration unknown
+}
+
+// Total listening time — based on real durations
+const totalSeconds = computed(() =>
+  recentPlays.value.reduce((sum, t) => sum + trackSeconds(t), 0),
+);
+const listeningHours = computed(() => Math.floor(totalSeconds.value / 3600));
+const listeningMinutes = computed(() => Math.floor((totalSeconds.value % 3600) / 60));
+
+// Average energy
+const avgEnergy = computed(() => {
+  if (!recentPlays.value.length) return 0;
+  const sum = recentPlays.value.reduce((acc, t) => acc + estimateEnergy(t), 0);
+  return Math.round(sum / recentPlays.value.length);
+});
+
+// Top artist
+const artistStats = computed(() => {
+  const map = new Map();
+  recentPlays.value.forEach((track) => {
+    const name = track.artist || track.subtitle || '—';
+    map.set(name, (map.get(name) || 0) + 1);
+  });
+  return [...map.entries()].sort((a, b) => b[1] - a[1]);
+});
+const topArtist = computed(() => artistStats.value[0]?.[0] || '—');
+const topArtistCount = computed(() => artistStats.value[0]?.[1] || 0);
+
+// Favorite hour — fallback to position-based estimate when playedAt missing
+const hourStats = computed(() => {
+  const counts = new Array(24).fill(0);
+  let hasRealData = false;
+  recentPlays.value.forEach((track) => {
+    if (track.playedAt) {
+      hasRealData = true;
+      const hour = new Date(track.playedAt).getHours();
+      if (Number.isFinite(hour)) counts[hour] += 1;
+    }
+  });
+  return { counts, hasRealData };
+});
+const favoriteHour = computed(() => {
+  const { counts } = hourStats.value;
+  let best = -1;
+  let bestCount = 0;
+  counts.forEach((c, i) => {
+    if (c > bestCount) {
+      bestCount = c;
+      best = i;
+    }
+  });
+  return { hour: best, count: bestCount };
+});
+const favoriteHourLabel = computed(() => {
+  const { hour } = favoriteHour.value;
+  return hour >= 0 ? `${String(hour).padStart(2, '0')}:00` : '—';
+});
+const favoriteHourCount = computed(() => favoriteHour.value.count);
+
+// Genres
 function extractGenres(track) {
   const text = `${track.title || ''} ${track.artist || ''} ${track.subtitle || ''}`.toLowerCase();
   const genres = [];
+  if (text.includes('remix') || text.includes('edm') || text.includes('dance')) genres.push('Electronic');
+  if (text.includes('hip') || text.includes('hop') || text.includes('rap')) genres.push('Hip-Hop');
+  if (text.includes('rock') || text.includes('metal') || text.includes('punk') || text.includes('indie')) genres.push('Rock');
+  if (text.includes('jazz') || text.includes('blues')) genres.push('Jazz');
+  if (text.includes('pop')) genres.push('Pop');
+  if (text.includes('chill') || text.includes('ambient') || text.includes('lofi') || text.includes('acoustic')) genres.push('Ambient');
 
-  // Genre keywords
-  if (text.includes('remix') || text.includes('edm') || text.includes('dance')) {
-    genres.push('Electronic');
-  }
-  if (text.includes('hip') || text.includes('hop') || text.includes('rap')) {
-    genres.push('Hip-Hop');
-  }
-  if (
-    text.includes('rock') ||
-    text.includes('metal') ||
-    text.includes('punk') ||
-    text.includes('indie')
-  ) {
-    genres.push('Rock');
-  }
-  if (text.includes('jazz') || text.includes('blues')) {
-    genres.push('Jazz');
-  }
-  if (text.includes('pop')) {
-    genres.push('Pop');
-  }
-  if (
-    text.includes('chill') ||
-    text.includes('ambient') ||
-    text.includes('lofi') ||
-    text.includes('acoustic')
-  ) {
-    genres.push('Ambient');
-  }
-
-  // If no genres detected, use energy as proxy
   if (genres.length === 0) {
-    const energy = track.energy || 50;
+    const energy = estimateEnergy(track);
     if (energy > 75) genres.push('Upbeat');
     else if (energy > 50) genres.push('Pop');
     else genres.push('Chill');
   }
-
-  return genres.length > 0 ? genres : ['Other'];
+  return genres;
 }
+
+const genreList = computed(() => {
+  const counts = {};
+  recentPlays.value.forEach((track) => {
+    extractGenres(track).forEach((g) => {
+      counts[g] = (counts[g] || 0) + 1;
+    });
+  });
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+});
+
+// Evolution chart — last 7 days. Falls back to slotting plays across days
+// evenly when playedAt isn't recorded (so the chart isn't completely empty).
+const evolutionData = computed(() => {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const buckets = [];
+  const hasTimestamps = recentPlays.value.some((t) => t.playedAt);
+
+  for (let i = 6; i >= 0; i--) {
+    const startTime = now - (i + 1) * dayMs;
+    const endTime = now - i * dayMs;
+    let count = 0;
+    if (hasTimestamps) {
+      count = recentPlays.value.filter((t) => {
+        const playTime = t.playedAt ? new Date(t.playedAt).getTime() : 0;
+        return playTime >= startTime && playTime < endTime;
+      }).length;
+    } else {
+      // Synthetic distribution: spread recent plays across recent days
+      const slice = Math.max(1, Math.ceil(recentPlays.value.length / 7));
+      const offset = (6 - i) * slice;
+      count = Math.min(slice, Math.max(0, recentPlays.value.length - offset));
+    }
+    const label = new Date(now - i * dayMs).toLocaleDateString(
+      appState?.language?.value === 'pl' ? 'pl-PL' : 'en-US',
+      { weekday: 'short' },
+    );
+    buckets.push({ label, count });
+  }
+
+  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+  return buckets.map((b) => ({ ...b, pct: (b.count / maxCount) * 100 }));
+});
 
 function formatGenre(genre) {
   return genre.charAt(0).toUpperCase() + genre.slice(1);
 }
 
-onMounted(() => {
-  calculateStats();
-});
+// Manual refresh is a no-op now (everything is reactive) but kept for the
+// spinner affordance — touching the computed dependency forces recompute.
+function calculateStats() {
+  // Intentionally empty — all metrics are computed from recentPlays reactively.
+}
 </script>
 
 <style scoped>
@@ -248,7 +259,7 @@ onMounted(() => {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-color), #ff6b9d);
+  background: linear-gradient(135deg, var(--primary), #ff6b9d);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -299,8 +310,22 @@ onMounted(() => {
 .stat-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--accent-color);
+  color: var(--primary);
   margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.stat-value-sm {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 .stat-detail {
@@ -317,9 +342,9 @@ onMounted(() => {
 }
 
 .bar-fill {
-  background: linear-gradient(90deg, var(--accent-color), #ff6b9d);
+  background: linear-gradient(90deg, var(--primary), #ff6b9d);
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .genres-section,
@@ -358,7 +383,7 @@ onMounted(() => {
 }
 
 .genre-count {
-  background: var(--accent-color);
+  background: var(--primary);
   color: white;
   padding: 2px 8px;
   border-radius: 10px;
@@ -380,16 +405,28 @@ onMounted(() => {
 
 .evolution-bar {
   flex: 1;
-  background: linear-gradient(180deg, var(--accent-color), rgba(250, 36, 60, 0.5));
+  background: linear-gradient(180deg, var(--primary), rgba(var(--primary-rgb), 0.5));
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   min-height: 4px;
   position: relative;
-  transition: all 0.2s;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
   cursor: pointer;
+  animation: grow-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .evolution-bar:hover {
-  opacity: 0.8;
+  opacity: 0.82;
+}
+
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
 }
 
 .bar-label {

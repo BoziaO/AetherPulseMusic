@@ -1,5 +1,8 @@
 <template>
-  <section class="player-bar fixed inset-x-0 bottom-0 z-[200] lg:left-[260px]">
+  <section
+    class="player-bar fixed inset-x-0 bottom-0 z-[200] lg:left-[260px]"
+    :class="{ 'is-minimized': minimized }"
+  >
     <div class="player-inner">
       <!-- Progress strip on top edge -->
       <div class="progress-strip">
@@ -16,7 +19,8 @@
         />
       </div>
 
-      <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 py-3" :class="{ 'hidden': minimized }">
+      <!-- Full player (shown when not minimized) -->
+      <div v-show="!minimized" class="player-full">
          <!-- Track info -->
          <div class="track-info">
            <button
@@ -57,7 +61,13 @@
              <button class="icon-btn" type="button" :title="t('previous')" @click="$emit('prev')">
                <SkipBack :size="20" fill="currentColor" />
              </button>
-             <button class="play-btn" type="button" :title="isPlaying ? t('pause') : t('play')" @click="$emit('toggle-play')">
+             <button
+               class="play-btn"
+               :class="{ 'is-playing': isPlaying }"
+               type="button"
+               :title="isPlaying ? t('pause') : t('play')"
+               @click="$emit('toggle-play')"
+             >
                <Pause v-if="isPlaying" :size="20" fill="currentColor" />
                <Play v-else :size="20" fill="currentColor" class="translate-x-[1px]" />
              </button>
@@ -98,22 +108,64 @@
              />
            </div>
            <button class="icon-btn" type="button" :title="t('collapsePlayer')" @click="$emit('minimize')">
-             <ChevronUp :size="18" />
+             <ChevronDown :size="18" />
            </button>
          </div>
        </div>
-       <!-- Minimized player controls -->
-       <div v-if="minimized" class="minimized-controls">
-         <button class="icon-btn" type="button" :title="isPlaying ? t('pause') : t('play')" @click="$emit('toggle-play')">
-           <Pause v-if="isPlaying" :size="18" fill="currentColor" />
-           <Play v-else :size="18" fill="currentColor" />
+
+       <!-- Minimized mini-player: compact pill with cover, title and essentials -->
+       <div v-show="minimized" class="player-mini">
+         <button
+           class="mini-trigger"
+           type="button"
+           :title="t('expandPlayer')"
+           @click="$emit('expand')"
+         >
+           <span class="mini-cover" :class="{ 'is-playing': isPlaying }">
+             <img v-if="cover" :src="cover" alt="" loading="lazy" />
+             <Music2 v-else :size="14" :style="{ color: 'var(--text-tertiary)' }" />
+           </span>
+           <span class="mini-meta">
+             <span class="mini-title">{{ track?.title }}</span>
+             <span class="mini-artist">{{ artist }}</span>
+           </span>
          </button>
-         <button class="icon-btn" type="button" :title="t('expandPlayer')" @click="$emit('expand')">
-           <ChevronDown :size="18" />
-         </button>
-         <button class="icon-btn" type="button" :title="t('collapsePlayer')" @click="$emit('minimize')">
-           <ChevronUp :size="18" />
-         </button>
+         <div class="mini-controls">
+           <button
+             class="icon-btn"
+             type="button"
+             :title="t('previous')"
+             @click.stop="$emit('prev')"
+           >
+             <SkipBack :size="16" fill="currentColor" />
+           </button>
+           <button
+             class="play-btn mini-play"
+             :class="{ 'is-playing': isPlaying }"
+             type="button"
+             :title="isPlaying ? t('pause') : t('play')"
+             @click.stop="$emit('toggle-play')"
+           >
+             <Pause v-if="isPlaying" :size="16" fill="currentColor" />
+             <Play v-else :size="16" fill="currentColor" class="translate-x-[1px]" />
+           </button>
+           <button
+             class="icon-btn"
+             type="button"
+             :title="t('next')"
+             @click.stop="$emit('next')"
+           >
+             <SkipForward :size="16" fill="currentColor" />
+           </button>
+           <button
+             class="icon-btn"
+             type="button"
+             :title="t('expandPlayer')"
+             @click.stop="$emit('minimize')"
+           >
+             <ChevronUp :size="16" />
+           </button>
+         </div>
        </div>
     </div>
   </section>
@@ -195,10 +247,25 @@ const progressPercent = computed(() =>
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
   border-top: 1px solid var(--line);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+  animation: bar-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes bar-rise {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .player-inner {
   position: relative;
+  transition: padding var(--transition-base);
 }
 
 .progress-strip {
@@ -208,6 +275,7 @@ const progressPercent = computed(() =>
   right: 0;
   height: 4px;
   pointer-events: auto;
+  z-index: 2;
 }
 
 .progress-strip .strip {
@@ -220,6 +288,27 @@ const progressPercent = computed(() =>
 
 .progress-strip .strip::-webkit-slider-runnable-track {
   height: 4px;
+}
+
+/* Full-bar layout (not minimized) */
+.player-full {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  animation: fade-swap 260ms ease both;
+}
+
+@keyframes fade-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .track-info {
@@ -318,15 +407,31 @@ const progressPercent = computed(() =>
   border-radius: 50%;
   background: var(--text-primary);
   color: var(--bg-base);
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .play-btn:hover {
   transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 .play-btn:active {
   transform: scale(0.96);
+}
+
+.play-btn.is-playing {
+  box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.35);
+  animation: play-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes play-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(var(--primary-rgb), 0.35);
+  }
+  50% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 6px rgba(var(--primary-rgb), 0);
+  }
 }
 
 .relative-btn {
@@ -367,11 +472,123 @@ const progressPercent = computed(() =>
   }
 }
 
-.minimized-controls {
+/* ============================================================
+   Minimized / mini-player styling (compact pill)
+   ============================================================ */
+.player-bar.is-minimized {
+  background: var(--bg-player);
+  border-top: 1px solid var(--line);
+}
+
+.player-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  min-height: 56px;
+  animation: fade-swap 260ms ease both;
+}
+
+.mini-trigger {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.mini-trigger:hover {
+  background: var(--bg-hover);
+}
+
+.mini-cover {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-elevated);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+
+.mini-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.mini-cover.is-playing img {
+  animation: mini-cover-breathe 4s ease-in-out infinite;
+}
+
+@keyframes mini-cover-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.mini-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mini-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.mini-artist {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.mini-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mini-controls .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.play-btn.mini-play {
+  width: 34px;
+  height: 34px;
+}
+
+@media (max-width: 480px) {
+  .mini-controls .icon-btn:not(.mini-play):nth-child(1),
+  .mini-controls .icon-btn:not(.mini-play):nth-child(3) {
+    display: none;
+  }
 }
 </style>

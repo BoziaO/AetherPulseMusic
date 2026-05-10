@@ -1,19 +1,74 @@
-# AetherPulse Music
+# 🎵 AetherPulse Music
 
-An Apple Music–inspired web player for **YouTube Music**. Built with **Vue 3 + Vite** on the front end and a thin **Express 5** backend that talks to the YouTube Music Innertube API. Includes search, playback (YouTube IFrame API), local + library playlists, favorites, recents, synced lyrics, queue, insights, and PL/EN UI.
+> **A next-generation YouTube Music player with stunning visuals and immersive themes**
+
+[![Vue 3](https://img.shields.io/badge/Vue%203-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white)](https://vuejs.org/)
+[![Vite 8](https://img.shields.io/badge/Vite%208-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Express 5](https://img.shields.io/badge/Express%205-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
+[![YouTube Music API](https://img.shields.io/badge/YouTube%20Music-FF0000?style=for-the-badge&logo=youtube-music&logoColor=white)](https://music.youtube.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 ---
 
-## Highlights
+## ✨ Features
 
-- **Apple Music UI** — pure-black canvas, glass sidebar/topbar, pink (`#FA243C`) accent (swappable), rounded cards, spinning vinyl in the full player.
-- **YouTube Music search & playback** — songs, albums, artists, playlists, charts, moods, lyrics — all via the Innertube backend.
-- **Local playlists** — create, import (paste any YouTube playlist ID), and play offline-stored playlists.
-- **Smart Flow Composer** — generates a station from your recent listens, tunable by length and discovery level.
-- **Insights** — total minutes, average energy, top artists, listening history.
-- **Persisted state** — favorites, recents, search history, theme, accent, language, and volume saved in `localStorage` and mirrored to the backend.
-- **Optional Google OAuth** — read your YouTube Music library (playlists, liked songs, albums, artists).
-- **Keyboard shortcuts** — `Space`/`K` play, `←/→` seek, `Shift+←/→` prev/next, `Q` queue, `L` lyrics, `/` focus search, `Esc` close.
+### 🎨 **Immersive Themes**
+Choose from **12+ handcrafted themes** that transform your entire experience:
+- **Apple Dark/Light** — Clean, minimal, familiar
+- **Cyberpunk Edgerunners** — Neon glitch aesthetics with scanlines
+- **Gothic** — Crimson Victorian vibes with candle flicker
+- **Metal** — Industrial chrome with sharp edges
+- **Kai Angel** — Dreamy pastels with floating haze
+- **Phonk** — Aggressive drift culture with bass pulse
+- **Y2K** — Futuristic chrome with rotating gradients
+- **Synthwave** — Retrowave sunset grids
+- **Vampire** — Bloodmoon baroque elegance
+- **Matrix** — Classic terminal green
+- **Emo Revival** — Raw emotional aesthetics
+- **Industrial** — Mechanical hazard yellow
+
+### 🎭 **Dynamic Animations**
+- **Now-playing ambience** — Background pulses with your music
+- **Vinyl spin** — Album art rotates during playback
+- **Equalizer bars** — Animated indicators on active tracks
+- **Cover art breathing** — Subtle scale animation while playing
+- **Progress bar glow** — Pulsing thumb during playback
+- **Theme effects** — Scanlines, glitch, flicker, chrome glow, and more
+
+### 🎵 **Full Playback Experience**
+- **YouTube Music integration** — Search, play, discover
+- **Smart Flow Composer** — AI-generated stations from your taste
+- **Queue management** — Shuffle, repeat, save playlists
+- **Timestamp notes** — Add contextual notes at any point
+- **Synced lyrics** — Follow along with LRCLIB integration
+- **Audio visualizer** — Real-time frequency visualization
+
+### 📊 **Insights & Statistics**
+- **My Wrapped** — Listening time, top artists, favorite hours
+- **Genre analysis** — Discover your weekly taste patterns
+- **Energy tracking** — Average energy of your listening sessions
+- **Evolution chart** — See how your taste changes over time
+
+### 🔒 **Privacy-First**
+- **Local storage** — Your data stays on your device
+- **No telemetry** — Zero tracking, zero analytics
+- **Optional sync** — Google OAuth only if you want library access
+- **Open source** — Fully transparent codebase
+
+### 🌍 **Bilingual**
+- **Polish** 🇵🇱 (default)
+- **English** 🇬🇧
+
+### ⌨️ **Keyboard Shortcuts**
+| Key | Action |
+|---|---|
+| `Space` / `K` | Play / Pause |
+| `←` / `→` | Seek -10s / +10s |
+| `Shift + ←` / `Shift + →` | Previous / Next track |
+| `Q` | Open queue |
+| `L` | Open lyrics |
+| `/` | Focus search |
+| `Esc` | Close modals |
 
 ---
 
@@ -37,23 +92,31 @@ An Apple Music–inspired web player for **YouTube Music**. Built with **Vue 3 +
 
 ---
 
-## Quick start
+## 🚀 Quick Start
 
 ```bash
-git clone <repo>
-cd AetherPulseMusic
+# Clone the repository
+git clone <repo-url>
+cd AetherPulseMusic2
+
+# Install dependencies
 npm install
-copy .env.example .env       # PowerShell / cmd
-# cp .env.example .env       # Bash
+
+# Set up environment
+cp .env.example .env
+
+# Start development servers
 npm run dev
 ```
 
-| URL | What |
-|---|---|
-| `http://localhost:5000` | Vue dev server (Vite) |
-| `http://localhost:3001` | Express API |
+**You're ready to go!** 🎉
 
-The Vite dev server proxies `/api/**` to the Express server, so you do not need to set `VITE_API_BASE_URL` for local development.
+| Service | URL |
+|---|---|
+| 🎨 Frontend (Vite) | `http://localhost:5000` |
+| 🔧 Backend (Express) | `http://localhost:3001` |
+
+> The Vite dev server automatically proxies `/api/**` to Express, so no extra configuration needed for local development.
 
 ---
 
@@ -70,116 +133,192 @@ npm run preview    # Serve the built dist/ via Vite
 
 ---
 
-## Production
+## 🏗️ Production Deployment
 
 ```bash
+# Build the frontend
 npm run build
-set NODE_ENV=production
-set SESSION_SECRET=<long-random-string>
+
+# Set production environment variables
+export NODE_ENV=production
+export SESSION_SECRET=<your-long-random-string>
+
+# Start the server
 npm run server
 ```
 
-In production the Express server hosts everything from a single port (`PORT`, default `5000`):
+**Production mode:**
+- Express serves static files from `dist/`
+- Single port deployment (default `5000`)
+- API routes at `/api/**`
+- SPA fallback to `dist/index.html`
 
-- Static assets from `dist/`.
-- API routes under `/api/**`.
-- HTML 5 history fallback to `dist/index.html` for client-side routing.
-
-`SESSION_SECRET` is **required** in production — the server refuses to start without it.
+> ⚠️ `SESSION_SECRET` is **required** in production — the server will refuse to start without it.
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
-All variables are documented in [`.env.example`](./.env.example). Key ones:
+All environment variables are documented in [`.env.example`](./.env.example).
 
-| Variable | Required | Notes |
+### Key Variables
+
+| Variable | Environment | Default | Description |
+|---|---|---|---|
+| `BACKEND_PORT` | Development | `3001` | API server port |
+| `PORT` | Production | `5000` | Unified server port |
+| `FRONTEND_URL` | Both | `http://localhost:5000` | CORS & OAuth redirect |
+| `SESSION_SECRET` | Production | *Required* | Session encryption key |
+| `VITE_API_BASE_URL` | Both | *Empty* | Custom API origin |
+| `GOOGLE_CLIENT_ID` | Optional | *Empty* | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Optional | *Empty* | Google OAuth secret |
+| `GOOGLE_CALLBACK_URL` | With OAuth | *Empty* | OAuth redirect URI |
+| `AETHERPULSE_DATA_DIR` | Optional | OS temp | Data storage location |
+
+### YouTube Music Authentication (Optional)
+
+For access to private library features (liked songs, personal playlists):
+
+1. Create `headers.json` in the project root (already gitignored)
+2. Add your YouTube Music cookies/headers
+3. Public endpoints work without this file
+
+---
+
+## 🗺️ API Reference
+
+### Authentication
+| Method | Endpoint | Description |
 |---|---|---|
-| `BACKEND_PORT` | dev only | API port in dev (default `3001`). Production uses `PORT`. |
-| `FRONTEND_URL` | always | Used for CORS and OAuth redirect resolution. |
-| `SESSION_SECRET` | production | Long random string. Dev falls back to a placeholder. |
-| `VITE_API_BASE_URL` | optional | Set when frontend and backend live on different origins. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Enable Google OAuth login for library sync. |
-| `GOOGLE_CALLBACK_URL` | with OAuth | Must match the redirect URI in Google Cloud Console. |
-| `AETHERPULSE_DATA_DIR` | optional | Where the server stores local playlists / user state JSON. |
+| `GET` | `/api/auth/session` | Get current auth status |
+| `GET` | `/api/auth/google` | Initiate Google OAuth flow |
+| `POST` | `/api/auth/logout` | Clear user session |
 
-### YouTube Music auth (optional)
-
-For library/private endpoints (your liked songs, your playlists, etc.) you can drop a YouTube Music headers file at the project root:
-
-```
-./headers.json
-```
-
-`headers.json` is gitignored. If absent, public endpoints (search, charts, moods, public artist/album/playlist pages) still work.
-
----
-
-## API surface (selected)
-
-| Method | Path | Purpose |
+### YouTube Music
+| Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/auth/session` | Auth status. |
-| `GET` | `/api/auth/google` | Begin Google OAuth. |
-| `POST` | `/api/auth/logout` | Clear session. |
-| `GET` | `/api/ytmusic/search?q=&filter=&limit=` | YouTube Music search. |
-| `GET` | `/api/ytmusic/artist/:channelId` | Artist details. |
-| `GET` | `/api/ytmusic/album/:browseId` | Album with tracks. |
-| `GET` | `/api/ytmusic/playlist/:playlistId` | Playlist with tracks. |
-| `GET` | `/api/ytmusic/charts` | Top charts. |
-| `GET` | `/api/page/:key` | Aggregated page payloads (`home`, `discover`, `chill`, `energy`, `playlists`, `albums`, `artists`, `favorites`, `recent`). |
-| `POST` | `/api/flows/revolution` | Generate a Smart Flow station. |
-| `GET`/`POST`/`DELETE` | `/api/local/playlists/...` | CRUD for local playlists. |
-| `GET`/`PATCH` | `/api/user/state` | Hydrate / persist user state. |
-| `POST` | `/api/user/recent` | Append a track to recents. |
-| `POST` | `/api/user/favorites/toggle` | Toggle a track in favorites. |
-| `POST` | `/api/user/queues` | Save a named queue. |
-| `GET` | `/api/lyrics?videoId=&title=&artist=` | Synced lyrics (LRCLIB + fallbacks). |
+| `GET` | `/api/ytmusic/search?q=&filter=&limit=` | Search YouTube Music |
+| `GET` | `/api/ytmusic/artist/:channelId` | Get artist details |
+| `GET` | `/api/ytmusic/album/:browseId` | Get album with tracks |
+| `GET` | `/api/ytmusic/playlist/:playlistId` | Get playlist with tracks |
+| `GET` | `/api/ytmusic/charts` | Get top charts |
+
+### Pages & Flows
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/page/:key` | Get aggregated page data |
+| `POST` | `/api/flows/revolution` | Generate Smart Flow station |
+
+### User Data
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET`/`PATCH` | `/api/user/state` | Get/update user state |
+| `POST` | `/api/user/recent` | Add track to recent plays |
+| `POST` | `/api/user/favorites/toggle` | Toggle favorite track |
+| `POST` | `/api/user/queues` | Save named queue |
+
+### Local Playlists & Lyrics
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET`/`POST`/`DELETE` | `/api/local/playlists/*` | Manage local playlists |
+| `GET` | `/api/lyrics?videoId=&title=&artist=` | Get synced lyrics |
 
 ---
 
-## Project layout
+## 📁 Project Structure
 
-```text
-AetherPulseMusic/
-├── public/                 favicon, manifest, service worker
-├── src/
-│   ├── App.vue
-│   ├── main.js
-│   ├── index.css           Apple Music design tokens
-│   ├── router/             Vue Router
-│   ├── components/         Sidebar, PlayerBar, FullPlayer, modals, etc.
-│   ├── views/              MusicPage, Settings, Insights, Album, Artist
-│   ├── data/               i18n.js, navigation.js
-│   └── lib/                api.js, format.js
-├── server/
-│   ├── index.js            Express bootstrap
-│   ├── ytmusic.js          Innertube client
-│   ├── routes/             auth, ytmusic, pages, flows, lyrics, user, localPlaylists
-│   └── utils/helpers.js
-├── .env.example
-├── tailwind.config.cjs
-├── postcss.config.cjs
-├── vite.config.js
-└── package.json
+```
+AetherPulseMusic2/
+├── public/                     # Static assets
+│   ├── favicon.ico
+│   ├── manifest.json
+│   └── sw.js                  # Service worker
+├── src/                        # Frontend source
+│   ├── App.vue                # Root component
+│   ├── main.js                # Application entry
+│   ├── index.css              # Design tokens & base styles
+│   ├── components/            # Reusable Vue components
+│   │   ├── AppLayout.vue      # Main layout with player
+│   │   ├── FullPlayer.vue     # Expanded player view
+│   │   ├── PlayerBar.vue      # Bottom player bar
+│   │   ├── Sidebar.vue        # Navigation sidebar
+│   │   └── ...                # More components
+│   ├── views/                 # Page components
+│   │   ├── MusicPage.vue      # Dynamic page renderer
+│   │   ├── InsightsPage.vue   # Statistics dashboard
+│   │   ├── SettingsPage.vue   # User settings
+│   │   └── ...                # More views
+│   ├── data/                  # Static data
+│   │   ├── i18n.js            # Translations (PL/EN)
+│   │   └── themes.js          # Theme definitions
+│   ├── lib/                   # Utilities
+│   │   ├── api.js             # API client
+│   │   ├── format.js          # Data formatters
+│   │   └── useTheme.js        # Theme engine
+│   └── router/                # Vue Router config
+├── server/                     # Backend source
+│   ├── index.js               # Express bootstrap
+│   ├── ytmusic.js             # YouTube Music client
+│   ├── routes/                # API route handlers
+│   └── utils/                 # Helpers & database
+├── .env.example               # Environment template
+├── package.json               # Dependencies & scripts
+├── vite.config.js             # Vite configuration
+└── README.md                  # This file
 ```
 
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-| Symptom | Likely cause / fix |
+| Issue | Solution |
 |---|---|
-| Empty home page, "Blad polaczenia z API" toast | Backend not running. Start `npm run server` or `npm run dev`. |
-| `SESSION_SECRET must be set in production` | Set the env var before running with `NODE_ENV=production`. |
-| Album page is empty | Some albums are region-locked or video-only on YouTube — try another. |
-| Google login does nothing | `GOOGLE_CLIENT_ID` / secret missing or callback URL mismatch with Cloud Console. |
-| Lyrics say "No results" | LRCLIB has no entry for that title/artist. Try a different version. |
+| Empty home page, "Blad polaczenia z API" toast | Backend not running. Run `npm run dev` or `npm run server` |
+| `SESSION_SECRET must be set in production` | Set the environment variable before starting in production mode |
+| Album page is empty | Some albums are region-locked or video-only on YouTube |
+| Google login doesn't work | Check `GOOGLE_CLIENT_ID`, secret, and callback URL match Google Cloud Console |
+| Lyrics show "No results" | LRCLIB may not have entries for all tracks; try different versions |
+| Visualizer not working | Ensure music is playing; visualizer captures audio from the player |
 
 ---
 
-## Notes
+## 🤝 Contributing
 
-- Playback uses the YouTube IFrame Player at `#yt-hidden-player`. Tracks without a `videoId` cannot be played — they are still listed for browsing.
-- Local playlists, recents, and favorites live in `localStorage` first; the backend mirror is best-effort.
-- All UI strings are in `src/data/i18n.js` and ship in Polish (default) and English.
+Contributions are welcome! Here's how you can help:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Guidelines
+- Follow the existing code style
+- Add comments for complex logic
+- Test your changes thoroughly
+- Update documentation if needed
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 💡 Notes
+
+- **Playback**: Uses YouTube IFrame Player at `#yt-hidden-player`. Tracks without `videoId` are listed but not playable
+- **Storage**: Local data (playlists, recents, favorites) uses `localStorage` with backend mirror (best-effort)
+- **i18n**: All UI strings in `src/data/i18n.js` - Polish (default) and English
+- **Performance**: Optimized with code splitting, lazy loading, and efficient reactivity
+
+---
+
+<div align="center">
+
+**Made with ❤️ for music lovers**
+
+⭐ If you like this project, please consider giving it a star!
+
+</div>

@@ -1,6 +1,6 @@
 # AetherPulse Music
 
-An Apple Music–inspired web player for **YouTube Music**. Built with **Vue 3 + Vite** on the front end and a thin **Express 5** backend that talks to the YouTube Music Innertube API. Includes search, playback (YouTube IFrame API), local + library playlists, favorites, recents, synced lyrics, queue, insights, and PL/EN UI.
+AetherPulse web player for **YouTube Music**. Built with **Vue 3 + Vite** on the front end and a thin **Express 5** backend that talks to the YouTube Music Innertube API. Includes search, playback (YouTube IFrame API), local + library playlists, favorites, recents, synced lyrics, queue, insights, and PL/EN UI.
 
 ---
 

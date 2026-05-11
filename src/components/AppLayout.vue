@@ -4,8 +4,8 @@
 
     <main class="main" :class="nowPlaying ? 'has-player' : ''">
       <header class="topbar">
-        <div class="topbar-inner">
-          <button class="icon-btn lg:hidden" type="button" :title="t('navHome')" @click="sidebarOpen = true">
+        <div class="topbar-inner" :class="{ 'search-active': searchOpen }">
+          <button class="icon-btn hamburger-btn lg:hidden" type="button" :title="t('navHome')" @click="sidebarOpen = true">
             <Menu :size="20" />
           </button>
 
@@ -16,6 +16,7 @@
               v-model="query"
               class="search-input"
               type="search"
+              inputmode="search"
               :placeholder="t('searchPlaceholder')"
               @focus="searchOpen = true"
               @keydown.enter.prevent="saveSearch(query)"
@@ -110,6 +111,12 @@
               </div>
             </Transition>
           </div>
+
+          <button
+            class="search-cancel-btn"
+            type="button"
+            @click="searchOpen = false; query = ''; $refs.searchInputRef?.blur()"
+          >{{ t('cancel') }}</button>
 
           <div class="header-actions">
             <RouterLink class="icon-btn" to="/insights" :title="t('navInsights')">
@@ -946,6 +953,11 @@ onBeforeUnmount(() => {
   padding-bottom: 92px;
 }
 
+/* ── Cancel button (mobile only, hidden by default) ── */
+.search-cancel-btn {
+  display: none;
+}
+
 @media (max-width: 600px) {
   .main.has-player {
     padding-bottom: 130px;
@@ -956,7 +968,57 @@ onBeforeUnmount(() => {
   }
 
   .topbar-inner {
-    padding: 10px 16px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  /* Search input: larger font to stop iOS auto-zoom */
+  .search-input {
+    font-size: 16px;
+    height: 40px;
+  }
+
+  /* When search is open on mobile: hide hamburger + header icons, show cancel */
+  .topbar-inner.search-active .hamburger-btn {
+    display: none;
+  }
+
+  .topbar-inner.search-active .header-actions {
+    display: none;
+  }
+
+  .topbar-inner.search-active .search-cancel-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 6px 4px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /* Dropdown: fixed, edge-to-edge on mobile */
+  .search-pop {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: 62px;
+    max-height: calc(100dvh - 80px);
+    border-radius: 14px;
+  }
+
+  /* Smaller covers on mobile results */
+  .result-cover {
+    width: 42px;
+    height: 42px;
+  }
+
+  .result-row {
+    padding: 7px 8px;
   }
 }
 

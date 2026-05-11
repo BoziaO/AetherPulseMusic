@@ -519,6 +519,36 @@ const progressPercent = computed(() =>
   }
 }
 
+@media (max-width: 600px) {
+  .player-full {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 6px;
+    padding: 8px 12px 10px;
+  }
+
+  .track-info {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .right {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+  }
+
+  .volume {
+    display: none !important;
+  }
+}
+
 /* ============================================================
    Minimized / mini-player styling (compact pill)
    ============================================================ */

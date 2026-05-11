@@ -261,6 +261,33 @@ const favorites = ref(new Set(readJson("boziamusic:favorites", [])));
 const favoriteTracks = ref(readJson("boziamusic:favoriteTracks", {}));
 const lyricsFollowMode = ref(readJson("ap-lyrics-follow-mode", true));
 
+const sleepTimerSeconds = ref(null);
+const sleepTimerMinutes = ref(null);
+let sleepInterval = null;
+
+function setSleepTimer(minutes) {
+  clearSleepTimer();
+  if (!minutes) return;
+  sleepTimerMinutes.value = minutes;
+  sleepTimerSeconds.value = minutes * 60;
+  sleepInterval = setInterval(() => {
+    if (sleepTimerSeconds.value > 0) {
+      sleepTimerSeconds.value -= 1;
+    }
+    if (sleepTimerSeconds.value <= 0) {
+      clearSleepTimer();
+      if (isPlaying.value) togglePlay();
+      showToast(t("sleepTimerDone"), "info");
+    }
+  }, 1000);
+}
+
+function clearSleepTimer() {
+  clearInterval(sleepInterval);
+  sleepTimerSeconds.value = null;
+  sleepTimerMinutes.value = null;
+}
+
 const userStateHydrated = ref(false);
 const lastPersistedUserState = ref("");
 let persistTimer = null;
@@ -857,6 +884,10 @@ provide("appState", {
   toggleFavoriteTrack,
   showToast,
   lyricsFollowMode,
+  sleepTimerSeconds,
+  sleepTimerMinutes,
+  setSleepTimer,
+  clearSleepTimer,
 });
 
 onMounted(() => {
@@ -874,6 +905,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(searchTimer);
   window.clearTimeout(persistTimer);
   stopProgressTimer();
+  clearSleepTimer();
 });
 </script>
 
@@ -892,6 +924,20 @@ onBeforeUnmount(() => {
 
 .main.has-player {
   padding-bottom: 92px;
+}
+
+@media (max-width: 600px) {
+  .main.has-player {
+    padding-bottom: 130px;
+  }
+
+  .page {
+    padding: 16px;
+  }
+
+  .topbar-inner {
+    padding: 10px 16px;
+  }
 }
 
 @media (min-width: 1024px) {

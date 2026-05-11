@@ -87,19 +87,20 @@
             </div>
             <div class="row-actions">
               <button class="ctrl-sm" type="button" :title="t('timestampComments')" @click="showComments = !showComments">
-                <MessageSquare :size="22" />
+                <MessageSquare :size="20" />
               </button>
               <button class="ctrl-sm" type="button" :title="t('audioVisualizer')" @click="showVisualizer = !showVisualizer">
-                ≈
+                <span style="font-size:18px;font-weight:700;line-height:1">≈</span>
               </button>
+              <SleepTimer />
               <button class="ctrl-sm" type="button" :title="t('lyrics')" @click="showLyrics = !showLyrics">
-                <Captions :size="22" :style="showLyrics ? 'color: var(--primary)' : ''" />
+                <Captions :size="20" :style="showLyrics ? 'color: var(--primary)' : ''" />
               </button>
               <button class="ctrl-sm" type="button" :title="t('queue')" @click="$emit('queue')">
-                <ListMusic :size="22" />
+                <ListMusic :size="20" />
               </button>
               <button class="ctrl-sm" type="button" :title="t('favorites')" @click="$emit('toggle-favorite')">
-                <Heart :size="22" :fill="favorite ? 'var(--primary)' : 'none'" :style="favorite ? 'color: var(--primary)' : ''" />
+                <Heart :size="20" :fill="favorite ? 'var(--primary)' : 'none'" :style="favorite ? 'color: var(--primary)' : ''" />
               </button>
             </div>
           </div>
@@ -112,22 +113,32 @@
               <X :size="18" />
             </button>
           </div>
-          <div ref="lyricsContainerRef" class="lyrics-content custom-scroll">
-            <div v-if="lyricsLoading" class="lyrics-loading">{{ t('searching') }}</div>
-            <div v-else-if="timedLyrics.length" class="lyrics-lines">
-              <button
-                v-for="(line, index) in timedLyrics"
-                :key="`${line.time}-${index}`"
-                class="lyric-line"
-                :class="{ 'is-active': activeLyricIndex === index }"
-                type="button"
-                @click="$emit('seek', line.time)"
-              >
-                {{ line.text }}
-              </button>
+          <div class="lyrics-body-wrap">
+            <div ref="lyricsContainerRef" class="lyrics-content custom-scroll">
+              <div v-if="lyricsLoading" class="lyrics-loading">
+                <div class="loading-dots"><span /><span /><span /></div>
+              </div>
+              <div v-else-if="timedLyrics.length" class="lyrics-lines">
+                <button
+                  v-for="(line, index) in timedLyrics"
+                  :key="`${line.time}-${index}`"
+                  class="lyric-line"
+                  :class="{
+                    'is-active': activeLyricIndex === index,
+                    'is-past': index < activeLyricIndex,
+                    'is-future': index > activeLyricIndex && activeLyricIndex >= 0,
+                  }"
+                  type="button"
+                  @click="$emit('seek', line.time)"
+                >
+                  {{ line.text }}
+                </button>
+              </div>
+              <pre v-else-if="plainLyrics" class="lyrics-plain">{{ plainLyrics }}</pre>
+              <div v-else class="lyrics-empty">{{ t('emptyData') }}</div>
             </div>
-            <pre v-else-if="plainLyrics" class="lyrics-plain">{{ plainLyrics }}</pre>
-            <div v-else class="lyrics-empty">{{ t('emptyData') }}</div>
+            <div class="lyrics-fade-top" />
+            <div class="lyrics-fade-bottom" />
           </div>
         </div>
       </div>
@@ -164,6 +175,7 @@ import {
 } from "lucide-vue-next";
 import AudioVisualizer from "./AudioVisualizer.vue";
 import TrackComments from "./TrackComments.vue";
+import SleepTimer from "./SleepTimer.vue";
 import { formatClock } from "../lib/format";
 import { fetchJson } from "../lib/api";
 
@@ -411,15 +423,9 @@ function scrollToActiveLyric(index) {
   if (!lyricsContainerRef.value || index < 0) return;
   const el = lyricsContainerRef.value.querySelector(`.lyric-line:nth-child(${index + 1})`);
   if (!el) return;
-  const top = el.offsetTop;
-  const bottom = top + el.offsetHeight;
-  const viewTop = lyricsContainerRef.value.scrollTop;
-  const viewBottom = viewTop + lyricsContainerRef.value.clientHeight;
-  if (top < viewTop + 24) {
-    lyricsContainerRef.value.scrollTop = Math.max(0, top - 24);
-  } else if (bottom > viewBottom - 24) {
-    lyricsContainerRef.value.scrollTop = Math.max(0, bottom - lyricsContainerRef.value.clientHeight + 24);
-  }
+  const containerHeight = lyricsContainerRef.value.clientHeight;
+  const targetTop = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2;
+  lyricsContainerRef.value.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
 }
 
 function parseTimedLyrics(text) {
@@ -831,28 +837,18 @@ function parseTimedLyrics(text) {
   width: 100%;
 }
 
-/* Inline Lyrics Styles */
-.lyrics-section {
-  margin-top: 20px;
-  width: 100%;
-  max-height: 320px;
+/* Lyrics Panel */
+.lyrics-panel .lyrics-header {
+  padding: 14px 18px;
+  flex-shrink: 0;
+}
+
+.lyrics-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.lyrics-panel .lyrics-header {
-  padding: 16px 20px;
-}
-
-.lyrics-panel .lyrics-content {
-  padding: 20px;
-  max-height: 520px;
 }
 
 .lyrics-header {
@@ -866,18 +862,19 @@ function parseTimedLyrics(text) {
 
 .lyrics-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #fff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .lyrics-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.5);
   transition: all var(--transition-fast);
@@ -886,18 +883,17 @@ function parseTimedLyrics(text) {
 .lyrics-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  transform: scale(1.05);
 }
 
 .lyrics-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 18px;
+  padding: 40px 16px;
   scroll-behavior: smooth;
 }
 
 .lyrics-content::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 .lyrics-content::-webkit-scrollbar-track {
@@ -905,12 +901,28 @@ function parseTimedLyrics(text) {
 }
 
 .lyrics-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
 }
 
-.lyrics-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+.lyrics-fade-top,
+.lyrics-fade-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 56px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lyrics-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
+}
+
+.lyrics-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
 }
 
 .lyrics-loading,
@@ -924,58 +936,74 @@ function parseTimedLyrics(text) {
   font-weight: 500;
 }
 
+.loading-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.loading-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+  30% { transform: translateY(-7px); opacity: 1; }
+}
+
 .lyrics-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 0;
+  padding: 16px 0;
 }
 
 .lyric-line {
-  text-align: left;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.65;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.55;
   padding: 8px 12px;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.22);
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-.lyric-line::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(var(--primary-rgb, 255, 255, 255), 0.08) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.25s;
+  transform-origin: center;
 }
 
 .lyric-line:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.65);
-  transform: translateX(3px);
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.lyric-line:hover::before {
-  opacity: 1;
+.lyric-line.is-past {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
+}
+
+.lyric-line.is-future {
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 16px;
 }
 
 .lyric-line.is-active {
   color: #fff;
-  background: rgba(var(--primary-rgb, 255, 255, 255), 0.15);
-  font-weight: 700;
-  transform: translateX(4px);
-  box-shadow: 0 4px 16px rgba(var(--primary-rgb, 255, 255, 255), 0.12);
-}
-
-.lyric-line.is-active::before {
-  opacity: 1;
+  font-size: 22px;
+  font-weight: 800;
+  transform: scale(1.03);
+  text-shadow:
+    0 0 40px rgba(var(--primary-rgb, 255, 255, 255), 0.55),
+    0 2px 16px rgba(0, 0, 0, 0.4);
 }
 
 .lyrics-plain {
@@ -983,9 +1011,10 @@ function parseTimedLyrics(text) {
   white-space: pre-wrap;
   font-family: inherit;
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.8;
   color: rgba(255, 255, 255, 0.6);
   letter-spacing: 0.01em;
+  text-align: center;
 }
 
 /* Responsive layout */

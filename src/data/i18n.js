@@ -241,6 +241,15 @@ const messages = {
     cantPlay: "Nie udało się odtworzyć utworu.",
     noVideoId: "Ten utwór nie ma identyfikatora wideo.",
     playerNotReady: "Odtwarzacz nie jest jeszcze gotowy.",
+
+    sleepTimer: "Licznik snu",
+    sleepTimerOff: "Wyłącz",
+    sleepTimerDone: "Dobranoc! Odtwarzanie zatrzymane.",
+    sleepTimerActive: "Zatrzyma się za {time}",
+
+    themeMidnightOcean: "Midnight Ocean",
+    themeForest: "Forest",
+    themeAurora: "Aurora",
   },
   en: {
     appName: "AetherPulse Music",
@@ -472,6 +481,16 @@ const messages = {
     cantPlay: "Could not play this track.",
     noVideoId: "This item has no video ID.",
     playerNotReady: "Player is not ready yet.",
+    clear: "Clear",
+
+    sleepTimer: "Sleep Timer",
+    sleepTimerOff: "Turn Off",
+    sleepTimerDone: "Sweet dreams! Playback stopped.",
+    sleepTimerActive: "Stops in {time}",
+
+    themeMidnightOcean: "Midnight Ocean",
+    themeForest: "Forest",
+    themeAurora: "Aurora",
   },
 };
 

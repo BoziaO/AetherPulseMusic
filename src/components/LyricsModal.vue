@@ -11,24 +11,36 @@
         </button>
       </header>
 
-      <div ref="containerRef" class="modal-body custom-scroll">
-        <div v-if="loading" class="state-msg">{{ t('searching') }}</div>
+      <div class="modal-body-wrap">
+        <div ref="containerRef" class="modal-body custom-scroll">
+          <div v-if="loading" class="state-msg">
+            <div class="loading-dots">
+              <span /><span /><span />
+            </div>
+          </div>
 
-        <div v-else-if="timedLines.length" class="lines">
-          <button
-            v-for="(line, index) in timedLines"
-            :key="`${line.time}-${index}`"
-            :data-lyric-index="index"
-            class="line"
-            :class="activeIndex === index ? 'is-active' : ''"
-            type="button"
-            @click="$emit('seek', line.time)"
-          >
-            {{ line.text }}
-          </button>
+          <div v-else-if="timedLines.length" class="lines">
+            <button
+              v-for="(line, index) in timedLines"
+              :key="`${line.time}-${index}`"
+              :data-lyric-index="index"
+              class="line"
+              :class="{
+                'is-active': activeIndex === index,
+                'is-past': index < activeIndex,
+                'is-future': index > activeIndex && activeIndex >= 0,
+              }"
+              type="button"
+              @click="$emit('seek', line.time)"
+            >
+              {{ line.text }}
+            </button>
+          </div>
+
+          <pre v-else class="plain">{{ plainLyrics || t('emptyData') }}</pre>
         </div>
-
-        <pre v-else class="plain">{{ plainLyrics || t('emptyData') }}</pre>
+        <div class="fade-top" />
+        <div class="fade-bottom" />
       </div>
     </section>
   </div>
@@ -106,15 +118,9 @@ function scrollToActive(index) {
   if (!containerRef.value || index < 0) return;
   const el = containerRef.value.querySelector(`[data-lyric-index="${index}"]`);
   if (!el) return;
-  const top = el.offsetTop;
-  const bottom = top + el.offsetHeight;
-  const viewTop = containerRef.value.scrollTop;
-  const viewBottom = viewTop + containerRef.value.clientHeight;
-  if (top < viewTop + 24) {
-    containerRef.value.scrollTop = Math.max(0, top - 24);
-  } else if (bottom > viewBottom - 24) {
-    containerRef.value.scrollTop = Math.max(0, bottom - containerRef.value.clientHeight + 24);
-  }
+  const containerHeight = containerRef.value.clientHeight;
+  const targetTop = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2;
+  containerRef.value.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
 }
 
 function parseTimedLyrics(text) {
@@ -142,7 +148,7 @@ function parseTimedLyrics(text) {
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   padding: 16px;
 }
 
@@ -154,16 +160,16 @@ function parseTimedLyrics(text) {
 
 .modal {
   width: 100%;
-  max-width: 600px;
+  max-width: 580px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(30, 30, 35, 0.98) 0%, rgba(20, 20, 25, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(18, 18, 22, 0.98) 0%, rgba(12, 12, 16, 0.98) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
 }
 
 .modal-header {
@@ -174,38 +180,44 @@ function parseTimedLyrics(text) {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
 }
 
 .modal-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #fff;
 }
 
 .modal-subtitle {
   margin: 4px 0 0;
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.modal-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 32px 24px;
+  padding: 48px 24px;
   scroll-behavior: smooth;
 }
 
 .modal-body::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .modal-body::-webkit-scrollbar-track {
@@ -213,12 +225,28 @@ function parseTimedLyrics(text) {
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
 }
 
-.modal-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+.fade-top,
+.fade-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 64px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(14, 14, 18, 0.95) 0%, transparent 100%);
+}
+
+.fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(12, 12, 16, 0.95) 0%, transparent 100%);
 }
 
 .state-msg {
@@ -226,73 +254,87 @@ function parseTimedLyrics(text) {
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 15px;
-  font-weight: 500;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+  30% { transform: translateY(-8px); opacity: 1; }
 }
 
 .lines {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 2px;
+  padding: 20px 0;
 }
 
 .line {
-  text-align: left;
-  font-size: 20px;
+  text-align: center;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.6;
-  letter-spacing: -0.01em;
-  padding: 10px 14px;
-  border-radius: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  padding: 10px 16px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.22);
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-.line::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(var(--primary-rgb, 255, 255, 255), 0.1) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s;
+  transform-origin: center;
 }
 
 .line:hover {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.04);
-  transform: translateX(4px);
 }
 
-.line:hover::before {
-  opacity: 1;
+.line.is-past {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 20px;
+}
+
+.line.is-future {
+  color: rgba(255, 255, 255, 0.18);
+  font-size: 20px;
 }
 
 .line.is-active {
   color: #fff;
-  background: rgba(var(--primary-rgb, 255, 255, 255), 0.12);
+  font-size: 26px;
   font-weight: 800;
-  transform: translateX(6px);
-  box-shadow: 0 4px 20px rgba(var(--primary-rgb, 255, 255, 255), 0.15);
-}
-
-.line.is-active::before {
-  opacity: 1;
+  transform: scale(1.02);
+  text-shadow:
+    0 0 40px rgba(var(--primary-rgb, 255, 255, 255), 0.5),
+    0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
 .plain {
   margin: 0;
   white-space: pre-wrap;
   font-family: inherit;
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.9;
   color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.01em;
+  text-align: center;
 }
 </style>

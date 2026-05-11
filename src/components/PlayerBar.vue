@@ -34,7 +34,9 @@
                <Music2 v-else :size="20" :style="{ color: 'var(--text-tertiary)' }" />
              </span>
              <span class="meta">
-               <span class="title">{{ track?.title }}</span>
+               <span class="title" :class="{ 'title-marquee': titleNeedsMarquee }">
+                 <span class="title-inner" ref="titleInnerRef">{{ track?.title }}</span>
+               </span>
                <span class="artist">{{ artist }}</span>
              </span>
            </button>
@@ -172,7 +174,7 @@
 </template>
 
 <script setup>
-import { computed, inject } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import {
   Captions,
   ChevronDown,
@@ -190,6 +192,30 @@ import {
   VolumeX,
 } from "lucide-vue-next";
 import { formatClock } from "../lib/format";
+
+const titleInnerRef = ref(null);
+const titleNeedsMarquee = ref(false);
+
+let titleResizeObs = null;
+
+function checkTitleMarquee() {
+  const el = titleInnerRef.value;
+  if (!el) { titleNeedsMarquee.value = false; return; }
+  const parent = el.parentElement;
+  if (!parent) return;
+  titleNeedsMarquee.value = el.scrollWidth > parent.clientWidth + 2;
+}
+
+watch(titleInnerRef, (el) => {
+  if (titleResizeObs) { titleResizeObs.disconnect(); titleResizeObs = null; }
+  if (el && typeof ResizeObserver !== "undefined") {
+    titleResizeObs = new ResizeObserver(() => checkTitleMarquee());
+    titleResizeObs.observe(el);
+    if (el.parentElement) titleResizeObs.observe(el.parentElement);
+  }
+});
+
+onBeforeUnmount(() => { if (titleResizeObs) titleResizeObs.disconnect(); });
 
 const props = defineProps({
   track: { type: Object, required: true },
@@ -366,6 +392,27 @@ const progressPercent = computed(() =>
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.title.title-marquee {
+  text-overflow: clip;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 85%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 85%, transparent);
+}
+
+.title-inner {
+  display: inline-block;
+}
+
+.title.title-marquee .title-inner {
+  animation: bar-title-scroll 12s linear infinite;
+  padding-right: 40px;
+}
+
+@keyframes bar-title-scroll {
+  0%, 10%  { transform: translateX(0); }
+  90%, 100% { transform: translateX(calc(-100% + 120px)); }
 }
 
 .artist {

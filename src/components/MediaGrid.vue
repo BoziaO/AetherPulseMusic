@@ -99,6 +99,28 @@ function itemKey(item, index) {
   position: relative;
   display: block;
   margin-bottom: 12px;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.card-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--transition-base);
+}
+
+.card:hover .card-cover img {
+  transform: scale(1.04);
+}
+
+.card-cover-circle {
+  border-radius: 50%;
 }
 
 .cover-placeholder {

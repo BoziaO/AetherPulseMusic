@@ -73,6 +73,9 @@
                 >
                   <span class="result-cover">
                     <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" />
+                    <span v-else class="result-cover-placeholder">
+                      <Music2 :size="18" />
+                    </span>
                   </span>
                   <span class="result-text">
                     <span class="result-title">{{ item.title }}</span>
@@ -194,7 +197,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import { BarChart3, LogIn, Menu, Search, Settings, X } from "lucide-vue-next";
+import { BarChart3, LogIn, Menu, Music2, Search, Settings, X } from "lucide-vue-next";
 import LyricsModal from "./LyricsModal.vue";
 import PlayerBar from "./PlayerBar.vue";
 import QueueModal from "./QueueModal.vue";
@@ -1083,6 +1086,15 @@ onBeforeUnmount(() => {
   object-fit: cover;
 }
 
+.result-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
 .result-text {
   min-width: 0;
 }
@@ -1113,7 +1125,12 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.12);
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .header-actions {

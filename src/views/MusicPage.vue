@@ -272,9 +272,9 @@ const heroTitle = computed(() => {
 });
 
 const heroSubtitle = computed(() => {
-  if (props.pageKey === "favorites") return t("emptyFavorites");
-  if (props.pageKey === "recent") return t("emptyRecent");
   if (props.pageKey === "home") return t("listenNowSubtitle");
+  if (props.pageKey === "favorites") return "";
+  if (props.pageKey === "recent") return "";
   return pageData.value?.description || "";
 });
 

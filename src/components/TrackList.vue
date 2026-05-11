@@ -12,7 +12,14 @@
       @keydown.space.prevent="$emit('play', track, tracks)"
     >
       <span class="num">
-        <span class="num-text">{{ String(index + 1).padStart(2, '0') }}</span>
+        <span class="num-text" :class="isCurrent(track) ? 'is-playing-num' : ''">
+          <span v-if="isCurrent(track)" class="eq-bars" aria-hidden="true">
+            <span class="eq-bar" />
+            <span class="eq-bar" />
+            <span class="eq-bar" />
+          </span>
+          <span v-else>{{ String(index + 1).padStart(2, '0') }}</span>
+        </span>
         <Play :size="14" fill="currentColor" class="num-play" />
       </span>
 
@@ -147,6 +154,42 @@ function isFavorite(track) {
 
 .num-text {
   transition: opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.eq-bar {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--primary);
+  animation: eq-bounce 0.9s ease-in-out infinite alternate;
+}
+
+.eq-bar:nth-child(1) {
+  height: 6px;
+  animation-delay: 0s;
+}
+.eq-bar:nth-child(2) {
+  height: 12px;
+  animation-delay: 0.2s;
+}
+.eq-bar:nth-child(3) {
+  height: 8px;
+  animation-delay: 0.1s;
+}
+
+@keyframes eq-bounce {
+  from { transform: scaleY(0.35); }
+  to   { transform: scaleY(1); }
 }
 
 .num-play {

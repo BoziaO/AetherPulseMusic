@@ -287,6 +287,33 @@ html[data-now-playing="true"] .mini-cover img {
 }
 
 /* ============================================================
+   Warm Glow — cozy bottom-left radial for lo-fi / warm themes
+   ============================================================ */
+html[data-theme-fx~="theme-warm-glow"] body::before {
+  content: "";
+  position: fixed;
+  bottom: -10%;
+  left: -10%;
+  width: 70vw;
+  height: 55vh;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse at bottom left,
+    rgba(var(--primary-rgb), 0.16) 0%,
+    rgba(var(--primary-rgb), 0) 65%
+  );
+  filter: blur(32px);
+  animation: warm-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes warm-drift {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.75; }
+  50%  { opacity: 1; }
+  100% { transform: translate(5vw, -7vh) scale(1.1); opacity: 0.75; }
+}
+
+/* ============================================================
    Reduced-motion guard — all theme FX and listening animations
    go silent for users who opt out.
    ============================================================ */
@@ -296,6 +323,7 @@ html[data-now-playing="true"] .mini-cover img {
   html[data-theme-fx~="theme-flicker"] .card-title,
   html[data-theme-fx~="theme-flicker"] .wrapped-title,
   html[data-theme-fx~="theme-dream-haze"] body::before,
+  html[data-theme-fx~="theme-warm-glow"] body::before,
   html[data-now-playing="true"] body::after,
   .eq-bars span,
   .album-cover.is-spinning img {

@@ -250,6 +250,9 @@ const messages = {
     themeMidnightOcean: "Midnight Ocean",
     themeForest: "Forest",
     themeAurora: "Aurora",
+    themeLofi: "Lo-Fi Café",
+    themeNeonCity: "Neon City",
+    themeAmberDusk: "Amber Dusk",
 
     suggestions: "Sugestie",
     chartsRegion: "Region wykresów",
@@ -495,6 +498,9 @@ const messages = {
     themeMidnightOcean: "Midnight Ocean",
     themeForest: "Forest",
     themeAurora: "Aurora",
+    themeLofi: "Lo-Fi Café",
+    themeNeonCity: "Neon City",
+    themeAmberDusk: "Amber Dusk",
 
     suggestions: "Suggestions",
     chartsRegion: "Charts region",

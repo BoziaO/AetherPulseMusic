@@ -2,9 +2,9 @@
   <div v-if="open" class="modal-overlay animate-fade" @click.self="$emit('close')">
     <section class="modal animate-slide-up">
       <header class="modal-header">
-        <div class="min-w-0">
+        <div class="modal-header-info min-w-0">
           <h2 class="modal-title">{{ t('lyrics') }}</h2>
-          <p class="modal-subtitle">{{ track?.title }} — {{ track?.artist }}</p>
+          <p class="modal-subtitle line-clamp-1">{{ track?.title }} — {{ track?.artist }}</p>
         </div>
         <button class="icon-btn" type="button" :title="t('close')" @click="$emit('close')">
           <X :size="18" />
@@ -13,12 +13,15 @@
 
       <div class="modal-body-wrap">
         <div ref="containerRef" class="modal-body custom-scroll">
-          <div v-if="loading" class="state-msg">
+
+          <!-- Loading state -->
+          <div v-if="loading" class="state-center">
             <div class="loading-dots">
               <span /><span /><span />
             </div>
           </div>
 
+          <!-- Timed / synced lyrics -->
           <div v-else-if="timedLines.length" class="lines">
             <button
               v-for="(line, index) in timedLines"
@@ -37,7 +40,11 @@
             </button>
           </div>
 
-          <pre v-else class="plain">{{ plainLyrics || t('emptyData') }}</pre>
+          <!-- Plain / untimed or empty -->
+          <div v-else class="plain-wrap">
+            <pre class="plain">{{ plainLyrics || t('emptyData') }}</pre>
+          </div>
+
         </div>
         <div class="fade-top" />
         <div class="fade-bottom" />
@@ -140,6 +147,7 @@ function parseTimedLyrics(text) {
 </script>
 
 <style scoped>
+/* ── Overlay ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -147,8 +155,9 @@ function parseTimedLyrics(text) {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
   padding: 16px;
 }
 
@@ -158,49 +167,62 @@ function parseTimedLyrics(text) {
   }
 }
 
+/* ── Modal shell ── */
 .modal {
   width: 100%;
-  max-width: 580px;
-  max-height: 90vh;
+  max-width: 600px;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(18, 18, 22, 0.98) 0%, rgba(12, 12, 16, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  /* Uses theme colors instead of hardcoded dark values */
+  background: linear-gradient(170deg, var(--bg-elevated) 0%, var(--bg-base) 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 40px 100px rgba(0, 0, 0, 0.65),
+    0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
+/* ── Header ── */
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
+}
+
+.modal-header-info {
+  min-width: 0;
+  flex: 1;
 }
 
 .modal-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #fff;
+  font-size: 17px;
+  font-weight: var(--font-weight-display, 700);
+  letter-spacing: var(--letter-spacing, -0.02em);
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
 .modal-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
-  white-space: nowrap;
+  margin: 5px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* ── Scrollable body ── */
 .modal-body-wrap {
   position: relative;
   flex: 1;
@@ -212,12 +234,12 @@ function parseTimedLyrics(text) {
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 48px 24px;
+  padding: 60px 28px;
   scroll-behavior: smooth;
 }
 
 .modal-body::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 
 .modal-body::-webkit-scrollbar-track {
@@ -225,116 +247,163 @@ function parseTimedLyrics(text) {
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--primary-rgb), 0.25);
   border-radius: 2px;
 }
 
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary-rgb), 0.5);
+}
+
+/* ── Fade overlays ── */
 .fade-top,
 .fade-bottom {
   position: absolute;
   left: 0;
   right: 0;
-  height: 64px;
+  height: 80px;
   pointer-events: none;
   z-index: 2;
 }
 
 .fade-top {
   top: 0;
-  background: linear-gradient(to bottom, rgba(14, 14, 18, 0.95) 0%, transparent 100%);
+  /* Fades using the actual theme background color */
+  background: linear-gradient(to bottom, var(--bg-elevated) 0%, transparent 100%);
 }
 
 .fade-bottom {
   bottom: 0;
-  background: linear-gradient(to top, rgba(12, 12, 16, 0.95) 0%, transparent 100%);
+  background: linear-gradient(to top, var(--bg-base) 0%, transparent 100%);
 }
 
-.state-msg {
+/* ── Loading ── */
+.state-center {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  min-height: 220px;
 }
 
 .loading-dots {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 
 .loading-dots span {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  animation: dot-bounce 1.2s ease-in-out infinite;
+  /* Uses theme primary color instead of hardcoded white */
+  background: var(--primary);
+  opacity: 0.3;
+  animation: dot-bounce 1.3s ease-in-out infinite;
 }
 
-.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+.loading-dots span:nth-child(2) { animation-delay: 0.22s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.44s; }
 
 @keyframes dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
-  30% { transform: translateY(-8px); opacity: 1; }
+  0%, 60%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translateY(-10px) scale(1.15);
+    opacity: 1;
+  }
 }
 
+/* ── Timed lyrics ── */
 .lines {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 20px 0;
+  gap: 0;
+  padding: 24px 0;
 }
 
 .line {
+  display: block;
   text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.5;
-  letter-spacing: -0.02em;
-  padding: 10px 16px;
-  border-radius: 14px;
-  color: rgba(255, 255, 255, 0.22);
+  font-size: 20px;
+  font-weight: var(--font-weight-display, 700);
+  line-height: 1.55;
+  letter-spacing: var(--letter-spacing, -0.02em);
+  padding: 9px 20px;
+  border-radius: var(--radius-lg);
+  /* Default: very dimmed — future lines */
+  color: var(--text-quaternary);
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    color 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    font-size 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    font-weight 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.2s ease,
+    text-shadow 0.42s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   transform-origin: center;
 }
 
 .line:hover {
-  color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  background: rgba(var(--primary-rgb), 0.06);
 }
 
 .line.is-past {
-  color: rgba(255, 255, 255, 0.32);
-  font-size: 20px;
+  color: var(--text-tertiary);
+  font-size: 19px;
 }
 
 .line.is-future {
-  color: rgba(255, 255, 255, 0.18);
-  font-size: 20px;
+  color: var(--text-quaternary);
+  font-size: 19px;
 }
 
+/* Active line: theme primary color with multi-layer glow */
 .line.is-active {
-  color: #fff;
+  color: var(--primary);
   font-size: 26px;
-  font-weight: 800;
-  transform: scale(1.02);
+  font-weight: var(--font-weight-display, 800);
+  transform: scale(1.03);
   text-shadow:
-    0 0 40px rgba(var(--primary-rgb, 255, 255, 255), 0.5),
-    0 2px 20px rgba(0, 0, 0, 0.4);
+    0 0 48px rgba(var(--primary-rgb), 0.55),
+    0 0 20px rgba(var(--primary-rgb), 0.3),
+    0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Plain / untimed lyrics ── */
+.plain-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 200px;
+  padding: 4px 0;
 }
 
 .plain {
   margin: 0;
   white-space: pre-wrap;
   font-family: inherit;
-  font-size: 16px;
-  line-height: 1.9;
-  color: rgba(255, 255, 255, 0.65);
+  font-size: 15px;
+  line-height: 2;
+  color: var(--text-secondary);
   letter-spacing: 0.01em;
   text-align: center;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .line {
+    transition: color 0.01ms, background 0.01ms;
+  }
+  .loading-dots span {
+    animation: none;
+    opacity: 0.6;
+  }
 }
 </style>

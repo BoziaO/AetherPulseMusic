@@ -288,7 +288,24 @@ const heroCover = computed(() => {
   return items[0]?.thumbnail || items[0]?.cover || "";
 });
 
-const heroStats = computed(() => pageData.value?.stats || []);
+const heroStats = computed(() => {
+  if (props.pageKey === "favorites") {
+    const count = appState?.favoriteItems?.value?.length || 0;
+    return [
+      { label: t("tracks"), value: String(count) },
+      { label: t("favoritesStat"), value: count > 0 ? "♥" : "—" },
+    ];
+  }
+  if (props.pageKey === "recent") {
+    const list = appState?.recentPlays?.value || [];
+    const artists = new Set(list.map((t) => t.artist || t.author).filter(Boolean));
+    return [
+      { label: t("tracks"), value: String(list.length) },
+      { label: t("navArtists"), value: String(artists.size) },
+    ];
+  }
+  return pageData.value?.stats || [];
+});
 
 const primaryItems = computed(() =>
   filterItems(pageData.value?.primarySection?.items || []),
@@ -333,6 +350,8 @@ async function loadPage(force = false) {
       .filter(Boolean)
       .slice(0, 5);
     if (recentIds.length) params.set("recent", recentIds.join(","));
+    const region = appState?.chartsRegion?.value;
+    if (region && region !== "ZZ") params.set("region", region);
     if (force) params.set("ts", Date.now().toString());
     const data = await fetchJson(`/api/page/${props.pageKey}?${params.toString()}`, { timeout: 15000 });
     pageData.value = cleanData(data);

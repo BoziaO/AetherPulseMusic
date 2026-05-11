@@ -224,7 +224,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import { BarChart3, Clock, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
+import { BarChart3, Clock, Globe, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
 import LyricsModal from "./LyricsModal.vue";
 import PlayerBar from "./PlayerBar.vue";
 import QueueModal from "./QueueModal.vue";
@@ -257,7 +257,12 @@ const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchOpen = ref(false);
 const searchHistory = ref(readJson("ap:search-history", []));
+const searchSuggestions = ref([]);
+const searchFocusIndex = ref(-1);
+const chartsRegion = ref(localStorage.getItem("ap:region") || "ZZ");
 const toasts = ref([]);
+
+let suggestionsTimer = null;
 
 const authSession = ref({ auth: { enabled: false, connected: false } });
 const language = ref(localStorage.getItem("ap:language") || "pl");
@@ -369,6 +374,37 @@ function saveSearch(value) {
   const clean = value?.trim();
   if (!clean) return;
   searchHistory.value = [clean, ...searchHistory.value.filter((entry) => entry !== clean)].slice(0, 10);
+}
+
+function setRegion(code) {
+  chartsRegion.value = code;
+  localStorage.setItem("ap:region", code);
+}
+
+const searchFocusableCount = computed(() => {
+  const clean = query.value.trim();
+  if (!clean) return searchHistory.value.length;
+  if (clean.length < 2) return searchSuggestions.value.length;
+  return searchResults.value.length;
+});
+
+function selectFocusedSearchItem() {
+  const clean = query.value.trim();
+  const idx = searchFocusIndex.value;
+  if (idx < 0) return;
+  if (!clean && searchHistory.value[idx] !== undefined) {
+    query.value = searchHistory.value[idx];
+    searchFocusIndex.value = -1;
+    return;
+  }
+  if (clean.length < 2 && searchSuggestions.value[idx] !== undefined) {
+    query.value = searchSuggestions.value[idx];
+    searchFocusIndex.value = -1;
+    return;
+  }
+  if (clean.length >= 2 && searchResults.value[idx]) {
+    handleSearchResultClick(searchResults.value[idx]);
+  }
 }
 
 function applyTheme() {

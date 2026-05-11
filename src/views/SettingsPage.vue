@@ -402,6 +402,7 @@ import { computed, inject, ref, watch } from "vue";
 import {
   Database,
   Download,
+  Globe,
   Keyboard,
   ListMusic,
   Palette,
@@ -414,8 +415,33 @@ import {
   Speaker,
   Check,
 } from "lucide-vue-next";
+
 import { fetchJson } from "../lib/api";
+
+const CHART_REGIONS = [
+  { code: "ZZ", label: "🌍 Global" },
+  { code: "US", label: "🇺🇸 United States" },
+  { code: "GB", label: "🇬🇧 United Kingdom" },
+  { code: "PL", label: "🇵🇱 Poland" },
+  { code: "DE", label: "🇩🇪 Germany" },
+  { code: "FR", label: "🇫🇷 France" },
+  { code: "ES", label: "🇪🇸 Spain" },
+  { code: "IT", label: "🇮🇹 Italy" },
+  { code: "BR", label: "🇧🇷 Brazil" },
+  { code: "JP", label: "🇯🇵 Japan" },
+  { code: "KR", label: "🇰🇷 South Korea" },
+  { code: "IN", label: "🇮🇳 India" },
+  { code: "MX", label: "🇲🇽 Mexico" },
+  { code: "CA", label: "🇨🇦 Canada" },
+  { code: "AU", label: "🇦🇺 Australia" },
+  { code: "NL", label: "🇳🇱 Netherlands" },
+  { code: "SE", label: "🇸🇪 Sweden" },
+  { code: "NO", label: "🇳🇴 Norway" },
+  { code: "TR", label: "🇹🇷 Turkey" },
+  { code: "AR", label: "🇦🇷 Argentina" },
+];
 import { THEMES } from "../data/themes";
+
 
 const appState = inject("appState");
 function t(key, vars) {

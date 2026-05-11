@@ -250,6 +250,10 @@ const messages = {
     themeMidnightOcean: "Midnight Ocean",
     themeForest: "Forest",
     themeAurora: "Aurora",
+
+    suggestions: "Sugestie",
+    chartsRegion: "Region wykresów",
+    chartsRegionDesc: "Wybierz kraj dla trendujących wykresów i hitów.",
   },
   en: {
     appName: "AetherPulse Music",
@@ -491,6 +495,10 @@ const messages = {
     themeMidnightOcean: "Midnight Ocean",
     themeForest: "Forest",
     themeAurora: "Aurora",
+
+    suggestions: "Suggestions",
+    chartsRegion: "Charts region",
+    chartsRegionDesc: "Select a country for trending charts and hits.",
   },
 };
 

@@ -6,7 +6,8 @@ function createPagesRouter(yt) {
 
   router.get('/:key', wrap(async (req) => {
     const { key } = req.params;
-    const { recent = "" } = req.query;
+    const { recent = "", region = "ZZ" } = req.query;
+    const safeRegion = /^[A-Z]{2}$/.test(region) ? region : "ZZ";
     const ytMusicHeaders = hasYtMusicHeaders();
     const authHeaders = req.session.tokens ? { Authorization: `Bearer ${req.session.tokens.access_token}` } : {};
 
@@ -16,7 +17,7 @@ function createPagesRouter(yt) {
     };
 
     if (key === "home") {
-      const charts = await yt.getCharts("ZZ");
+      const charts = await yt.getCharts(safeRegion);
       const trendingSongs = (charts?.songs || []).filter(Boolean);
       const librarySongs = await yt.getLibrarySongs(30, authHeaders).catch(() => []);
       const libraryArtists = await yt.getLibraryArtists(20, authHeaders).catch(() => []);
@@ -186,7 +187,7 @@ function createPagesRouter(yt) {
 
     if (key === "albums") {
       const libAlbums = await yt.getLibraryAlbums(24, authHeaders).catch(() => []);
-      const charts = await yt.getCharts("ZZ");
+      const charts = await yt.getCharts(safeRegion);
       return {
         ...base,
         eyebrow: "Biblioteka",
@@ -231,7 +232,7 @@ function createPagesRouter(yt) {
 
     if (key === "artists") {
       const libArtists = await yt.getLibraryArtists(24, authHeaders).catch(() => []);
-      const charts = await yt.getCharts("ZZ");
+      const charts = await yt.getCharts(safeRegion);
       return {
         ...base,
         eyebrow: "Biblioteka",
@@ -281,7 +282,7 @@ function createPagesRouter(yt) {
       const want = key === "chill" ? /chill|relax|calm/i : key === "energy" ? /energy|workout|party|dance/i : null;
       const picked = want ? all.find((c) => want.test(c.title || "")) : all[0];
       const playlists = picked?.params ? await yt.getMoodPlaylists(picked.params).catch(() => []) : [];
-      const charts = await yt.getCharts("ZZ");
+      const charts = await yt.getCharts(safeRegion);
 
       return {
         ...base,

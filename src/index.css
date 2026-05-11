@@ -230,7 +230,6 @@ html {
   scrollbar-width: none;
 }
 
-.component-primitives {
 .privacy-banner {
   background-color: var(--primary);
   color: var(--bg-base);

@@ -9,7 +9,7 @@
             <Menu :size="20" />
           </button>
 
-          <div ref="searchRef" class="search-wrap">
+          <div ref="searchRef" class="search-wrap" :class="{ 'search-focused': searchOpen }">
             <Search :size="16" class="search-icon" />
             <input
               ref="searchInputRef"
@@ -20,75 +20,95 @@
               @focus="searchOpen = true"
               @keydown.enter.prevent="saveSearch(query)"
             />
-            <button v-if="query" class="search-clear" type="button" :title="t('clear')" @click="query = ''">
-              <X :size="14" />
-            </button>
+            <Transition name="fade-clear">
+              <button v-if="query" class="search-clear" type="button" :title="t('clear')" @click="query = ''; $refs.searchInputRef.focus()">
+                <X :size="13" />
+              </button>
+            </Transition>
 
-            <div v-if="searchOpen && (query || searchHistory.length)" class="search-pop">
-              <div class="search-filters">
-                <button
-                  v-for="filter in searchFilters"
-                  :key="filter.value"
-                  class="chip"
-                  :class="searchFilter === filter.value ? 'chip-active' : ''"
-                  type="button"
-                  @click="searchFilter = filter.value"
-                >
-                  {{ t(filter.labelKey) }}
-                </button>
-              </div>
+            <Transition name="search-pop-anim">
+              <div v-if="searchOpen && (query || searchHistory.length)" class="search-pop">
 
-              <div v-if="!query.trim() && searchHistory.length" class="search-results">
-                <div class="search-history-head">
-                  <p>{{ t('recentSearches') }}</p>
-                  <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
+                <div v-if="!query.trim() && searchHistory.length" class="search-section">
+                  <div class="search-section-head">
+                    <span>{{ t('recentSearches') }}</span>
+                    <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
+                  </div>
+                  <div class="search-history-list">
+                    <button
+                      v-for="entry in searchHistory"
+                      :key="entry"
+                      class="history-row"
+                      type="button"
+                      @click="query = entry"
+                    >
+                      <span class="history-icon"><Clock :size="14" /></span>
+                      <span class="history-text truncate">{{ entry }}</span>
+                      <span class="history-arrow">›</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  v-for="entry in searchHistory"
-                  :key="entry"
-                  class="history-row"
-                  type="button"
-                  @click="query = entry"
-                >
-                  <Search :size="14" :style="{ color: 'var(--text-tertiary)' }" />
-                  <span class="truncate">{{ entry }}</span>
-                </button>
-              </div>
 
-              <div v-else-if="query.trim().length > 0 && query.trim().length < 2" class="state-msg">
-                {{ t('minTwoChars') }}
-              </div>
+                <template v-else-if="query.trim().length >= 2">
+                  <div class="search-filters">
+                    <button
+                      v-for="filter in searchFilters"
+                      :key="filter.value"
+                      class="filter-pill"
+                      :class="searchFilter === filter.value ? 'filter-pill-active' : ''"
+                      type="button"
+                      @click="searchFilter = filter.value"
+                    >
+                      {{ t(filter.labelKey) }}
+                    </button>
+                  </div>
 
-              <div v-else-if="searchLoading" class="state-msg">
-                {{ t('searching') }}
-              </div>
+                  <div v-if="searchLoading" class="search-loading">
+                    <span class="search-spinner" />
+                    <span>{{ t('searching') }}</span>
+                  </div>
 
-              <div v-else-if="searchResults.length" class="result-list">
-                <button
-                  v-for="(item, index) in searchResults"
-                  :key="item.videoId || item.browseId || `${item.title}-${index}`"
-                  class="result-row"
-                  type="button"
-                  @click="handleSearchResultClick(item)"
-                >
-                  <span class="result-cover">
-                    <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" />
-                    <span v-else class="result-cover-placeholder">
-                      <Music2 :size="18" />
-                    </span>
-                  </span>
-                  <span class="result-text">
-                    <span class="result-title">{{ item.title }}</span>
-                    <span class="result-sub">
-                      {{ item.artist || item.author || item.subtitle || artistsText(item) || "YouTube Music" }}
-                    </span>
-                  </span>
-                  <span class="result-tag">{{ item.resultType || searchFilter }}</span>
-                </button>
-              </div>
+                  <div v-else-if="searchResults.length" class="result-list">
+                    <button
+                      v-for="(item, index) in searchResults"
+                      :key="item.videoId || item.browseId || `${item.title}-${index}`"
+                      class="result-row"
+                      type="button"
+                      @click="handleSearchResultClick(item)"
+                    >
+                      <span class="result-cover" :class="{ 'result-cover-round': item.resultType === 'artist' }">
+                        <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" loading="lazy" />
+                        <span v-else class="result-cover-placeholder">
+                          <Mic2 v-if="item.resultType === 'artist'" :size="18" />
+                          <Music2 v-else :size="18" />
+                        </span>
+                        <span class="result-play-overlay"><Play :size="14" fill="currentColor" /></span>
+                      </span>
+                      <span class="result-text">
+                        <span class="result-title">{{ item.title }}</span>
+                        <span class="result-sub">
+                          <span class="result-type-dot" :class="`type-${item.resultType || searchFilter}`">{{ item.resultType || searchFilter }}</span>
+                          <span v-if="item.artist || item.author || item.subtitle || artistsText(item)">
+                            {{ item.artist || item.author || item.subtitle || artistsText(item) }}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  </div>
 
-              <div v-else class="state-msg">{{ t('noResults') }}</div>
-            </div>
+                  <div v-else class="state-msg">
+                    <Search :size="28" class="state-icon" />
+                    <p>{{ t('noResults') }}</p>
+                    <span>{{ t('searchPlaceholder') }}</span>
+                  </div>
+                </template>
+
+                <div v-else-if="query.trim().length > 0" class="state-msg">
+                  <p>{{ t('minTwoChars') }}</p>
+                </div>
+
+              </div>
+            </Transition>
           </div>
 
           <div class="header-actions">
@@ -197,7 +217,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import { BarChart3, LogIn, Menu, Music2, Search, Settings, X } from "lucide-vue-next";
+import { BarChart3, Clock, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
 import LyricsModal from "./LyricsModal.vue";
 import PlayerBar from "./PlayerBar.vue";
 import QueueModal from "./QueueModal.vue";
@@ -965,102 +985,161 @@ onBeforeUnmount(() => {
   margin: 0 auto;
 }
 
+/* ── Search bar ── */
 .search-wrap {
   position: relative;
   flex: 1;
-  max-width: 480px;
+  max-width: 520px;
 }
 
 .search-input {
   width: 100%;
-  height: 36px;
-  padding: 0 38px 0 36px;
-  border-radius: 10px;
-  background: var(--bg-input);
-  border: 1px solid transparent;
+  height: 42px;
+  padding: 0 44px 0 42px;
+  border-radius: 100px;
+  background: var(--bg-elevated);
+  border: 1.5px solid transparent;
   font-size: 14px;
+  font-weight: 500;
   color: var(--text-primary);
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+  font-weight: 400;
 }
 
 .search-input:focus {
   outline: none;
-  background: var(--bg-elevated);
-  border-color: var(--line-strong);
+  background: var(--bg-card);
+  border-color: rgba(var(--primary-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
 }
 
 .search-icon {
   position: absolute;
-  left: 11px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-tertiary);
   pointer-events: none;
+  transition: color 0.2s;
+}
+
+.search-focused .search-icon {
+  color: var(--primary);
 }
 
 .search-clear {
   position: absolute;
-  right: 6px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--text-tertiary);
-  transition: background var(--transition-fast);
+  background: var(--text-tertiary);
+  color: var(--bg-base);
+  transition: background 0.15s, transform 0.15s;
 }
 
 .search-clear:hover {
-  background: var(--bg-hover);
+  background: var(--text-secondary);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Clear button transition */
+.fade-clear-enter-active,
+.fade-clear-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.fade-clear-enter-from,
+.fade-clear-leave-to { opacity: 0; transform: translateY(-50%) scale(0.7); }
+
+/* ── Search dropdown ── */
+.search-pop-anim-enter-active {
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.search-pop-anim-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.search-pop-anim-enter-from,
+.search-pop-anim-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
 }
 
 .search-pop {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
   background: var(--bg-card-strong);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-strong);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.32), 0 2px 8px rgba(0,0,0,0.18);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  max-height: 72vh;
+  z-index: 200;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
+/* ── Filter pills ── */
 .search-filters {
   display: flex;
   gap: 6px;
-  padding: 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 12px 10px;
   overflow-x: auto;
-}
-
-.search-filters .chip {
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
 
-.search-results {
-  padding: 6px;
+.search-filters::-webkit-scrollbar { display: none; }
+
+.filter-pill {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1.5px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.filter-pill:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.filter-pill-active {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: transparent;
+}
+
+/* ── Recent searches ── */
+.search-section {
+  padding: 10px 6px 8px;
   overflow-y: auto;
 }
 
-.search-history-head {
+.search-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px 4px;
-}
-
-.search-history-head p {
-  margin: 0;
+  padding: 4px 10px 10px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -1071,65 +1150,132 @@ onBeforeUnmount(() => {
   color: var(--primary);
   font-size: 12px;
   font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s;
 }
+
+.link-btn:hover { opacity: 1; }
+
+.search-history-list { display: flex; flex-direction: column; }
 
 .history-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-primary);
   text-align: left;
-  transition: background var(--transition-fast);
+  transition: background 0.12s;
 }
 
 .history-row:hover {
   background: var(--bg-hover);
 }
 
-.state-msg {
-  padding: 32px;
-  text-align: center;
+.history-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.history-text { flex: 1; min-width: 0; }
+
+.history-arrow {
+  color: var(--text-tertiary);
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Loading ── */
+.search-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
   font-size: 13px;
   color: var(--text-tertiary);
 }
 
+.search-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Result list ── */
 .result-list {
   display: flex;
   flex-direction: column;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .result-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   text-align: left;
-  transition: background var(--transition-fast);
+  transition: background 0.12s;
+  cursor: pointer;
 }
 
-.result-row:hover {
-  background: var(--bg-hover);
-}
+.result-row:hover { background: var(--bg-hover); }
+.result-row:hover .result-play-overlay { opacity: 1; }
+.result-row:hover .result-cover img { filter: brightness(0.65); }
 
 .result-cover {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
   overflow: hidden;
   background: var(--bg-elevated);
+  flex-shrink: 0;
 }
+
+.result-cover.result-cover-round { border-radius: 50%; }
 
 .result-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: filter 0.15s;
+}
+
+.result-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
 }
 
 .result-cover-placeholder {
@@ -1141,23 +1287,24 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
-.result-text {
-  min-width: 0;
-}
+.result-text { min-width: 0; }
 
 .result-title {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .result-sub {
-  display: block;
-  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -1166,17 +1313,43 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.result-tag {
+.result-type-dot {
+  flex-shrink: 0;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
   color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.12);
-  padding: 2px 7px;
-  border-radius: 20px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  background: rgba(var(--primary-rgb), 0.13);
+  padding: 1px 7px;
+  border-radius: 100px;
+}
+
+/* ── Empty / state messages ── */
+.state-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.state-msg .state-icon {
+  opacity: 0.35;
+  margin-bottom: 4px;
+}
+
+.state-msg p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.state-msg span {
+  font-size: 12px;
 }
 
 .header-actions {

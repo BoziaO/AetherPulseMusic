@@ -5,7 +5,7 @@
   >
     <div class="flex items-center justify-between px-6 pt-6 pb-4">
       <RouterLink to="/" class="brand" @click="emit('close')">
-        <img src="/favicon.ico" alt="" class="brand-logo" />
+        <img src="/icon.svg" alt="" class="brand-logo" />
         <span class="brand-text">{{ t('appName') }}</span>
       </RouterLink>
 

@@ -27,89 +27,6 @@
               </button>
             </Transition>
 
-            <Transition name="search-pop-anim">
-              <div v-if="searchOpen && (query || searchHistory.length)" class="search-pop">
-
-                <div v-if="!query.trim() && searchHistory.length" class="search-section">
-                  <div class="search-section-head">
-                    <span>{{ t('recentSearches') }}</span>
-                    <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
-                  </div>
-                  <div class="search-history-list">
-                    <button
-                      v-for="entry in searchHistory"
-                      :key="entry"
-                      class="history-row"
-                      type="button"
-                      @click="query = entry"
-                    >
-                      <span class="history-icon"><Clock :size="14" /></span>
-                      <span class="history-text truncate">{{ entry }}</span>
-                      <span class="history-arrow">›</span>
-                    </button>
-                  </div>
-                </div>
-
-                <template v-else-if="query.trim().length >= 2">
-                  <div class="search-filters">
-                    <button
-                      v-for="filter in searchFilters"
-                      :key="filter.value"
-                      class="filter-pill"
-                      :class="searchFilter === filter.value ? 'filter-pill-active' : ''"
-                      type="button"
-                      @click="searchFilter = filter.value"
-                    >
-                      {{ t(filter.labelKey) }}
-                    </button>
-                  </div>
-
-                  <div v-if="searchLoading" class="search-loading">
-                    <span class="search-spinner" />
-                    <span>{{ t('searching') }}</span>
-                  </div>
-
-                  <div v-else-if="searchResults.length" class="result-list">
-                    <button
-                      v-for="(item, index) in searchResults"
-                      :key="item.videoId || item.browseId || `${item.title}-${index}`"
-                      class="result-row"
-                      type="button"
-                      @click="handleSearchResultClick(item)"
-                    >
-                      <span class="result-cover" :class="{ 'result-cover-round': item.resultType === 'artist' }">
-                        <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" loading="lazy" />
-                        <span v-else class="result-cover-placeholder">
-                          <Mic2 v-if="item.resultType === 'artist'" :size="18" />
-                          <Music2 v-else :size="18" />
-                        </span>
-                        <span class="result-play-overlay"><Play :size="14" fill="currentColor" /></span>
-                      </span>
-                      <span class="result-text">
-                        <span class="result-title">{{ item.title }}</span>
-                        <span class="result-sub">
-                          <span class="result-type-dot" :class="`type-${item.resultType || searchFilter}`">{{ item.resultType || searchFilter }}</span>
-                          <span v-if="item.artist || item.author || item.subtitle || artistsText(item)">
-                            {{ item.artist || item.author || item.subtitle || artistsText(item) }}
-                          </span>
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-
-                  <div v-else class="state-msg">
-                    <Search :size="28" class="state-icon" />
-                    <p>{{ t('noResults') }}</p>
-                    <span>{{ t('searchPlaceholder') }}</span>
-                  </div>
-                </template>
-
-                <div v-else-if="query.trim().length > 0" class="state-msg">
-                  <p>{{ t('minTwoChars') }}</p>
-                </div>
-
-              </div>
-            </Transition>
           </div>
 
           <button
@@ -138,6 +55,90 @@
       </header>
 
       <div class="page">
+        <Transition name="search-pop-anim">
+          <div v-if="searchOpen && (query || searchHistory.length)" class="search-pop search-page">
+
+            <div v-if="!query.trim() && searchHistory.length" class="search-section">
+              <div class="search-section-head">
+                <span>{{ t('recentSearches') }}</span>
+                <button class="link-btn" type="button" @click="searchHistory = []">{{ t('clear') }}</button>
+              </div>
+              <div class="search-history-list">
+                <button
+                  v-for="entry in searchHistory"
+                  :key="entry"
+                  class="history-row"
+                  type="button"
+                  @click="query = entry"
+                >
+                  <span class="history-icon"><Clock :size="14" /></span>
+                  <span class="history-text truncate">{{ entry }}</span>
+                  <span class="history-arrow">›</span>
+                </button>
+              </div>
+            </div>
+
+            <template v-else-if="query.trim().length >= 2">
+              <div class="search-filters">
+                <button
+                  v-for="filter in searchFilters"
+                  :key="filter.value"
+                  class="filter-pill"
+                  :class="searchFilter === filter.value ? 'filter-pill-active' : ''"
+                  type="button"
+                  @click="searchFilter = filter.value"
+                >
+                  {{ t(filter.labelKey) }}
+                </button>
+              </div>
+
+              <div v-if="searchLoading" class="search-loading">
+                <span class="search-spinner" />
+                <span>{{ t('searching') }}</span>
+              </div>
+
+              <div v-else-if="searchResults.length" class="result-list">
+                <button
+                  v-for="(item, index) in searchResults"
+                  :key="item.videoId || item.browseId || `${item.title}-${index}`"
+                  class="result-row"
+                  type="button"
+                  @click="handleSearchResultClick(item)"
+                >
+                  <span class="result-cover" :class="{ 'result-cover-round': item.resultType === 'artist' }">
+                    <img v-if="item.thumbnail || item.cover || item.art" :src="item.thumbnail || item.cover || item.art" alt="" loading="lazy" />
+                    <span v-else class="result-cover-placeholder">
+                      <Mic2 v-if="item.resultType === 'artist'" :size="18" />
+                      <Music2 v-else :size="18" />
+                    </span>
+                    <span class="result-play-overlay"><Play :size="14" fill="currentColor" /></span>
+                  </span>
+                  <span class="result-text">
+                    <span class="result-title">{{ item.title }}</span>
+                    <span class="result-sub">
+                      <span class="result-type-dot" :class="`type-${item.resultType || searchFilter}`">{{ item.resultType || searchFilter }}</span>
+                      <span v-if="item.artist || item.author || item.subtitle || artistsText(item)">
+                        {{ item.artist || item.author || item.subtitle || artistsText(item) }}
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              </div>
+
+              <div v-else class="state-msg">
+                <Search :size="28" class="state-icon" />
+                <p>{{ t('noResults') }}</p>
+                <span>{{ t('searchPlaceholder') }}</span>
+              </div>
+            </template>
+
+            <div v-else-if="query.trim().length > 0" class="state-msg">
+              <p>{{ t('minTwoChars') }}</p>
+            </div>
+
+          </div>
+        </Transition>
+
         <RouterView />
       </div>
     </main>
@@ -913,7 +914,8 @@ function handleKeyboard(event) {
   } else if (event.key.toLowerCase() === "l") {
     showLyricsModal.value = true;
   } else if (event.key === "Escape") {
-    if (showFullPlayer.value) showFullPlayer.value = false;
+    if (searchOpen.value) searchOpen.value = false;
+    else if (showFullPlayer.value) showFullPlayer.value = false;
     else if (showQueueModal.value) showQueueModal.value = false;
     else if (showLyricsModal.value) showLyricsModal.value = false;
   }
@@ -1037,14 +1039,12 @@ onBeforeUnmount(() => {
     cursor: pointer;
   }
 
-  /* Dropdown: fixed, edge-to-edge on mobile */
+  /* Search page on mobile */
   .search-pop {
-    position: fixed;
-    left: 10px;
-    right: 10px;
-    top: 62px;
-    max-height: calc(100dvh - 80px);
-    border-radius: 14px;
+    position: relative;
+    margin: 0;
+    max-height: none;
+    border-radius: 0;
   }
 
   /* Smaller covers on mobile results */
@@ -1170,21 +1170,24 @@ onBeforeUnmount(() => {
 }
 
 .search-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
+  position: relative;
+  width: 100%;
   background: var(--bg-card-strong);
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.32), 0 2px 8px rgba(0,0,0,0.18);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 72vh;
-  z-index: 200;
+  max-height: none;
+  z-index: 2;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  margin-bottom: 24px;
+}
+
+.search-page {
+  width: 100%;
 }
 
 /* ── Filter pills ── */

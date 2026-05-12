@@ -210,7 +210,7 @@ async function search(query, filter = null, limit = 20) {
 }
 
 function parseSearchItem(item, category) {
-  const r = item.musicResponsiveListItemRenderer;
+  const r = item.musicResponsiveListItemRenderer || item.musicTwoRowItemRenderer;
   if (!r) return null;
 
   const videoId =
@@ -224,17 +224,20 @@ function parseSearchItem(item, category) {
       "playNavigationEndpoint",
       "watchEndpoint",
       "videoId",
-    );
+    ) ||
+    nav(r, "navigationEndpoint", "watchEndpoint", "videoId");
 
-  const title = getText(
-    nav(
-      r,
-      "flexColumns",
-      0,
-      "musicResponsiveListItemFlexColumnRenderer",
-      "text",
-    ),
-  );
+  const title =
+    getText(nav(r, "title")) ||
+    getText(
+      nav(
+        r,
+        "flexColumns",
+        0,
+        "musicResponsiveListItemFlexColumnRenderer",
+        "text",
+      ),
+    );
 
   const browseId = nav(r, "navigationEndpoint", "browseEndpoint", "browseId");
 
@@ -269,6 +272,7 @@ function parseSearchItem(item, category) {
   const thumbnail = getBestThumbnail(r);
 
   const secondaryRuns =
+    nav(r, "subtitle", "runs") ||
     nav(
       r,
       "flexColumns",
@@ -277,6 +281,7 @@ function parseSearchItem(item, category) {
       "text",
       "runs",
     ) || [];
+
   const artists = secondaryRuns
     .filter(
       (run) =>
@@ -323,7 +328,10 @@ function parseSearchItem(item, category) {
   };
 
   if (videoId) result.videoId = videoId;
-  if (browseId) result.browseId = browseId;
+  if (browseId) {
+    result.browseId = browseId;
+    if (resultType === "playlist") result.playlistId = browseId;
+  }
   if (artists.length) result.artists = artists;
   if (album) result.album = album;
   if (duration) result.duration = duration;

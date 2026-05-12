@@ -522,7 +522,10 @@ async function importPlaylist() {
 watch(
   () => props.pageKey,
   () => {
-    selectedPlaylist.value = null;
+    // Don't reset selectedPlaylist if we're navigating with a playlist query param
+    if (!route.query.playlist) {
+      selectedPlaylist.value = null;
+    }
     loadPage(false);
   },
   { immediate: true },
@@ -533,8 +536,13 @@ watch(
   (id) => {
     if (id) {
       const decoded = String(id);
-      if (decoded.startsWith("local-")) openLocalPlaylist(decoded.replace("local-", ""));
-      else openYtPlaylist(decoded);
+      if (decoded.startsWith("local-")) {
+        openLocalPlaylist(decoded.replace("local-", ""));
+      } else {
+        openYtPlaylist(decoded);
+      }
+    } else {
+      selectedPlaylist.value = null;
     }
   },
   { immediate: true },

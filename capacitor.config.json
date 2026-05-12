@@ -1,0 +1,10 @@
+{
+  "appId": "com.aetherpulse.music",
+  "appName": "AetherPulse Music",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "server": {
+    "cleartext": true
+  }
+}

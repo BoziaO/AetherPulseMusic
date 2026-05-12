@@ -85,6 +85,52 @@ In production the Express server hosts everything from a single port (`PORT`, de
 - API routes under `/api/**`.
 - HTML 5 history fallback to `dist/index.html` for client-side routing.
 
+## Mobile app packaging
+
+This project is now prepared for native mobile packaging with Capacitor.
+
+1. Install Capacitor dependencies:
+
+```bash
+npm install
+```
+
+2. Initialize Capacitor if not already done:
+
+```bash
+npm run cap:init
+```
+
+3. Add the target platform(s):
+
+```bash
+npm run cap:add:android
+npm run cap:add:ios
+```
+
+4. Build the web app and copy assets into the native project:
+
+```bash
+npm run build:mobile
+```
+
+5. Open the native project in the platform IDE:
+
+```bash
+npm run cap:open:android
+npm run cap:open:ios
+```
+
+### Important notes
+
+- Mobile builds should use a reachable backend API host. Set `VITE_API_BASE_URL` in your `.env` to the server origin where `/api` is available.
+- The app UI is already responsive and uses the existing PWA manifest in `public/manifest.json`.
+- The native wrapper will use `dist/` as the web asset directory.
+
+- Static assets from `dist/`.
+- API routes under `/api/**`.
+- HTML 5 history fallback to `dist/index.html` for client-side routing.
+
 `SESSION_SECRET` is **required** in production — the server refuses to start without it.
 
 ---

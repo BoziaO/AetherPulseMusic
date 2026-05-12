@@ -32,7 +32,21 @@
     "server:dev": "node --watch-path server server/index.js",
     "start": "npm run client",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 5000"
+    "preview": "vite preview --host 0.0.0.0 --port 5000",
+    "build:mobile": "npm run build && npm run cap:copy",
+    "cap:init": "npx cap init com.aetherpulse.music \"AetherPulse Music\" --web-dir=dist",
+    "cap:add:android": "npx cap add android",
+    "cap:add:ios": "npx cap add ios",
+    "cap:copy": "npx cap copy",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
   },
   "browserslist": [
     ">0.5%",

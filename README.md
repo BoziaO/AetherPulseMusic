@@ -1,231 +1,140 @@
-# AetherPulse Music
+# 🎵 AetherPulse Music
 
-An Apple Music–inspired web player for **YouTube Music**. Built with **Vue 3 + Vite** on the front end and a thin **Express 5** backend that talks to the YouTube Music Innertube API. Includes search, playback (YouTube IFrame API), local + library playlists, favorites, recents, synced lyrics, queue, insights, and PL/EN UI.
+<div align="center">
 
----
+**Nowoczesny, prywatny odtwarzacz YouTube Music z zaawansowanymi funkcjami offline.**
 
-## Highlights
+[![License](https://img.shields.io/github/license/BoziaO/AetherPulseMusic?style=flat-square)](LICENSE)
+[![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&style=flat-square)](https://vuejs.org/)
+[![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&style=flat-square)](https://expressjs.com/)
+[![Capacitor](https://img.shields.io/badge/Capacitor-5.x-115EF6?logo=capacitor&style=flat-square)](https://capacitorjs.com/)
+[![Stars](https://img.shields.io/github/stars/BoziaO/AetherPulseMusic?style=flat-square&color=gold)](https://github.com/BoziaO/AetherPulseMusic/stargazers)
 
-- **Apple Music UI** — pure-black canvas, glass sidebar/topbar, pink (`#FA243C`) accent (swappable), rounded cards, spinning vinyl in the full player.
-- **YouTube Music search & playback** — songs, albums, artists, playlists, charts, moods, lyrics — all via the Innertube backend.
-- **Local playlists** — create, import (paste any YouTube playlist ID), and play offline-stored playlists.
-- **Smart Flow Composer** — generates a station from your recent listens, tunable by length and discovery level.
-- **Insights** — total minutes, average energy, top artists, listening history.
-- **Persisted state** — favorites, recents, search history, theme, accent, language, and volume saved in `localStorage` and mirrored to the backend.
-- **Optional Google OAuth** — read your YouTube Music library (playlists, liked songs, albums, artists).
-- **Keyboard shortcuts** — `Space`/`K` play, `←/→` seek, `Shift+←/→` prev/next, `Q` queue, `L` lyrics, `/` focus search, `Esc` close.
+</div>
 
 ---
 
-## Stack
+## ✨ Cechy projektu
 
-| Layer | Tech |
-|---|---|
-| UI | Vue 3, Vue Router 4, Vite 8 |
-| Styling | Tailwind CSS 3, custom CSS design tokens |
-| Icons | `lucide-vue-next` |
-| Player | YouTube IFrame API |
-| Server | Express 5, `express-session`, `googleapis` |
-| Storage | JSON files via `AETHERPULSE_DATA_DIR` (defaults to OS temp) |
+AetherPulse to potężna alternatywa dla oficjalnej aplikacji YouTube Music, budowana z myślą o prywatności, wydajności i braku reklam.
+
+### 🚀 Główne funkcjonalności
+- **🎧 Odtwarzanie bez reklam:** Pełne korzystanie z nieoficjalnego API YouTube Music bez przerw na reklamy.
+- **💾 Tryb Offline:** Pobieraj utwory, albumy i playlisty do pamięci lokalnej (obsługa Androida).
+- **🧠 Inteligentne rekomendacje:** Algorytmy sugerujące muzykę na podstawie Twojej historii słuchania i biblioteki z konta.
+- **🔊 Zaawansowany dźwięk:** Wbudowany equalizer, Bass Boost, pomijanie ciszy i integracja z **SponsorBlock**.
+- **🌑 Motyw AMOLED:** Czysta czerń (#000000) dla oszczędności baterii na ekranach OLED.
+- **☁️ Synchronizacja chmurowa:** Zdalne sterowanie odtwarzaniem i synchronizacja kolejki między urządzeniami.
+- **📱 Natywna aplikacja Android:** Dedykowana wersja z odtwarzaniem w tle, powiadomieniami i widgetami.
+- **🔒 Prywatność:** Brak śledzenia reklamowego, pełna kontrola nad danymi i zgodność z RODO.
+
+### 🛠️ Technologia
+Projekt wykorzystuje najnowsze technologie webowe i hybrydowe:
+- **Frontend:** Vue 3 (Composition API), Tailwind CSS, Vite.
+- **Backend:** Node.js, Express, `ytmusicapi` (Innertube).
+- **Mobile:** Capacitor (Android/iOS).
+- **Audio:** Web Audio API (DSP, Equalizer, Silence Skipping).
 
 ---
 
-## Requirements
+## 📸 Zrzuty ekranu
 
-- **Node.js** ≥ 20.19
-- **npm** ≥ 10
+<div align="center">
+  <img src="" alt="Main Player" width="200" style="border-radius: 12px; margin: 5px;">
+  <br>
+  <small><i>*Zrzuty ekranu są ilustracyjne. Interfejs jest w ciągłym rozwoju.*</i></small>
+</div>
 
 ---
 
-## Quick start
+## 🚀 Instalacja i uruchomienie
 
+### Wymagania wstępne
+- Node.js (v18+)
+- npm lub yarn
+- (Opcjonalnie) Android Studio do kompilacji aplikacji mobilnej
+
+### 1. Klonowanie repozytorium
 ```bash
-git clone <repo>
+git clone https://github.com/BoziaO/AetherPulseMusic.git
 cd AetherPulseMusic
+2. Instalacja zależności
 npm install
-copy .env.example .env       # PowerShell / cmd
-# cp .env.example .env       # Bash
+3. Konfiguracja środowiska
+Skopiuj plik .env.example do .env i wypełnij wymagane zmienne:
+
+cp .env.example .env
+Wymagane zmienne:
+
+SESSION_SECRET: Losowy ciąg znaków dla sesji.
+GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: Dla logowania przez Google (opcjonalne).
+BACKEND_PORT: Port dla serwera (domyślnie 3001).
+FRONTEND_URL: Adres URL frontendu.
+Uwaga: Aby odblokować funkcje prywatne (biblioteka, playlisty), umieść plik headers.json z tokenami YouTube Music w głównym katalogu projektu.
+
+4. Uruchomienie w trybie deweloperskim
 npm run dev
-```
+Aplikacja będzie dostępna pod adresem http://localhost:3000.
 
-| URL | What |
-|---|---|
-| `http://localhost:5000` | Vue dev server (Vite) |
-| `http://localhost:3001` | Express API |
-
-The Vite dev server proxies `/api/**` to the Express server, so you do not need to set `VITE_API_BASE_URL` for local development.
-
----
-
-## Scripts
-
-```bash
-npm run dev        # Backend (watch) + Vite dev server, parallel
-npm run client     # Vite dev server only
-npm run server     # Express server only (no watch)
-npm run server:dev # Express server with --watch-path server
-npm run build      # Production build → dist/
-npm run preview    # Serve the built dist/ via Vite
-```
-
----
-
-## Production
-
-```bash
+5. Budowanie dla produkcji
 npm run build
-set NODE_ENV=production
-set SESSION_SECRET=<long-random-string>
 npm run server
-```
+6. Kompilacja aplikacji Android
+npx cap add android
+npx cap sync
+npx cap open android
+(Wymaga skonfigurowanego środowiska Android SDK)
 
-In production the Express server hosts everything from a single port (`PORT`, default `5000`):
-
-- Static assets from `dist/`.
-- API routes under `/api/**`.
-- HTML 5 history fallback to `dist/index.html` for client-side routing.
-
-## Mobile app packaging
-
-This project is now prepared for native mobile packaging with Capacitor.
-
-1. Install Capacitor dependencies:
-
-```bash
-npm install
-```
-
-2. Initialize Capacitor if not already done:
-
-```bash
-npm run cap:init
-```
-
-3. Add the target platform(s):
-
-```bash
-npm run cap:add:android
-npm run cap:add:ios
-```
-
-4. Build the web app and copy assets into the native project:
-
-```bash
-npm run build:mobile
-```
-
-5. Open the native project in the platform IDE:
-
-```bash
-npm run cap:open:android
-npm run cap:open:ios
-```
-
-### Important notes
-
-- Mobile builds should use a reachable backend API host. Set `VITE_API_BASE_URL` in your `.env` to the server origin where `/api` is available.
-- The app UI is already responsive and uses the existing PWA manifest in `public/manifest.json`.
-- The native wrapper will use `dist/` as the web asset directory.
-
-- Static assets from `dist/`.
-- API routes under `/api/**`.
-- HTML 5 history fallback to `dist/index.html` for client-side routing.
-
-`SESSION_SECRET` is **required** in production — the server refuses to start without it.
-
----
-
-## Configuration
-
-All variables are documented in [`.env.example`](./.env.example). Key ones:
-
-| Variable | Required | Notes |
-|---|---|---|
-| `BACKEND_PORT` | dev only | API port in dev (default `3001`). Production uses `PORT`. |
-| `FRONTEND_URL` | always | Used for CORS and OAuth redirect resolution. |
-| `SESSION_SECRET` | production | Long random string. Dev falls back to a placeholder. |
-| `VITE_API_BASE_URL` | optional | Set when frontend and backend live on different origins. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Enable Google OAuth login for library sync. |
-| `GOOGLE_CALLBACK_URL` | with OAuth | Must match the redirect URI in Google Cloud Console. |
-| `AETHERPULSE_DATA_DIR` | optional | Where the server stores local playlists / user state JSON. |
-
-### YouTube Music auth (optional)
-
-For library/private endpoints (your liked songs, your playlists, etc.) you can drop a YouTube Music headers file at the project root:
-
-```
-./headers.json
-```
-
-`headers.json` is gitignored. If absent, public endpoints (search, charts, moods, public artist/album/playlist pages) still work.
-
----
-
-## API surface (selected)
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/auth/session` | Auth status. |
-| `GET` | `/api/auth/google` | Begin Google OAuth. |
-| `POST` | `/api/auth/logout` | Clear session. |
-| `GET` | `/api/ytmusic/search?q=&filter=&limit=` | YouTube Music search. |
-| `GET` | `/api/ytmusic/artist/:channelId` | Artist details. |
-| `GET` | `/api/ytmusic/album/:browseId` | Album with tracks. |
-| `GET` | `/api/ytmusic/playlist/:playlistId` | Playlist with tracks. |
-| `GET` | `/api/ytmusic/charts` | Top charts. |
-| `GET` | `/api/page/:key` | Aggregated page payloads (`home`, `discover`, `chill`, `energy`, `playlists`, `albums`, `artists`, `favorites`, `recent`). |
-| `POST` | `/api/flows/revolution` | Generate a Smart Flow station. |
-| `GET`/`POST`/`DELETE` | `/api/local/playlists/...` | CRUD for local playlists. |
-| `GET`/`PATCH` | `/api/user/state` | Hydrate / persist user state. |
-| `POST` | `/api/user/recent` | Append a track to recents. |
-| `POST` | `/api/user/favorites/toggle` | Toggle a track in favorites. |
-| `POST` | `/api/user/queues` | Save a named queue. |
-| `GET` | `/api/lyrics?videoId=&title=&artist=` | Synced lyrics (LRCLIB + fallbacks). |
-
----
-
-## Project layout
-
-```text
+📂 Struktura projektu
 AetherPulseMusic/
-├── public/                 favicon, manifest, service worker
-├── src/
-│   ├── App.vue
-│   ├── main.js
-│   ├── index.css           Apple Music design tokens
-│   ├── router/             Vue Router
-│   ├── components/         Sidebar, PlayerBar, FullPlayer, modals, etc.
-│   ├── views/              MusicPage, Settings, Insights, Album, Artist
-│   ├── data/               i18n.js, navigation.js
-│   └── lib/                api.js, format.js
-├── server/
-│   ├── index.js            Express bootstrap
-│   ├── ytmusic.js          Innertube client
-│   ├── routes/             auth, ytmusic, pages, flows, lyrics, user, localPlaylists
-│   └── utils/helpers.js
-├── .env.example
-├── tailwind.config.cjs
-├── postcss.config.cjs
-├── vite.config.js
-└── package.json
-```
+├── public/              # Statyczne zasoby (favicon, manifest)
+├── src/                 # Kod źródłowy frontendu (Vue 3)
+│   ├── components/      # Komponenty UI (Player, Sidebar, Modals)
+│   ├── views/           # Widoki (Music, Settings, Insights)
+│   ├── lib/             # Logika biznesowa (API, formatowanie)
+│   └── assets/          # Style i obrazy
+├── server/              # Backend (Express)
+│   ├── routes/          # Endpointy API
+│   ├── utils/           # Narzędzia pomocnicze
+│   └── ytmusic.js       # Klient YouTube Music
+├── capacitor.config.json # Konfiguracja aplikacji mobilnej
+└── package.json         # Zależności projektu
+🛣️ Plan rozwoju (Roadmap)
+Aktualny status projektu i planowane funkcje można śledzić w pliku TODO.md.
 
----
+Najbliższe cele:
+ Podstawowy odtwarzacz i wyszukiwanie
+ Integracja z nieoficjalnym API
+ Tryb offline i pobieranie muzyki
+ Motyw AMOLED i pełna optymalizacja wydajności
+ Zaawansowane rekomendacje hybrydowe
+ Pełna obsługa Androida (tło, powiadomienia)
+🤝 Współpraca
+Witamy wkład społeczności! Jeśli chcesz pomóc w rozwoju projektu:
 
-## Troubleshooting
+Sprawdź listę zadań w TODO.md.
+Forkuj repozytorium i twórz nowe branże.
+Wysyłaj Pull Requesty z opisem zmian.
+Obszary do rozwoju:
 
-| Symptom | Likely cause / fix |
-|---|---|
-| Empty home page, "Blad polaczenia z API" toast | Backend not running. Start `npm run server` or `npm run dev`. |
-| `SESSION_SECRET must be set in production` | Set the env var before running with `NODE_ENV=production`. |
-| Album page is empty | Some albums are region-locked or video-only on YouTube — try another. |
-| Google login does nothing | `GOOGLE_CLIENT_ID` / secret missing or callback URL mismatch with Cloud Console. |
-| Lyrics say "No results" | LRCLIB has no entry for that title/artist. Try a different version. |
+Optymalizacja wydajności (Core Web Vitals).
+Rozszerzenie funkcji audio (DSP).
+Ulepszanie UI/UX.
+Testy jednostkowe i integracyjne.
+⚠️ Zastrzeżenie prawne
+AetherPulse Music jest niezależnym projektem open-source i nie jest powiązany z Google LLC ani YouTube.
 
----
+Projekt wykorzystuje nieoficjalne API YouTube Music.
+Pobieranie muzyki może naruszać Warunki Korzystania z Usługi YouTube. Pliki są przeznaczone wyłącznie do użytku osobistego i offline.
+Używasz tę aplikację na własną odpowiedzialność.
+📄 Licencja
+Projekt jest udostępniany na licencji MIT. Zobacz plik LICENSE dla szczegółów.
 
-## Notes
+🙏 Podziękowania
+Twórcy biblioteki ytmusicapi / Innertube.
+Społeczności SponsorBlock.
+Wszystkim współautorom i testerom.
+<div align="center">
+Stworzone z ❤️ przez Bozia
 
-- Playback uses the YouTube IFrame Player at `#yt-hidden-player`. Tracks without a `videoId` cannot be played — they are still listed for browsing.
-- Local playlists, recents, and favorites live in `localStorage` first; the backend mirror is best-effort.
-- All UI strings are in `src/data/i18n.js` and ship in Polish (default) and English.
+</div> ```

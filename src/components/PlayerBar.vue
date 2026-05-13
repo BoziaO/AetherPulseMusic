@@ -11,11 +11,11 @@
           min="0"
           :max="safeDuration"
           step="1"
-          :value="currentTime"
+          :value="props.currentTime"
           class="am-slider strip"
           :style="{ '--progress': `${progressPercent}%` }"
           :aria-label="t('expandPlayer')"
-          @input="$emit('seek', Number($event.target.value))"
+          @input="seekTo(Number($event.target.value))"
         />
       </div>
 
@@ -65,12 +65,12 @@
              </button>
              <button
                class="play-btn"
-               :class="{ 'is-playing': isPlaying }"
+               :class="{ 'is-playing': props.isPlaying }"
                type="button"
-               :title="isPlaying ? t('pause') : t('play')"
-               @click="$emit('toggle-play')"
+               :title="props.isPlaying ? t('pause') : t('play')"
+               @click="togglePlay()"
              >
-               <Pause v-if="isPlaying" :size="20" fill="currentColor" />
+               <Pause v-if="props.isPlaying" :size="20" fill="currentColor" />
                <Play v-else :size="20" fill="currentColor" class="translate-x-[1px]" />
              </button>
              <button class="icon-btn" type="button" :title="t('next')" @click="$emit('next')">
@@ -143,12 +143,12 @@
            </button>
            <button
              class="play-btn mini-play"
-             :class="{ 'is-playing': isPlaying }"
+             :class="{ 'is-playing': props.isPlaying }"
              type="button"
-             :title="isPlaying ? t('pause') : t('play')"
-             @click.stop="$emit('toggle-play')"
+             :title="props.isPlaying ? t('pause') : t('play')"
+             @click.stop="togglePlay()"
            >
-             <Pause v-if="isPlaying" :size="16" fill="currentColor" />
+             <Pause v-if="props.isPlaying" :size="16" fill="currentColor" />
              <Play v-else :size="16" fill="currentColor" class="translate-x-[1px]" />
            </button>
            <button
@@ -229,7 +229,7 @@ const props = defineProps({
   minimized: { type: Boolean, default: false },
 });
 
-defineEmits([
+const emit = defineEmits([
   "toggle-play",
   "seek",
   "volume",
@@ -265,6 +265,26 @@ const safeDuration = computed(() =>
 const progressPercent = computed(() =>
   Math.min(100, (props.currentTime / safeDuration.value) * 100),
 );
+
+function togglePlay() {
+  $emit('toggle-play');
+}
+
+function toggleShuffle() {
+  $emit('shuffle');
+}
+
+function toggleRepeat() {
+  $emit('repeat');
+}
+
+function seekTo(position) {
+  $emit('seek', position);
+}
+
+function setVolume(volume) {
+  $emit('volume', volume / 100);
+}
 </script>
 
 <style scoped>

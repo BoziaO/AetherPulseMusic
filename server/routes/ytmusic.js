@@ -2,6 +2,30 @@ const express = require('express');
 const { wrap } = require('../utils/helpers');
 const { validateQuery, validateParams, validateBody, schemas } = require('../utils/schemas');
 
+async function getDislikes(videoId) {
+  try {
+    const response = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${videoId}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.dislikes || 0;
+  } catch (error) {
+    console.error('Error fetching dislikes:', error);
+    return null;
+  }
+}
+
+async function getSponsorSegments(videoId) {
+  try {
+    const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.filter(segment => ['sponsor', 'intro', 'selfpromo'].includes(segment.category));
+  } catch (error) {
+    console.error('Error fetching sponsor segments:', error);
+    return [];
+  }
+}
+
 function createYtmusicRouter(yt) {
   const router = express.Router();
 
@@ -47,7 +71,9 @@ function createYtmusicRouter(yt) {
     wrap(async (req) => {
       const song = await yt.getSong(req.params.videoId);
       if (!song) return { error: 'Song not found' };
-      return song;
+      const dislikes = await getDislikes(req.params.videoId);
+      const sponsorSegments = await getSponsorSegments(req.params.videoId);
+      return { ...song, dislikes, sponsorSegments };
     }),
   );
 

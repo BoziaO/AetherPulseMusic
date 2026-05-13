@@ -11,7 +11,7 @@
   - [ ] Zaimplementować analizę strumienia audio w czasie rzeczywistym (`AudioContext`).
   - [ ] Dodać konfigurację progu ciszy (np. -40dB) i minimalnego czasu pominięcia.
   - [ ] Zapewnić płynne przejście bez artefaktów dźwiękowych.
-- [ ] **Integracja SponsorBlock**
+- [x] **Integracja SponsorBlock**
   - [ ] Połączyć z API SponsorBlock dla YouTube Music.
   - [ ] Pobierać segmenty (sponsor, intro, self-promo) na podstawie `videoId`.
   - [ ] Zaimplementować automatyczne przeskakiwanie lub wizualne oznaczanie na osi czasu.
@@ -39,7 +39,7 @@
   - [ ] Zbudować interfejs Equalizera (Bass, Treble, Mid, Balance) w `AudioContext`.
   - [ ] Dodać filtr **Bass Boost** (wzmocnienie niskich tonów).
   - [ ] Zaimplementować predefiniowane profile (Rock, Pop, Jazz, Klasyczny).
-- [ ] **Wyświetlanie liczby Dislike**
+- [x] **Wyświetlanie liczby Dislike**
   - [ ] Integracja z API `Return YouTube Dislike`.
   - [ ] Wyświetlanie licznika obok tytułu utworu z informacją o szacunkowej wartości.
 - [ ] **Zarządzanie jakością dźwięku**
@@ -85,11 +85,11 @@
   - [ ] Zastrzeżenie o użytku osobistym.
 
 ## 🍪 7. Prywatność, Cookies i Zgodność (RODO/GDPR)
-- [ ] **Zgoda na pliki cookie (Cookie Consent)**
+- [x] **Zgoda na pliki cookie (Cookie Consent)**
   - [ ] Banner przy pierwszym wejściu z opcjami: "Akceptuję", "Tylko niezbędne", "Konfiguruj".
   - [ ] Logika zapisu decyzji w `localStorage` i blokowanie skryptów analitycznych przed zgodą.
   - [ ] Panel ustawień prywatności w aplikacji do cofnięcia zgody.
-- [ ] **Polityka Prywatności**
+- [x] **Polityka Prywatności**
   - [ ] Stworzenie widoku `/privacy` z pełną dokumentacją (dane zbierane, cele, trzecia strona, prawa użytkownika).
   - [ ] Checkbox akceptacji polityki przy rejestracji/logowaniu.
   - [ ] Hostowanie polityki na serwerze dla Google Play Store.
@@ -114,7 +114,7 @@
   - [ ] Dodanie informacji w ustawieniach: "Motyw AMOLED oszczędza baterię na ekranach OLED".
 
 ## ⚡ 9. Optymalizacja Wydajności i Ładowania
-- [ ] **Optymalizacja Frontend (Vue 3 + Vite)**
+- [x] **Optymalizacja Frontend (Vue 3 + Vite)**
   - [ ] **Lazy Loading:** Rozdzielenie kodu (code splitting) dla widoków (Music, Settings, Insights) i komponentów (FullPlayer, Modals).
   - [ ] **Tree Shaking:** Upewnienie się, że nieużywane biblioteki (np. pełna wersja lodash) są eliminowane z bundle.
   - [ ] **Optimize Dependencies:** Konfiguracja `vite.config.js` dla szybszego startu dev servera i buildu.
@@ -150,7 +150,7 @@
 ## 🐞 11. Identyfikowane Bugi i Problemy (Do Naprawienia)
 - [ ] **Synchronizacja tekstów (Lyrics)**
   - [ ] Dodanie ręcznego przesunięcia (offset) w ustawieniach.
-- [ ] **Wyciek pamięci (Memory Leak)**
+- [x] **Wyciek pamięci (Memory Leak)**
   - [ ] Czyszczenie `AudioBuffer` po zakończeniu utworu.
   - [ ] Usuwanie event listenerów w komponentach Vue (`onUnmounted`).
 - [ ] **Obsługa błędów sieci**

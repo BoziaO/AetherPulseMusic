@@ -31,7 +31,7 @@
             <h2 class="track-title" :class="{ 'marquee': titleOverflows }">
               <span class="track-title-inner" ref="titleRef">{{ track?.title }}</span>
             </h2>
-            <p class="track-artist">{{ artist }}</p>
+            <p class="track-artist">{{ artist }} <span v-if="track?.dislikes !== undefined" class="dislikes">👎 {{ formatNumber(track.dislikes) }}</span></p>
           </div>
 
           <div class="track-progress">
@@ -45,6 +45,15 @@
               :style="{ '--progress': `${progressPercent}%` }"
               @input="$emit('seek', Number($event.target.value))"
             />
+            <div class="sponsor-segments" v-if="sponsorSegments.length">
+              <div
+                v-for="segment in sponsorSegments"
+                :key="segment.segment"
+                class="segment-marker"
+                :style="{ left: `${(segment.segment[0] / safeDuration) * 100}%`, width: `${((segment.segment[1] - segment.segment[0]) / safeDuration) * 100}%` }"
+                :title="`${segment.category}: ${formatClock(segment.segment[0])} - ${formatClock(segment.segment[1])}`"
+              ></div>
+            </div>
             <div class="time-row">
               <span>{{ formatClock(currentTime) }}</span>
               <span>-{{ formatClock(Math.max(0, safeDuration - currentTime)) }}</span>
@@ -176,7 +185,7 @@ import {
 import AudioVisualizer from "./AudioVisualizer.vue";
 import TrackComments from "./TrackComments.vue";
 import SleepTimer from "./SleepTimer.vue";
-import { formatClock } from "../lib/format";
+import { formatClock, formatNumber } from "../lib/format";
 import { fetchJson } from "../lib/api";
 
 const props = defineProps({
@@ -188,6 +197,7 @@ const props = defineProps({
   shuffle: { type: Boolean, default: false },
   repeatMode: { type: String, default: "none" },
   favorite: { type: Boolean, default: false },
+  sponsorSegments: { type: Array, default: () => [] },
   playlistName: { type: String, default: "" },
 });
 
@@ -253,6 +263,31 @@ function checkTitleOverflow() {
 }
 
 let resizeObs = null;
+
+// Load dislikes for the track if not already loaded
+async function loadDislikes(track) {
+  if (!track?.videoId || track.dislikes !== undefined) return;
+  try {
+    const songData = await fetchJson(`/ytmusic/song/${track.videoId}`);
+    if (songData.dislikes !== undefined) {
+      // Update the track object (assuming it's reactive)
+      track.dislikes = songData.dislikes;
+    }
+  } catch (error) {
+    console.error('Error loading dislikes:', error);
+  }
+}
+
+watch(
+  () => props.track,
+  async (newTrack) => {
+    if (newTrack) {
+      await loadDislikes(newTrack);
+    }
+  },
+  { immediate: true },
+);
+
 watch(
   () => props.track?.title,
   async () => {
@@ -1115,5 +1150,20 @@ function parseTimedLyrics(text) {
   .lyric-line {
     font-size: 15px;
   }
+}
+
+.sponsor-segments {
+  position: relative;
+  height: 4px;
+  margin-top: 4px;
+}
+
+.segment-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(255, 0, 0, 0.6);
+  border-radius: 2px;
+  cursor: pointer;
 }
 </style>

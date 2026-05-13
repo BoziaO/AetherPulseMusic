@@ -247,6 +247,15 @@ const messages = {
     sleepTimerDone: "Dobranoc! Odtwarzanie zatrzymane.",
     sleepTimerActive: "Zatrzyma się za {time}",
 
+    // Cookies
+    cookieMessage: "Używamy plików cookie, aby poprawić Twoje doświadczenie. Wybierz swoje preferencje.",
+    acceptAll: "Akceptuję wszystkie",
+    customize: "Dostosuj",
+    reject: "Odrzuć",
+    cookieSettings: "Ustawienia plików cookie",
+    analyticsCookies: "Pliki cookie analityczne",
+    saveSettings: "Zapisz ustawienia",
+
     themeMidnightOcean: "Midnight Ocean",
     themeForest: "Forest",
     themeAurora: "Aurora",

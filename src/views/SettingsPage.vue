@@ -393,6 +393,31 @@
       </ul>
     </section>
 
+    <section class="card-block">
+      <header class="card-head">
+        <Shield :size="18" />
+        <h2 class="card-title">Prywatność</h2>
+      </header>
+
+      <div class="row">
+        <div>
+          <p class="row-title">Polityka prywatności</p>
+          <p class="row-sub">Dowiedz się, jak chronimy Twoje dane.</p>
+        </div>
+        <RouterLink class="btn-secondary" to="/privacy">Zobacz politykę</RouterLink>
+      </div>
+
+      <div class="row">
+        <div>
+          <p class="row-title">Ustawienia plików cookie</p>
+          <p class="row-sub">Zarządzaj preferencjami dotyczącymi plików cookie.</p>
+        </div>
+        <button class="btn-secondary" @click="showCookieBanner = true">Dostosuj</button>
+      </div>
+    </section>
+
+    <CookieBanner v-if="showCookieBanner" @close="showCookieBanner = false" />
+
     <p class="footer">{{ t('about') }} • {{ t('aboutTagline') }}</p>
   </div>
 </template>
@@ -407,6 +432,7 @@ import {
   ListMusic,
   Palette,
   RefreshCw,
+  Shield,
   Sliders,
   Trash2,
   UserCircle,
@@ -417,6 +443,7 @@ import {
 } from "lucide-vue-next";
 
 import { fetchJson } from "../lib/api";
+import CookieBanner from "../components/CookieBanner.vue";
 
 const CHART_REGIONS = [
   { code: "ZZ", label: "🌍 Global" },
@@ -441,6 +468,8 @@ const CHART_REGIONS = [
   { code: "AR", label: "🇦🇷 Argentina" },
 ];
 import { THEMES } from "../data/themes";
+
+const showCookieBanner = ref(false);
 
 
 const appState = inject("appState");

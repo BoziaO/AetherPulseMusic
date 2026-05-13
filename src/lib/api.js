@@ -49,3 +49,7 @@ export async function fetchJson(path, options = {}) {
 
   return response.json();
 }
+
+export async function fetchSong(videoId) {
+  return fetchJson(`/ytmusic/song/${videoId}`);
+}

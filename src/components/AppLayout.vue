@@ -181,6 +181,7 @@
         :shuffle="isShuffled"
         :repeat-mode="repeatMode"
         :favorite="favoriteKeys.has(trackKey(nowPlaying))"
+        :sponsor-segments="nowPlaying?.sponsorSegments || []"
         :playlist-name="getCurrentPlaylistName()"
         @close="showFullPlayer = false"
         @toggle-play="togglePlay"
@@ -218,6 +219,8 @@
       @seek="seekTo"
     />
 
+    <CookieBanner />
+
     <ToastStack :toasts="toasts" @dismiss="dismissToast" />
   </div>
 </template>
@@ -232,8 +235,9 @@ import QueueModal from "./QueueModal.vue";
 import FullPlayer from "./FullPlayer.vue";
 import Sidebar from "./Sidebar.vue";
 import ToastStack from "./ToastStack.vue";
+import CookieBanner from "./CookieBanner.vue";
 import { translate } from "../data/i18n";
-import { buildApiUrl, fetchJson } from "../lib/api";
+import { buildApiUrl, fetchJson, fetchSong } from "../lib/api";
 import { clamp, normalizeTrack, secondsFromDuration, trackKey } from "../lib/format";
 import { useTheme } from "../lib/useTheme";
 
@@ -607,6 +611,14 @@ function stopProgressTimer() {
 function play(item, newQueue = null) {
   if (!item) return;
   const track = normalizeTrack(item);
+  // Load additional data like sponsor segments
+  if (track.videoId) {
+    fetchSong(track.videoId).then(songData => {
+      if (songData && nowPlaying.value && trackKey(nowPlaying.value) === trackKey(track)) {
+        nowPlaying.value = { ...nowPlaying.value, ...songData };
+      }
+    }).catch(() => {});
+  }
   if (newQueue?.length) {
     queue.value = newQueue.map(normalizeTrack).filter(Boolean);
     currentQueueIndex.value = Math.max(

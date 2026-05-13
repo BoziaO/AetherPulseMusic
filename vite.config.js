@@ -35,6 +35,8 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router')) return 'vendor'
           if (id.includes('node_modules/lucide')) return 'ui'
+          if (id.includes('src/views/')) return 'views'
+          if (id.includes('src/components/')) return 'components'
         }
       }
     }

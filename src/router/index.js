@@ -5,6 +5,7 @@ import ArtistDetailPage from "../views/ArtistDetailPage.vue";
 import AlbumDetailPage from "../views/AlbumDetailPage.vue";
 import InsightsPage from "../views/InsightsPage.vue";
 import SettingsPage from "../views/SettingsPage.vue";
+import PrivacyPage from "../views/PrivacyPage.vue";
 
 const pageRoute = (path, pageKey) => ({
   path,
@@ -35,6 +36,7 @@ const router = createRouter({
         { path: "album/:albumId", component: AlbumDetailPage, props: true },
         { path: "insights", component: InsightsPage },
         { path: "settings", component: SettingsPage },
+        { path: "privacy", component: PrivacyPage },
         { path: ":pathMatch(.*)*", redirect: "/" },
       ],
     },

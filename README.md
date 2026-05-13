@@ -57,13 +57,15 @@ Projekt wykorzystuje najnowsze technologie webowe i hybrydowe:
 ### 1. Klonowanie repozytorium
 ```bash
 git clone https://github.com/BoziaO/AetherPulseMusic.git
-cd AetherPulseMusic
+cd AetherPulseMusic```
 2. Instalacja zależności
-npm install
+```npm install```
+
 3. Konfiguracja środowiska
 Skopiuj plik .env.example do .env i wypełnij wymagane zmienne:
 
-cp .env.example .env
+```cp .env.example .env```
+
 Wymagane zmienne:
 
 SESSION_SECRET: Losowy ciąg znaków dla sesji.
@@ -73,20 +75,20 @@ FRONTEND_URL: Adres URL frontendu.
 Uwaga: Aby odblokować funkcje prywatne (biblioteka, playlisty), umieść plik headers.json z tokenami YouTube Music w głównym katalogu projektu.
 
 4. Uruchomienie w trybie deweloperskim
-npm run dev
+```npm run dev```
 Aplikacja będzie dostępna pod adresem http://localhost:3000.
 
 5. Budowanie dla produkcji
-npm run build
-npm run server
+```npm run build
+npm run server```
 6. Kompilacja aplikacji Android
-npx cap add android
+```npx cap add android
 npx cap sync
-npx cap open android
+npx cap open android```
 (Wymaga skonfigurowanego środowiska Android SDK)
 
 📂 Struktura projektu
-AetherPulseMusic/
+```AetherPulseMusic/
 ├── public/              # Statyczne zasoby (favicon, manifest)
 ├── src/                 # Kod źródłowy frontendu (Vue 3)
 │   ├── components/      # Komponenty UI (Player, Sidebar, Modals)
@@ -98,7 +100,8 @@ AetherPulseMusic/
 │   ├── utils/           # Narzędzia pomocnicze
 │   └── ytmusic.js       # Klient YouTube Music
 ├── capacitor.config.json # Konfiguracja aplikacji mobilnej
-└── package.json         # Zależności projektu
+└── package.json         # Zależności projektu```
+
 🛣️ Plan rozwoju (Roadmap)
 Aktualny status projektu i planowane funkcje można śledzić w pliku TODO.md.
 

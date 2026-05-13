@@ -1,143 +1,363 @@
-# 🎵 AetherPulse Music
+🎵 AetherPulse Music
 
-<div align="center">
+<div align="center">AetherPulse Music
 
-**Nowoczesny, prywatny odtwarzacz YouTube Music z zaawansowanymi funkcjami offline.**
+Nowoczesny klient YouTube Music bez reklam, z trybem offline i naciskiem na prywatność.
 
-[![License](https://img.shields.io/github/license/BoziaO/AetherPulseMusic?style=flat-square)](LICENSE)
-[![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&style=flat-square)](https://vuejs.org/)
-[![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&style=flat-square)](https://expressjs.com/)
-[![Capacitor](https://img.shields.io/badge/Capacitor-5.x-115EF6?logo=capacitor&style=flat-square)](https://capacitorjs.com/)
-[![Stars](https://img.shields.io/github/stars/BoziaO/AetherPulseMusic?style=flat-square&color=gold)](https://github.com/BoziaO/AetherPulseMusic/stargazers)
+<p>
+  <img src="https://img.shields.io/github/license/BoziaO/AetherPulseMusic?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&style=for-the-badge" alt="Vue">
+  <img src="https://img.shields.io/badge/Express-4.x-000000?logo=express&style=for-the-badge" alt="Express">
+  <img src="https://img.shields.io/badge/Capacitor-5.x-115EF6?logo=capacitor&style=for-the-badge" alt="Capacitor">
+  <img src="https://img.shields.io/github/stars/BoziaO/AetherPulseMusic?style=for-the-badge&color=gold" alt="Stars">
+</p><p>
+  Lekki, szybki i prywatny odtwarzacz muzyki inspirowany YouTube Music.  
+  Działa jako aplikacja webowa i natywna aplikacja Android.
+</p></div>
+---
+
+✨ Funkcje
+
+🎧 Odtwarzanie muzyki
+
+Odtwarzanie bez reklam
+
+Obsługa albumów, playlist i pojedynczych utworów
+
+Kolejka odtwarzania i autoplay
+
+Wyszukiwanie muzyki przez YouTube Music API
+
+Synchronizacja historii słuchania
+
+
+💾 Tryb offline
+
+Pobieranie utworów i playlist
+
+Lokalna biblioteka offline
+
+Odtwarzanie bez internetu
+
+Cache audio dla szybszego działania
+
+
+🔊 Audio i DSP
+
+Equalizer
+
+Bass Boost
+
+Pomijanie ciszy
+
+Integracja z SponsorBlock
+
+Web Audio API
+
+
+🌑 Interfejs
+
+Motyw AMOLED
+
+Responsywny UI
+
+Dynamiczne animacje
+
+Tryb desktop i mobile
+
+Widgety Android
+
+
+🔒 Prywatność
+
+Brak trackerów reklamowych
+
+Brak telemetryki
+
+Dane przechowywane lokalnie
+
+Pełna kontrola nad biblioteką
+
+
+
+---
+
+🛠️ Stack technologiczny
+
+Frontend
+
+Vue 3 (Composition API)
+
+Vite
+
+Tailwind CSS
+
+Pinia
+
+Vue Router
+
+
+Backend
+
+Node.js
+
+Express
+
+ytmusicapi / Innertube
+
+
+Mobile
+
+Capacitor
+
+Android SDK
+
+
+Audio
+
+Web Audio API
+
+DSP Processing
+
+
+
+---
+
+📸 Zrzuty ekranu
+
+<div align="center">Home	Player	Library
+
+<img src="./docs/screenshots/home.png" width="220">	<img src="./docs/screenshots/player.png" width="220">	<img src="./docs/screenshots/library.png" width="220">
+
+
+<sub>Zrzuty ekranu są poglądowe i mogą się zmieniać wraz z rozwojem projektu.</sub>
 
 </div>
+---
+
+🚀 Instalacja
+
+Wymagania
+
+Node.js 18+
+
+npm lub yarn
+
+Android Studio (opcjonalnie)
+
+
 
 ---
 
-## ✨ Cechy projektu
+1. Klonowanie repozytorium
 
-AetherPulse to potężna alternatywa dla oficjalnej aplikacji YouTube Music, budowana z myślą o prywatności, wydajności i braku reklam.
-
-### 🚀 Główne funkcjonalności
-- **🎧 Odtwarzanie bez reklam:** Pełne korzystanie z nieoficjalnego API YouTube Music bez przerw na reklamy.
-- **💾 Tryb Offline:** Pobieraj utwory, albumy i playlisty do pamięci lokalnej (obsługa Androida).
-- **🧠 Inteligentne rekomendacje:** Algorytmy sugerujące muzykę na podstawie Twojej historii słuchania i biblioteki z konta.
-- **🔊 Zaawansowany dźwięk:** Wbudowany equalizer, Bass Boost, pomijanie ciszy i integracja z **SponsorBlock**.
-- **🌑 Motyw AMOLED:** Czysta czerń (#000000) dla oszczędności baterii na ekranach OLED.
-- **☁️ Synchronizacja chmurowa:** Zdalne sterowanie odtwarzaniem i synchronizacja kolejki między urządzeniami.
-- **📱 Natywna aplikacja Android:** Dedykowana wersja z odtwarzaniem w tle, powiadomieniami i widgetami.
-- **🔒 Prywatność:** Brak śledzenia reklamowego, pełna kontrola nad danymi i zgodność z RODO.
-
-### 🛠️ Technologia
-Projekt wykorzystuje najnowsze technologie webowe i hybrydowe:
-- **Frontend:** Vue 3 (Composition API), Tailwind CSS, Vite.
-- **Backend:** Node.js, Express, `ytmusicapi` (Innertube).
-- **Mobile:** Capacitor (Android/iOS).
-- **Audio:** Web Audio API (DSP, Equalizer, Silence Skipping).
-
----
-
-## 📸 Zrzuty ekranu
-
-<div align="center">
-  <img src="" alt="Main Player" width="200" style="border-radius: 12px; margin: 5px;">
-  <br>
-  <small><i>*Zrzuty ekranu są ilustracyjne. Interfejs jest w ciągłym rozwoju.*</i></small>
-</div>
-
----
-
-## 🚀 Instalacja i uruchomienie
-
-### Wymagania wstępne
-- Node.js (v18+)
-- npm lub yarn
-- (Opcjonalnie) Android Studio do kompilacji aplikacji mobilnej
-
-### 1. Klonowanie repozytorium
-```bash
 git clone https://github.com/BoziaO/AetherPulseMusic.git
-cd AetherPulseMusic```
+cd AetherPulseMusic
+
+
+---
+
 2. Instalacja zależności
-```npm install```
+
+npm install
+
+
+---
 
 3. Konfiguracja środowiska
-Skopiuj plik .env.example do .env i wypełnij wymagane zmienne:
 
-```cp .env.example .env```
+Skopiuj plik .env.example:
 
-Wymagane zmienne:
+cp .env.example .env
 
-SESSION_SECRET: Losowy ciąg znaków dla sesji.
-GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: Dla logowania przez Google (opcjonalne).
-BACKEND_PORT: Port dla serwera (domyślnie 3001).
-FRONTEND_URL: Adres URL frontendu.
-Uwaga: Aby odblokować funkcje prywatne (biblioteka, playlisty), umieść plik headers.json z tokenami YouTube Music w głównym katalogu projektu.
+Przykładowa konfiguracja:
 
-4. Uruchomienie w trybie deweloperskim
-```npm run dev```
-Aplikacja będzie dostępna pod adresem http://localhost:3000.
+SESSION_SECRET=your_secret
+BACKEND_PORT=3001
+FRONTEND_URL=http://localhost:3000
 
-5. Budowanie dla produkcji
-```npm run build
-npm run server```
-6. Kompilacja aplikacji Android
-```npx cap add android
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+Opcjonalnie
+
+Aby uzyskać dostęp do prywatnej biblioteki YouTube Music:
+
+1. Wyeksportuj nagłówki z przeglądarki
+
+
+2. Umieść plik headers.json w katalogu głównym projektu
+
+
+
+
+---
+
+▶️ Uruchomienie
+
+Development
+
+npm run dev
+
+Frontend:
+
+http://localhost:3000
+
+Backend:
+
+http://localhost:3001
+
+
+---
+
+Build produkcyjny
+
+npm run build
+npm run server
+
+
+---
+
+📱 Android
+
+Dodanie platformy
+
+npx cap add android
+
+Synchronizacja
+
 npx cap sync
-npx cap open android```
-(Wymaga skonfigurowanego środowiska Android SDK)
+
+Otworzenie projektu
+
+npx cap open android
+
+Wymagane jest poprawnie skonfigurowane Android SDK.
+
+
+---
 
 📂 Struktura projektu
-```AetherPulseMusic/
-├── public/              # Statyczne zasoby (favicon, manifest)
-├── src/                 # Kod źródłowy frontendu (Vue 3)
-│   ├── components/      # Komponenty UI (Player, Sidebar, Modals)
-│   ├── views/           # Widoki (Music, Settings, Insights)
-│   ├── lib/             # Logika biznesowa (API, formatowanie)
-│   └── assets/          # Style i obrazy
-├── server/              # Backend (Express)
-│   ├── routes/          # Endpointy API
-│   ├── utils/           # Narzędzia pomocnicze
-│   └── ytmusic.js       # Klient YouTube Music
-├── capacitor.config.json # Konfiguracja aplikacji mobilnej
-└── package.json         # Zależności projektu```
 
-🛣️ Plan rozwoju (Roadmap)
-Aktualny status projektu i planowane funkcje można śledzić w pliku TODO.md.
+AetherPulseMusic/
+│
+├── public/                 # Manifest, favicon, statyczne pliki
+├── src/
+│   ├── assets/             # Style i obrazy
+│   ├── components/         # Komponenty UI
+│   ├── composables/        # Vue composables
+│   ├── lib/                # API i logika aplikacji
+│   ├── stores/             # Pinia stores
+│   └── views/              # Widoki aplikacji
+│
+├── server/
+│   ├── routes/             # Endpointy API
+│   ├── utils/              # Narzędzia backendowe
+│   └── ytmusic.js          # Integracja z YouTube Music
+│
+├── capacitor.config.json
+├── package.json
+└── README.md
 
-Najbliższe cele:
- Podstawowy odtwarzacz i wyszukiwanie
- Integracja z nieoficjalnym API
- Tryb offline i pobieranie muzyki
- Motyw AMOLED i pełna optymalizacja wydajności
- Zaawansowane rekomendacje hybrydowe
- Pełna obsługa Androida (tło, powiadomienia)
+
+---
+
+🛣️ Roadmap
+
+Aktualnie rozwijane
+
+[x] Podstawowy player
+
+[x] Wyszukiwanie muzyki
+
+[x] Integracja z YouTube Music API
+
+[ ] Offline downloads
+
+[ ] Zaawansowany equalizer
+
+[ ] Synchronizacja między urządzeniami
+
+[ ] Powiadomienia Android
+
+[ ] Widgety Android
+
+[ ] Smart recommendations
+
+[ ] Obsługa iOS
+
+
+
+---
+
 🤝 Współpraca
-Witamy wkład społeczności! Jeśli chcesz pomóc w rozwoju projektu:
 
-Sprawdź listę zadań w TODO.md.
-Forkuj repozytorium i twórz nowe branże.
-Wysyłaj Pull Requesty z opisem zmian.
-Obszary do rozwoju:
+Pull Requesty i sugestie są mile widziane.
 
-Optymalizacja wydajności (Core Web Vitals).
-Rozszerzenie funkcji audio (DSP).
-Ulepszanie UI/UX.
-Testy jednostkowe i integracyjne.
-⚠️ Zastrzeżenie prawne
-AetherPulse Music jest niezależnym projektem open-source i nie jest powiązany z Google LLC ani YouTube.
+Jak pomóc?
 
-Projekt wykorzystuje nieoficjalne API YouTube Music.
-Pobieranie muzyki może naruszać Warunki Korzystania z Usługi YouTube. Pliki są przeznaczone wyłącznie do użytku osobistego i offline.
-Używasz tę aplikację na własną odpowiedzialność.
+1. Fork repozytorium
+
+
+2. Utwórz branch:
+
+
+
+git checkout -b feature/nazwa-funkcji
+
+3. Commit zmian:
+
+
+
+git commit -m "Dodano nową funkcję"
+
+4. Push:
+
+
+
+git push origin feature/nazwa-funkcji
+
+5. Otwórz Pull Request
+
+
+
+
+---
+
+⚠️ Informacja prawna
+
+AetherPulse Music nie jest powiązany z Google LLC ani YouTube.
+
+Projekt korzysta z nieoficjalnego API YouTube Music.
+Pobieranie treści może naruszać regulamin YouTube.
+Aplikacja jest przeznaczona wyłącznie do użytku osobistego i edukacyjnego.
+
+Korzystasz z projektu na własną odpowiedzialność.
+
+
+---
+
 📄 Licencja
-Projekt jest udostępniany na licencji MIT. Zobacz plik LICENSE dla szczegółów.
+
+Projekt dostępny na licencji MIT.
+
+Więcej informacji znajdziesz w pliku LICENSE.
+
+
+---
 
 🙏 Podziękowania
-Twórcy biblioteki ytmusicapi / Innertube.
-Społeczności SponsorBlock.
-Wszystkim współautorom i testerom.
-<div align="center">
-Stworzone z ❤️ przez Bozia
 
-</div> ```
+Twórcom ytmusicapi
+
+Społeczności SponsorBlock
+
+Wszystkim testerom i contributorom
+
+
+
+---
+
+<div align="center">Stworzone przez Bozia ❤️
+
+</div>

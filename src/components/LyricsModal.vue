@@ -49,14 +49,56 @@
         <div class="fade-top" />
         <div class="fade-bottom" />
       </div>
+
+      <!-- Offset control: only show for timed lyrics -->
+      <footer v-if="timedLines.length" class="modal-footer">
+        <button
+          class="offset-btn"
+          type="button"
+          :title="t('lyricsOffsetReset')"
+          :disabled="effectiveOffset === 0"
+          @click="resetOffset"
+        >
+          <RotateCcw :size="13" />
+        </button>
+        <button
+          class="offset-btn"
+          type="button"
+          :title="t('lyricsOffsetEarlier')"
+          @click="nudgeOffset(-0.2)"
+        >
+          <Minus :size="14" />
+        </button>
+        <div class="offset-display">
+          <span class="offset-label">{{ t('lyricsOffset') }}</span>
+          <span class="offset-value" :class="{ 'has-track': hasTrackOffset }">
+            {{ formattedOffset }}
+            <span v-if="hasTrackOffset" class="offset-badge">{{ t('lyricsOffsetTrack') }}</span>
+          </span>
+        </div>
+        <button
+          class="offset-btn"
+          type="button"
+          :title="t('lyricsOffsetLater')"
+          @click="nudgeOffset(0.2)"
+        >
+          <Plus :size="14" />
+        </button>
+      </footer>
     </section>
   </div>
 </template>
 
 <script setup>
 import { computed, inject, ref, watch } from "vue";
-import { X } from "lucide-vue-next";
+import { Minus, Plus, RotateCcw, X } from "lucide-vue-next";
 import { fetchJson } from "../lib/api";
+import {
+  clearTrackOffset,
+  getEffectiveOffset,
+  lyricsOffsetState,
+  setTrackOffset,
+} from "../lib/lyricsOffset";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -67,8 +109,8 @@ const props = defineProps({
 defineEmits(["close", "seek"]);
 
 const app = inject("appState");
-function t(key) {
-  return app?.t?.(key) ?? key;
+function t(key, vars) {
+  return app?.t?.(key, vars) ?? key;
 }
 
 const loading = ref(false);
@@ -76,11 +118,47 @@ const plainLyrics = ref("");
 const timedLines = ref([]);
 const containerRef = ref(null);
 
+// Offset (sekundy) zastosowany do wszystkich timestampów; reaktywne na zmianę
+// global lub per-track (zależy od `track.videoId`).
+const effectiveOffset = computed(() => {
+  // Zależność: lyricsOffsetState.global + perTrack[videoId]
+  void lyricsOffsetState.global;
+  void lyricsOffsetState.perTrack;
+  return getEffectiveOffset(props.track?.videoId);
+});
+
+const hasTrackOffset = computed(() => {
+  const id = props.track?.videoId;
+  if (!id) return false;
+  return Object.prototype.hasOwnProperty.call(lyricsOffsetState.perTrack, id);
+});
+
+const formattedOffset = computed(() => {
+  const value = effectiveOffset.value;
+  if (value === 0) return "0.0s";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}s`;
+});
+
+function nudgeOffset(delta) {
+  const id = props.track?.videoId;
+  if (!id) return;
+  const next = Math.round((effectiveOffset.value + delta) * 10) / 10;
+  setTrackOffset(id, next);
+}
+
+function resetOffset() {
+  const id = props.track?.videoId;
+  if (id) clearTrackOffset(id);
+}
+
 const activeIndex = computed(() => {
   if (!timedLines.value.length) return -1;
+  // Visible time = currentTime + offset (offset dodatni = teksty były za późno).
+  const visibleTime = props.currentTime + effectiveOffset.value;
   let index = 0;
   for (let i = 0; i < timedLines.value.length; i += 1) {
-    if (timedLines.value[i].time <= props.currentTime + 0.2) index = i;
+    if (timedLines.value[i].time <= visibleTime + 0.2) index = i;
   }
   return index;
 });
@@ -394,6 +472,84 @@ function parseTimedLyrics(text) {
   color: var(--text-secondary);
   letter-spacing: 0.01em;
   text-align: center;
+}
+
+/* ── Footer: offset control ── */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.offset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.offset-btn:hover:not(:disabled) {
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+  border-color: rgba(var(--primary-rgb), 0.4);
+}
+
+.offset-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.offset-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 130px;
+}
+
+.offset-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.offset-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.offset-value.has-track {
+  color: var(--primary);
+}
+
+.offset-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary);
+  padding: 1px 6px;
+  border-radius: 100px;
 }
 
 /* ── Reduced motion ── */

@@ -314,6 +314,50 @@ html[data-theme-fx~="theme-warm-glow"] body::before {
 }
 
 /* ============================================================
+   AMOLED — pure black optimization for OLED screens
+   - Usuwa cienie (eliminuje "halo" na OLED)
+   - Twarde czarne tło na całej sidebar/player bar
+   - Podnosi kontrast tekstu i krawędzi
+   ============================================================ */
+html[data-theme-id="amoled"] {
+  background-color: #000000;
+}
+
+html[data-theme-id="amoled"] body,
+html[data-theme-id="amoled"] .app-shell,
+html[data-theme-id="amoled"] .main {
+  background: #000000;
+}
+
+html[data-theme-id="amoled"] *,
+html[data-theme-id="amoled"] *::before,
+html[data-theme-id="amoled"] *::after {
+  /* Wszystkie cienie w AMOLED zastępujemy 1px obrysem zamiast halo. */
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+html[data-theme-id="amoled"] body::before,
+html[data-theme-id="amoled"] body::after {
+  /* Wyłączamy radial-gradient now-playing — zostawiamy czyste tło. */
+  display: none !important;
+}
+
+html[data-theme-id="amoled"] .card-block,
+html[data-theme-id="amoled"] .modal,
+html[data-theme-id="amoled"] .eq-modal,
+html[data-theme-id="amoled"] .legal-modal {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme-id="amoled"] .play-btn,
+html[data-theme-id="amoled"] .ctrl-sm.play-btn {
+  /* Główny przycisk play — wyraźnie biały na czarnym, aby był widoczny */
+  background: #ffffff;
+  color: #000000;
+}
+
+/* ============================================================
    Reduced-motion guard — all theme FX and listening animations
    go silent for users who opt out.
    ============================================================ */

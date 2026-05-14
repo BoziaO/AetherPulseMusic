@@ -917,6 +917,231 @@ async function getSong(videoId) {
   };
 }
 
+// ----------------------------------------------------------------------
+// Direct stream extraction (deprecated)
+//
+// Pierwsza implementacja próbowała używać klientów IOS/ANDROID_VR/MWEB,
+// ale od ~lipca 2024 YouTube wymaga deszyfrowania `signatureCipher`/`nsig`
+// dla wszystkich klientów. Logika została przeniesiona do
+// `server/streamExtractor.js`, który używa biblioteki `youtubei.js`
+// posiadającej wbudowany player runtime do deszyfrowania.
+//
+// Funkcje poniżej pozostawione są jako helpery dla diagnostyki/testów —
+// produkcyjnie używaj `streamExtractor.getStreamUrl(videoId, opts)`.
+// ----------------------------------------------------------------------
+
+// Klienci, których adaptiveFormats zwykle ignorują wymóg PoTokena.
+// Kolejność dobrana eksperymentalnie — pierwszym wyborem jest WEB_EMBEDDED, który
+// zazwyczaj pomija ograniczenie wieku/sygnatury dla utworów muzycznych.
+const STREAM_CLIENTS = [
+  {
+    id: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+    clientName: 85,
+    context: {
+      client: {
+        clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+        clientVersion: "2.0",
+        platform: "TV",
+        hl: "en",
+        gl: "US",
+        utcOffsetMinutes: 0,
+      },
+      thirdParty: { embedUrl: "https://www.youtube.com/" },
+    },
+    userAgent:
+      "Mozilla/5.0 (PlayStation 4 5.55) AppleWebKit/601.2 (KHTML, like Gecko)",
+  },
+  {
+    id: "MWEB",
+    clientName: 2,
+    context: {
+      client: {
+        clientName: "MWEB",
+        clientVersion: "2.20240726.00.00",
+        platform: "MOBILE",
+        hl: "en",
+        gl: "US",
+        utcOffsetMinutes: 0,
+      },
+    },
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  },
+  {
+    id: "ANDROID_VR",
+    clientName: 28,
+    context: {
+      client: {
+        clientName: "ANDROID_VR",
+        clientVersion: "1.60.19",
+        deviceMake: "Oculus",
+        deviceModel: "Quest 3",
+        osName: "Android",
+        osVersion: "12L",
+        androidSdkVersion: 32,
+        platform: "MOBILE",
+        hl: "en",
+        gl: "US",
+        utcOffsetMinutes: 0,
+      },
+    },
+    userAgent:
+      "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; en_US) gzip",
+  },
+  {
+    id: "IOS",
+    clientName: 5,
+    context: {
+      client: {
+        clientName: "IOS",
+        clientVersion: "19.45.4",
+        deviceMake: "Apple",
+        deviceModel: "iPhone16,2",
+        osName: "iOS",
+        osVersion: "18.1.0.22B83",
+        platform: "MOBILE",
+        hl: "en",
+        gl: "US",
+        utcOffsetMinutes: 0,
+      },
+    },
+    userAgent:
+      "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1 like Mac OS X)",
+  },
+];
+
+function sendPlayerRequestForClient(videoId, client) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      ...client.context,
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true,
+      playbackContext: {
+        contentPlaybackContext: { signatureTimestamp: 19950 },
+      },
+    });
+
+    const options = {
+      hostname: "youtubei.googleapis.com",
+      path: "/youtubei/v1/player?prettyPrint=false",
+      method: "POST",
+      headers: {
+        "User-Agent": client.userAgent,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        "X-YouTube-Client-Name": String(client.clientName),
+        "X-YouTube-Client-Version": client.context.client.clientVersion,
+        Origin: "https://www.youtube.com",
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error(`JSON parse error (${client.id}): ${e.message}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.setTimeout(10000, () => {
+      req.destroy(new Error(`Timeout requesting player (${client.id})`));
+    });
+    req.write(payload);
+    req.end();
+  });
+}
+
+function pickBestAudioFormat(formats, preferredFormat = "opus") {
+  if (!Array.isArray(formats) || !formats.length) return null;
+
+  // Filtruj tylko czysto audio formaty z bezpośrednim URL (bez signatureCipher).
+  const audio = formats.filter(
+    (f) => f && typeof f.url === "string" && f.mimeType?.startsWith("audio/"),
+  );
+  if (!audio.length) return null;
+
+  const want = (preferredFormat || "").toLowerCase();
+  const matchesPreference = (f) => {
+    const mime = String(f.mimeType || "").toLowerCase();
+    if (want === "opus") return mime.includes("opus") || mime.includes("webm");
+    if (want === "m4a" || want === "aac") return mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac");
+    if (want === "mp3") return mime.includes("mpeg") || mime.includes("mp3");
+    return true;
+  };
+
+  // 1. Spróbuj formatu zgodnego z preferencją; w razie braku — najlepszy bitrate.
+  const preferred = audio.filter(matchesPreference);
+  const pool = preferred.length ? preferred : audio;
+  pool.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+  return pool[0];
+}
+
+async function getStreamFormats(videoId, { preferredFormat = "opus" } = {}) {
+  let lastError = null;
+  let lastReason = null;
+
+  for (const client of STREAM_CLIENTS) {
+    try {
+      const data = await sendPlayerRequestForClient(videoId, client);
+      const status = nav(data, "playabilityStatus", "status");
+      const reason =
+        nav(data, "playabilityStatus", "reason") ||
+        nav(data, "playabilityStatus", "errorScreen", "playerErrorMessageRenderer", "reason", "simpleText");
+      if (status && status !== "OK" && status !== "LIVE_STREAM_OFFLINE") {
+        lastReason = reason || `Status: ${status}`;
+        continue;
+      }
+
+      const adaptive = nav(data, "streamingData", "adaptiveFormats") || [];
+      const formats = nav(data, "streamingData", "formats") || [];
+      const all = [...adaptive, ...formats];
+      const best = pickBestAudioFormat(all, preferredFormat);
+      if (!best) {
+        lastReason = reason || "No direct audio formats available (signatureCipher only)";
+        continue;
+      }
+
+      const vd = nav(data, "videoDetails") || {};
+      return {
+        client: client.id,
+        videoId,
+        url: best.url,
+        mimeType: best.mimeType || "audio/mpeg",
+        bitrate: best.bitrate || best.averageBitrate || null,
+        contentLength: best.contentLength ? Number(best.contentLength) : null,
+        durationMs: best.approxDurationMs ? Number(best.approxDurationMs) : null,
+        audioQuality: best.audioQuality || null,
+        itag: best.itag || null,
+        title: vd.title || null,
+        author: vd.author || null,
+        thumbnail: getBestThumbnail(vd),
+        // Ekspirea zwykle 6 godzin — zwracamy klientowi by wiedział kiedy odświeżyć.
+        expiresAt: extractExpiry(best.url),
+      };
+    } catch (err) {
+      lastError = err.message || String(err);
+    }
+  }
+
+  return { error: lastReason || lastError || "No usable stream formats" };
+}
+
+function extractExpiry(url) {
+  try {
+    const match = String(url).match(/[?&]expire=(\d+)/);
+    if (match) return Number(match[1]) * 1000;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 async function getLyrics(videoId) {
   const nextData = await sendRequest("next", { videoId });
 
@@ -2136,6 +2361,7 @@ module.exports = {
   getAlbum,
   getUser,
   getSong,
+  getStreamFormats,
   getLyrics,
   getLrclibLyrics,
   getWatchPlaylist,

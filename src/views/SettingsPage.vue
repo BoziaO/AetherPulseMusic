@@ -231,6 +231,207 @@
 
     <section class="card-block">
       <header class="card-head">
+        <Speaker :size="18" />
+        <h2 class="card-title">{{ t('playerMode') }}</h2>
+      </header>
+
+      <div class="row row-column">
+        <div class="row-text">
+          <p class="row-title">{{ t('playerMode') }}</p>
+          <p class="row-sub">{{ t('playerModeDesc') }}</p>
+        </div>
+        <div class="player-mode-grid">
+          <button
+            v-for="mode in playerModeOptions"
+            :key="mode.id"
+            class="player-mode-card"
+            :class="playerPreference === mode.id ? 'player-mode-active' : ''"
+            type="button"
+            @click="onSetPlayerMode(mode.id)"
+          >
+            <span class="pm-title">
+              {{ t(mode.labelKey) }}
+              <span v-if="mode.id === activeEngineId" class="pm-active-badge">
+                <BadgeCheck :size="12" /> {{ t('playerEngineActive') }}
+              </span>
+            </span>
+            <span class="pm-desc">{{ t(mode.descKey) }}</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SponsorBlock -->
+    <section class="card-block">
+      <header class="card-head">
+        <Shield :size="18" />
+        <h2 class="card-title">{{ t('sponsorBlock') }}</h2>
+      </header>
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('sponsorEnable') }}</p>
+          <p class="row-sub">{{ t('sponsorBlockDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="sponsorBlockSettings.enabled ? 'toggle-on' : ''"
+          type="button"
+          @click="toggleSponsorBlock"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+      <div v-if="sponsorBlockSettings.enabled" class="sponsor-grid">
+        <div
+          v-for="cat in sponsorCategoryList"
+          :key="cat.id"
+          class="sponsor-row"
+        >
+          <span class="sponsor-cat">
+            <span class="sponsor-dot" :style="{ background: cat.color }" />
+            {{ t(cat.labelKey) }}
+          </span>
+          <div class="seg-control">
+            <button
+              v-for="action in ['skip', 'mark', 'off']"
+              :key="action"
+              class="seg seg-sm"
+              :class="sponsorBlockSettings.categories[cat.id] === action ? 'seg-active' : ''"
+              type="button"
+              @click="setSponsorAction(cat.id, action)"
+            >
+              {{ t(`sponsorAction${action.charAt(0).toUpperCase() + action.slice(1)}`) }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Silence Skipper -->
+    <section class="card-block">
+      <header class="card-head">
+        <Music2 :size="18" />
+        <h2 class="card-title">{{ t('silenceSkipper') }}</h2>
+      </header>
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('silenceEnable') }}</p>
+          <p class="row-sub">{{ t('silenceSkipperDesc') }}</p>
+        </div>
+        <button
+          class="toggle"
+          :class="silenceSkipperSettings.enabled ? 'toggle-on' : ''"
+          type="button"
+          @click="toggleSilenceSkipper"
+        >
+          <span class="toggle-thumb" />
+        </button>
+      </div>
+      <div v-if="silenceSkipperSettings.enabled" class="row row-column">
+        <div class="row-text">
+          <p class="row-title">{{ t('silenceThreshold') }}: {{ silenceSkipperSettings.thresholdDb }} dB</p>
+          <p class="row-sub">{{ t('silenceThresholdDesc') }}</p>
+        </div>
+        <input
+          type="range"
+          min="-60"
+          max="-30"
+          step="1"
+          :value="silenceSkipperSettings.thresholdDb"
+          class="am-slider"
+          @input="setSilenceThreshold(Number($event.target.value))"
+        />
+      </div>
+      <div v-if="silenceSkipperSettings.enabled" class="row row-column">
+        <div class="row-text">
+          <p class="row-title">{{ t('silenceMinDuration') }}: {{ (silenceSkipperSettings.minSilenceMs / 1000).toFixed(1) }}s</p>
+          <p class="row-sub">{{ t('silenceMinDurationDesc') }}</p>
+        </div>
+        <input
+          type="range"
+          min="500"
+          max="5000"
+          step="100"
+          :value="silenceSkipperSettings.minSilenceMs"
+          class="am-slider"
+          @input="setSilenceMinDuration(Number($event.target.value))"
+        />
+      </div>
+    </section>
+
+    <section class="card-block">
+      <header class="card-head">
+        <SlidersHorizontal :size="18" />
+        <h2 class="card-title">{{ t('audioMixer') }}</h2>
+      </header>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('equalizer') }}</p>
+          <p class="row-sub">{{ t('equalizerDesc') }}</p>
+        </div>
+        <button class="btn-secondary" type="button" @click="showEqualizer = true">
+          <SlidersHorizontal :size="14" />
+          {{ t('audioMixer') }}
+        </button>
+      </div>
+
+      <div class="row">
+        <div class="row-text">
+          <p class="row-title">{{ t('audioQuality') }}</p>
+          <p class="row-sub">{{ t('audioQualityDesc') }}</p>
+        </div>
+        <span class="quality-pill">
+          <Wifi v-if="netInfo.type === 'wifi'" :size="14" />
+          <Smartphone v-else-if="netInfo.type === 'cellular'" :size="14" />
+          <Globe v-else :size="14" />
+          {{ networkLabel(netInfo.type) }}
+        </span>
+      </div>
+
+      <div class="row row-column">
+        <div class="row-text">
+          <p class="row-title">{{ t('qualityWifi') }}</p>
+          <p class="row-sub">{{ t('qualityWifiDesc') }}</p>
+        </div>
+        <div class="seg-control">
+          <button
+            v-for="quality in qualityOptions"
+            :key="`wifi-${quality}`"
+            class="seg"
+            :class="qualitySettings.wifi === quality ? 'seg-active' : ''"
+            type="button"
+            @click="setAudioQuality('wifi', quality)"
+          >
+            {{ t(`quality${quality.charAt(0).toUpperCase() + quality.slice(1)}`) }}
+          </button>
+        </div>
+      </div>
+
+      <div class="row row-column">
+        <div class="row-text">
+          <p class="row-title">{{ t('qualityCellular') }}</p>
+          <p class="row-sub">{{ t('qualityCellularDesc') }}</p>
+        </div>
+        <div class="seg-control">
+          <button
+            v-for="quality in qualityOptions"
+            :key="`cell-${quality}`"
+            class="seg"
+            :class="qualitySettings.cellular === quality ? 'seg-active' : ''"
+            type="button"
+            @click="setAudioQuality('cellular', quality)"
+          >
+            {{ t(`quality${quality.charAt(0).toUpperCase() + quality.slice(1)}`) }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <EqualizerModal :open="showEqualizer" @close="showEqualizer = false" />
+
+    <section class="card-block">
+      <header class="card-head">
         <UserCircle :size="18" />
         <h2 class="card-title">{{ t('account') }}</h2>
       </header>
@@ -401,18 +602,32 @@
 
       <div class="row">
         <div>
-          <p class="row-title">Polityka prywatności</p>
-          <p class="row-sub">Dowiedz się, jak chronimy Twoje dane.</p>
+          <p class="row-title">{{ t('privacyPolicy') }}</p>
+          <p class="row-sub">{{ t('privacyPolicyDesc') }}</p>
         </div>
-        <RouterLink class="btn-secondary" to="/privacy">Zobacz politykę</RouterLink>
+        <RouterLink class="btn-secondary" to="/privacy">{{ t('privacyView') }}</RouterLink>
       </div>
 
       <div class="row">
-        <div>
-          <p class="row-title">Ustawienia plików cookie</p>
-          <p class="row-sub">Zarządzaj preferencjami dotyczącymi plików cookie.</p>
+        <div class="row-text">
+          <p class="row-title">{{ t('cookieSettings') }}</p>
+          <p class="row-sub">
+            {{ cookieConsentLabel }}
+          </p>
         </div>
-        <button class="btn-secondary" @click="showCookieBanner = true">Dostosuj</button>
+        <div class="row-actions">
+          <button class="btn-secondary" type="button" @click="reopenCookieBanner">
+            <Cookie :size="14" /> {{ t('cookieReconfigure') }}
+          </button>
+          <button
+            class="btn-secondary danger"
+            type="button"
+            v-if="hasCookieConsent"
+            @click="revokeCookieConsent"
+          >
+            <Trash2 :size="14" /> {{ t('cookieRevoke') }}
+          </button>
+        </div>
       </div>
     </section>
 
@@ -423,7 +638,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from "vue";
+import { computed, inject, reactive, ref, watch } from "vue";
 import {
   Database,
   Download,
@@ -434,16 +649,34 @@ import {
   RefreshCw,
   Shield,
   Sliders,
+  SlidersHorizontal,
+  Smartphone,
   Trash2,
   UserCircle,
   Monitor,
   Settings2,
   Speaker,
   Check,
+  Wifi,
+  BadgeCheck,
+  Cookie,
+  Music2,
 } from "lucide-vue-next";
 
 import { fetchJson } from "../lib/api";
 import CookieBanner from "../components/CookieBanner.vue";
+import EqualizerModal from "../components/EqualizerModal.vue";
+import { network as audioNetwork, settings as audioQualitySettings, setQuality } from "../lib/audioQuality";
+import {
+  silenceSettings as silenceSkipperSettings,
+  updateSilenceSettings,
+} from "../lib/silenceSkipper";
+import {
+  SPONSOR_CATEGORIES,
+  setSponsorCategory,
+  setSponsorEnabled,
+  sponsorSettings as sponsorBlockSettings,
+} from "../lib/sponsorBlock";
 
 const CHART_REGIONS = [
   { code: "ZZ", label: "🌍 Global" },
@@ -469,12 +702,102 @@ const CHART_REGIONS = [
 ];
 import { THEMES } from "../data/themes";
 
-const showCookieBanner = ref(false);
-
-
 const appState = inject("appState");
 function t(key, vars) {
   return appState?.t?.(key, vars) ?? key;
+}
+
+const showCookieBanner = ref(false);
+const showEqualizer = ref(false);
+
+const qualityOptions = ["auto", "low", "medium", "high"];
+const qualitySettings = audioQualitySettings;
+const netInfo = audioNetwork;
+
+// --- Player engine selection (HTML5 vs iframe) ---
+const playerModeOptions = [
+  { id: "auto",   labelKey: "playerModeAuto",   descKey: "playerModeAutoDesc" },
+  { id: "html5",  labelKey: "playerModeHtml5",  descKey: "playerModeHtml5Desc" },
+  { id: "iframe", labelKey: "playerModeIframe", descKey: "playerModeIframeDesc" },
+];
+
+const playerPreference = computed(() => appState?.playerPreference?.value || "auto");
+const activeEngineId = computed(() => appState?.activeEngine?.value || "iframe");
+
+function onSetPlayerMode(mode) {
+  appState?.setPlayerPreference?.(mode);
+}
+
+// --- Cookie consent management ---
+const cookieConsentTick = ref(0); // force re-eval po zmianie
+
+const hasCookieConsent = computed(() => {
+  void cookieConsentTick.value;
+  if (typeof localStorage === "undefined") return false;
+  return Boolean(localStorage.getItem("cookieConsent"));
+});
+
+const cookieConsentLabel = computed(() => {
+  void cookieConsentTick.value;
+  const consent = localStorage.getItem("cookieConsent");
+  if (!consent) return t("cookieConsentNone");
+  if (consent === "all") return t("cookieConsentAll");
+  if (consent === "none") return t("cookieConsentEssential");
+  if (consent === "custom") {
+    const analytics = localStorage.getItem("analytics") === "true";
+    return t(analytics ? "cookieConsentCustomAnalytics" : "cookieConsentCustomMinimal");
+  }
+  return consent;
+});
+
+function reopenCookieBanner() {
+  // Usuwamy zgodę i forsujemy reload — banner pokaże się ponownie.
+  localStorage.removeItem("cookieConsent");
+  cookieConsentTick.value += 1;
+  appState?.showToast?.(t("cookieReconfigureToast"), "info");
+  setTimeout(() => location.reload(), 600);
+}
+
+function revokeCookieConsent() {
+  if (!window.confirm(t("cookieRevokeConfirm"))) return;
+  localStorage.removeItem("cookieConsent");
+  localStorage.removeItem("analytics");
+  cookieConsentTick.value += 1;
+  appState?.showToast?.(t("cookieRevoked"), "success");
+}
+
+// --- SponsorBlock ---
+const sponsorCategoryList = SPONSOR_CATEGORIES;
+
+function toggleSponsorBlock() {
+  setSponsorEnabled(!sponsorBlockSettings.enabled);
+}
+
+function setSponsorAction(categoryId, action) {
+  setSponsorCategory(categoryId, action);
+}
+
+// --- Silence Skipper ---
+function toggleSilenceSkipper() {
+  updateSilenceSettings({ enabled: !silenceSkipperSettings.enabled });
+}
+
+function setSilenceThreshold(value) {
+  updateSilenceSettings({ thresholdDb: value });
+}
+
+function setSilenceMinDuration(value) {
+  updateSilenceSettings({ minSilenceMs: value });
+}
+
+function setAudioQuality(scope, value) {
+  setQuality(scope, value);
+}
+
+function networkLabel(type) {
+  if (type === "wifi") return t("networkWifi");
+  if (type === "cellular") return t("networkCellular");
+  return t("networkUnknown");
 }
 
 const accentColors = ["#fa243c", "#ff375f", "#ff9f0a", "#30d158", "#0a84ff", "#bf5af2"];
@@ -985,6 +1308,122 @@ watch(
 
 .volume-slider {
   width: 200px;
+}
+
+.quality-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.player-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.player-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.player-mode-card:hover {
+  background: var(--bg-hover);
+}
+
+.player-mode-active {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+}
+
+.pm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pm-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--success);
+  background: rgba(48, 209, 88, 0.12);
+  padding: 1px 6px;
+  border-radius: 100px;
+}
+
+.pm-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-secondary.danger {
+  color: var(--danger);
+}
+
+.sponsor-grid {
+  padding: 0 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sponsor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+
+.sponsor-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sponsor-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.seg.seg-sm {
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
 .data-stats {

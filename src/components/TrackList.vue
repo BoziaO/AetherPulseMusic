@@ -1,15 +1,15 @@
 <template>
-  <div v-if="tracks.length" class="track-list">
+  <div v-if="filteredTracks.length" class="track-list">
     <div
-      v-for="(track, index) in tracks"
+      v-for="(track, index) in filteredTracks"
       :key="itemKey(track, index)"
       class="track-row"
       :class="isCurrent(track) ? 'is-current' : ''"
       role="button"
       tabindex="0"
-      @click="$emit('play', track, tracks)"
-      @keydown.enter.prevent="$emit('play', track, tracks)"
-      @keydown.space.prevent="$emit('play', track, tracks)"
+      @click="$emit('play', track, filteredTracks)"
+      @keydown.enter.prevent="$emit('play', track, filteredTracks)"
+      @keydown.space.prevent="$emit('play', track, filteredTracks)"
     >
       <span class="num">
         <span class="num-text" :class="isCurrent(track) ? 'is-playing-num' : ''">
@@ -31,6 +31,12 @@
           loading="lazy"
         />
         <Music2 v-else :size="18" :style="{ color: 'var(--text-tertiary)' }" />
+        <BadgeCheck
+          v-if="hasOffline(track)"
+          :size="14"
+          class="offline-badge"
+          :title="t('downloaded')"
+        />
       </span>
 
       <span class="text">
@@ -69,6 +75,16 @@
         >
           <ListPlus :size="15" />
         </button>
+        <button
+          v-if="track.videoId"
+          class="icon-btn"
+          type="button"
+          :title="hasOffline(track) ? t('removeDownload') : t('download')"
+          @click.stop="onDownloadClick(track)"
+        >
+          <BadgeCheck v-if="hasOffline(track)" :size="15" :style="{ color: 'var(--success)' }" />
+          <DownloadIcon v-else :size="15" />
+        </button>
       </span>
     </div>
   </div>
@@ -77,9 +93,24 @@
 </template>
 
 <script setup>
-import { inject } from "vue";
-import { Heart, ListPlus, Music2, Play, Plus } from "lucide-vue-next";
+import { computed, inject } from "vue";
+import {
+  BadgeCheck,
+  Download as DownloadIcon,
+  Heart,
+  ListPlus,
+  Music2,
+  Play,
+  Plus,
+} from "lucide-vue-next";
 import { trackKey } from "../lib/format";
+import {
+  enqueueDownload,
+  isDownloaded,
+  offlineIndex,
+  removeDownload,
+  settings as offlineSettings,
+} from "../lib/offlineStore";
 
 const props = defineProps({
   tracks: { type: Array, default: () => [] },
@@ -95,6 +126,11 @@ function t(key) {
   return app?.t?.(key) ?? key;
 }
 
+const filteredTracks = computed(() => {
+  if (!offlineSettings.offlineMode) return props.tracks;
+  return props.tracks.filter((track) => track?.videoId && offlineIndex.has(track.videoId));
+});
+
 function itemKey(track, index) {
   return trackKey(track) || index;
 }
@@ -105,6 +141,30 @@ function isCurrent(track) {
 
 function isFavorite(track) {
   return props.favoriteKeys?.has?.(trackKey(track));
+}
+
+function hasOffline(track) {
+  // dependency on offlineIndex.size triggers reactivity
+  void offlineIndex.size;
+  return Boolean(track?.videoId && isDownloaded(track.videoId));
+}
+
+function onDownloadClick(track) {
+  if (!track?.videoId) return;
+  if (hasOffline(track)) {
+    if (window.confirm(t("confirmClear"))) {
+      removeDownload(track.videoId);
+      app?.showToast?.(t("downloadRemoved"), "info");
+    }
+    return;
+  }
+  if (!offlineSettings.legalAccepted) {
+    app?.requestDownloadConsent?.(track);
+    return;
+  }
+  if (enqueueDownload(track)) {
+    app?.showToast?.(t("downloadStarted"), "success");
+  }
 }
 </script>
 
@@ -228,6 +288,23 @@ function isFavorite(track) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.cover {
+  position: relative;
+}
+
+.offline-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-base);
+  color: var(--success);
+  padding: 2px;
+  box-shadow: 0 0 0 2px var(--bg-base);
 }
 
 .text {

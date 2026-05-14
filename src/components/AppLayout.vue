@@ -221,25 +221,61 @@
 
     <CookieBanner />
 
+    <EqualizerModal :open="showEqualizerModal" @close="showEqualizerModal = false" />
+
+    <LegalDisclaimerModal
+      :open="showLegalModal"
+      @accept="handleLegalAccept"
+      @decline="handleLegalDecline"
+    />
+
     <ToastStack :toasts="toasts" @dismiss="dismissToast" />
+
+    <OfflineBanner @retry="retryNetworkAction" />
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { BarChart3, Clock, Globe, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
-import LyricsModal from "./LyricsModal.vue";
+
+// Lazy-loaded modals — ładowane tylko gdy użytkownik je otworzy.
+// Daje to ~70 KB oszczędności przy pierwszym renderze.
+const FullPlayer = defineAsyncComponent(() => import("./FullPlayer.vue"));
+const LyricsModal = defineAsyncComponent(() => import("./LyricsModal.vue"));
+const QueueModal = defineAsyncComponent(() => import("./QueueModal.vue"));
+const EqualizerModal = defineAsyncComponent(() => import("./EqualizerModal.vue"));
+const LegalDisclaimerModal = defineAsyncComponent(() => import("./LegalDisclaimerModal.vue"));
+
 import PlayerBar from "./PlayerBar.vue";
-import QueueModal from "./QueueModal.vue";
-import FullPlayer from "./FullPlayer.vue";
 import Sidebar from "./Sidebar.vue";
 import ToastStack from "./ToastStack.vue";
 import CookieBanner from "./CookieBanner.vue";
+import OfflineBanner from "./OfflineBanner.vue";
 import { translate } from "../data/i18n";
 import { buildApiUrl, fetchJson, fetchSong } from "../lib/api";
 import { clamp, normalizeTrack, secondsFromDuration, trackKey } from "../lib/format";
 import { useTheme } from "../lib/useTheme";
+import { applyToYouTubePlayer as applyAudioQuality } from "../lib/audioQuality";
+import {
+  attachMediaElement as attachToAudioEngine,
+  detachMediaElement as detachFromAudioEngine,
+  getChainForElement,
+} from "../lib/audioEngine";
+import {
+  attachSilenceDetector,
+  detachSilenceDetector,
+  setSkipCallback as setSilenceSkipCallback,
+  silenceSettings,
+} from "../lib/silenceSkipper";
+import { findSegmentToSkip } from "../lib/sponsorBlock";
+import { filterAvailable, markUnavailable, scanLibrary, shouldRunBackgroundScan } from "../lib/librarySync";
+import {
+  enqueueDownload,
+  setLegalAccepted,
+  settings as offlineSettings,
+} from "../lib/offlineStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -291,6 +327,9 @@ const repeatMode = ref("none");
 const showQueueModal = ref(false);
 const showLyricsModal = ref(false);
 const showFullPlayer = ref(false);
+const showEqualizerModal = ref(false);
+const showLegalModal = ref(false);
+const pendingDownloadTrack = ref(null);
 const playerMinimized = ref(false);
 
 const recentPlays = ref(readJson("boziamusic:recent", []));
@@ -332,6 +371,332 @@ let searchTimer = null;
 let progressTimer = null;
 let ytPlayer = null;
 let ytReady = false;
+
+// ---------------------------------------------------------------------------
+// Player engine
+// "auto"  — preferuje HTML5 audio (EQ działa), fallback do iframe gdy backend
+//           nie umie wyciągnąć URL (np. video age-restricted dla iOS klienta).
+// "html5" — wymuszone HTML5; brak fallbacku.
+// "iframe" — klasyczne odtwarzanie YT iframe (bez EQ na cross-origin).
+//
+// Synchronizacja:
+// - `loadGen` (monotonicznie rosnący) chroni przed race conditions: każdy
+//   `engineLoad(track)` startuje z własnym `gen`; stare wywołania porzucamy.
+// - `isSwitching` flaga blokuje fallback z `error` handlera w trakcie switchu.
+// - Zarówno `html5Load` jak i `iframeLoad` są SYMETRYCZNE: każdy pauzuje drugi
+//   silnik PRZED rozpoczęciem własnego odtwarzania.
+// - `pendingIframeTrack` przechowuje track do załadowania, jeśli ytPlayer
+//   jeszcze nie jest gotowy — załadujemy go w onReady.
+// ---------------------------------------------------------------------------
+const playerPreference = ref(localStorage.getItem("ap-player-mode") || "auto");
+const activeEngine = ref("iframe"); // aktualnie używany silnik
+let html5Audio = null;
+let html5Attached = false;
+const html5StreamFormat = "auto"; // youtubei.js sam wybierze najlepszy mp4/webm
+let loadGen = 0;
+let isSwitching = false;
+let pendingIframeTrack = null;
+let lastLoadedHtml5VideoId = null;
+
+function persistPlayerPreference(value) {
+  if (playerPreference.value === value) return;
+  playerPreference.value = value;
+  try { localStorage.setItem("ap-player-mode", value); } catch { /* ignore */ }
+}
+
+function pauseIframeQuietly() {
+  try { ytPlayer?.pauseVideo?.(); } catch { /* ignore */ }
+  // Nie wywołujemy stopVideo — zachowujemy stan na wypadek powrotu.
+}
+
+function pauseHtml5Quietly() {
+  if (!html5Audio) return;
+  isSwitching = true;
+  try { html5Audio.pause(); } catch { /* ignore */ }
+  // Nie zerujemy `src` — `audio.src=""` powoduje synchroniczny `error` event,
+  // który mógłby wywołać niechciany fallback. Zostawiamy poprzedni source.
+  // Resetujemy flagę po mikrotasku, gdy pause już się propagowało.
+  Promise.resolve().then(() => { isSwitching = false; });
+}
+
+function ensureHtml5Audio() {
+  if (html5Audio) return html5Audio;
+  html5Audio = document.createElement("audio");
+  html5Audio.id = "ap-html5-player";
+  html5Audio.preload = "auto";
+  html5Audio.crossOrigin = "anonymous";
+  html5Audio.style.display = "none";
+  document.body.appendChild(html5Audio);
+
+  html5Audio.addEventListener("play", () => {
+    if (activeEngine.value === "html5") {
+      isPlaying.value = true;
+      startProgressTimer();
+    }
+  });
+  html5Audio.addEventListener("pause", () => {
+    if (activeEngine.value === "html5" && !isSwitching) {
+      isPlaying.value = false;
+      stopProgressTimer();
+    }
+  });
+  html5Audio.addEventListener("ended", () => {
+    if (activeEngine.value !== "html5") return;
+    isPlaying.value = false;
+    stopProgressTimer();
+    if (repeatMode.value === "one") {
+      html5Audio.currentTime = 0;
+      html5Audio.play().catch(() => {});
+    } else {
+      nextTrack();
+    }
+  });
+  html5Audio.addEventListener("loadedmetadata", () => {
+    if (Number.isFinite(html5Audio.duration) && html5Audio.duration > 0) {
+      audioDuration.value = html5Audio.duration;
+    }
+  });
+  html5Audio.addEventListener("error", () => {
+    // Ignoruj błędy podczas ręcznego switchu engine.
+    if (isSwitching) return;
+    if (activeEngine.value !== "html5") return;
+    console.warn("[player] HTML5 audio error", html5Audio.error);
+    const track = nowPlaying.value;
+    // Fallback do iframe TYLKO w trybie auto i tylko gdy mamy track.
+    if (playerPreference.value === "auto" && track?.videoId) {
+      showToast(t("playerHtml5Failed"), "info");
+      iframeLoad(track);
+    } else {
+      showToast(t("playerHtml5Failed"), "warning");
+    }
+  });
+
+  return html5Audio;
+}
+
+async function html5Load(track, gen) {
+  if (!track?.videoId) return false;
+  const audio = ensureHtml5Audio();
+  try {
+    // 1) Pauzuj iframe ZANIM zaczniemy nowy stream (zapobiega podwójnemu audio).
+    pauseIframeQuietly();
+
+    // 2) Pobierz metadata opcjonalnie. Jeśli info się nie uda, nadal spróbujemy playback.
+    let info = null;
+    try {
+      info = await fetchJson(
+        `/api/downloads/info/${encodeURIComponent(track.videoId)}?format=${html5StreamFormat}`,
+        { timeout: 8000 },
+      );
+    } catch {
+      info = null;
+    }
+
+    // Po await — jeśli inne wywołanie engineLoad wystartowało, porzucamy.
+    if (gen !== loadGen) return false;
+
+    // 3) Streamuj przez nasz odtwarzacz HTML5 bezpośrednio z backendu.
+    const proxyUrl = `/api/downloads/playback/${encodeURIComponent(track.videoId)}?format=${encodeURIComponent(html5StreamFormat)}`;
+
+    // Zapobiegamy event "error" przy zmianie src podczas trwającego ładowania.
+    isSwitching = true;
+    audio.src = proxyUrl;
+    audio.volume = clamp(volume.value, 0, 100) / 100;
+    audio.currentTime = 0;
+    audio.muted = false;
+    audio.load();
+    lastLoadedHtml5VideoId = track.videoId;
+    // Reset switching flag w next microtask aby nowe `error` events były aktywne.
+    Promise.resolve().then(() => { isSwitching = false; });
+
+    // 4) Podłącz Web Audio Graph dopiero po pierwszym sukcesie.
+    if (!html5Attached) {
+      try {
+        attachToAudioEngine(audio);
+        html5Attached = true;
+
+        const chainHandle = getChainForElement(audio);
+        if (chainHandle?.context && chainHandle?.tap) {
+          attachSilenceDetector(audio, chainHandle.context, chainHandle.tap);
+          setSilenceSkipCallback(({ db, durationMs }) => {
+            console.debug(`[silence] skip ${durationMs.toFixed(0)}ms @ ${db.toFixed(1)}dB`);
+            nextTrack();
+          });
+        }
+      } catch (err) {
+        console.warn("[player] attachToAudioEngine failed:", err.message);
+      }
+    }
+
+    await audio.play();
+
+    // Po await: ostatnia weryfikacja generation (user mógł przejść next).
+    if (gen !== loadGen) {
+      try { audio.pause(); } catch { /* ignore */ }
+      return false;
+    }
+
+    activeEngine.value = "html5";
+    isPlaying.value = true;
+    return true;
+  } catch (err) {
+    console.warn("[player] html5Load failed:", err?.message || err);
+    return false;
+  }
+}
+
+function iframeLoad(track, gen) {
+  if (!track?.videoId) return false;
+
+  // Jeśli ytPlayer jeszcze nie gotowy — kolejkuj track i poczekaj na onReady.
+  if (!ytPlayer?.loadVideoById) {
+    pendingIframeTrack = track;
+    // Nie zmieniamy activeEngine — zachowujemy poprzedni stan dopóki iframe
+    // realnie nie wystartuje (uniknięcie niespójności w UI).
+    return false;
+  }
+
+  // Stary gen? user już przeszedł dalej — porzucamy.
+  if (gen !== undefined && gen !== loadGen) return false;
+
+  // 1) Pauzuj HTML5 audio ZANIM zaczniemy iframe.
+  pauseHtml5Quietly();
+
+  // 2) Załaduj wideo — UWAGA: nie zerujemy src html5Audio, by uniknąć
+  //    synchronicznego `error` eventu który mógłby wywołać błędny fallback.
+  try {
+    ytPlayer.loadVideoById(track.videoId);
+    applyAudioQuality(ytPlayer);
+    activeEngine.value = "iframe";
+    pendingIframeTrack = null;
+    return true;
+  } catch (err) {
+    console.warn("[player] iframe loadVideoById failed:", err?.message || err);
+    return false;
+  }
+}
+
+async function engineLoad(track) {
+  if (!track?.videoId) return false;
+
+  // Każde wywołanie dostaje unikalny generation — chroni przed race.
+  const gen = ++loadGen;
+  const pref = playerPreference.value;
+
+  if (pref === "iframe") {
+    return iframeLoad(track, gen);
+  }
+
+  if (pref === "html5") {
+    const ok = await html5Load(track, gen);
+    // Sprawdzamy gen po await — nie wyświetlamy toastu jeśli już zmieniliśmy track.
+    if (!ok && gen === loadGen) {
+      showToast(t("playerHtml5Failed"), "warning");
+    }
+    return ok;
+  }
+
+  // auto: try HTML5 first, then iframe (jeśli ten sam gen).
+  const ok = await html5Load(track, gen);
+  if (ok) return true;
+  if (gen !== loadGen) return false; // user przeszedł dalej w tym czasie
+  return iframeLoad(track, gen);
+}
+
+/**
+ * Restartuje aktualnie odtwarzany utwór gdy zmienia się preferencja silnika.
+ * Wywoływane z watch(playerPreference, ...).
+ */
+async function reloadCurrentTrackOnEngineChange() {
+  const track = nowPlaying.value;
+  if (!track?.videoId) return;
+  // Zachowaj pozycję w utworze przy przełączaniu silnika.
+  const savedTime = currentTime.value;
+  const wasPlaying = isPlaying.value;
+
+  // Zatrzymaj OBA silniki przed przeładowaniem.
+  pauseIframeQuietly();
+  pauseHtml5Quietly();
+  isPlaying.value = false;
+
+  const ok = await engineLoad(track);
+  if (!ok) return;
+
+  // Przywróć pozycję
+  if (savedTime > 1) {
+    setTimeout(() => {
+      try { engineSeek(savedTime); } catch { /* ignore */ }
+      if (!wasPlaying) {
+        // Jeśli był na pauzie — od razu pauzujemy nowy silnik.
+        if (activeEngine.value === "html5" && html5Audio) {
+          try { html5Audio.pause(); } catch { /* ignore */ }
+        } else {
+          try { ytPlayer?.pauseVideo?.(); } catch { /* ignore */ }
+        }
+      }
+    }, 250);
+  }
+}
+
+// Watch zmian preferencji silnika i reloadu obecnego utworu.
+watch(playerPreference, (newPref, oldPref) => {
+  if (newPref === oldPref) return;
+  if (!nowPlaying.value?.videoId) return;
+  showToast(t("playerEngineSwitching", { mode: newPref }), "info");
+  reloadCurrentTrackOnEngineChange();
+});
+
+function engineTogglePlay() {
+  if (activeEngine.value === "html5" && html5Audio) {
+    if (html5Audio.paused) html5Audio.play().catch(() => {});
+    else html5Audio.pause();
+    return;
+  }
+  if (!ytPlayer) {
+    showToast(t("playerNotReady"), "warning");
+    return;
+  }
+  try {
+    const state = ytPlayer.getPlayerState();
+    if (state === window.YT?.PlayerState?.PLAYING) ytPlayer.pauseVideo();
+    else ytPlayer.playVideo();
+  } catch {
+    showToast(t("playerNotReady"), "warning");
+  }
+}
+
+function engineSeek(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  currentTime.value = value;
+  if (activeEngine.value === "html5" && html5Audio) {
+    try { html5Audio.currentTime = value; } catch { /* ignore */ }
+  } else {
+    try { ytPlayer?.seekTo?.(value, true); } catch { /* ignore */ }
+  }
+}
+
+function engineSetVolume(next) {
+  const value = clamp(Number(next), 0, 100);
+  volume.value = value;
+  if (html5Audio) {
+    try { html5Audio.volume = value / 100; } catch { /* ignore */ }
+  }
+  try { ytPlayer?.setVolume?.(value); } catch { /* ignore */ }
+}
+
+function engineGetTime() {
+  if (activeEngine.value === "html5" && html5Audio) {
+    return Number.isFinite(html5Audio.currentTime) ? html5Audio.currentTime : 0;
+  }
+  try { return ytPlayer?.getCurrentTime?.() || 0; } catch { return 0; }
+}
+
+function engineGetDuration() {
+  if (activeEngine.value === "html5" && html5Audio) {
+    return Number.isFinite(html5Audio.duration) ? html5Audio.duration : 0;
+  }
+  try { return ytPlayer?.getDuration?.() || 0; } catch { return 0; }
+}
 
 const loginUrl = computed(() => buildApiUrl("/api/auth/google"));
 const favoriteKeys = computed(() => new Set(favorites.value));
@@ -450,6 +815,30 @@ function setAccent(next) {
   accent.value = next;
 }
 
+/**
+ * Wywoływane z OfflineBanner gdy użytkownik klika "Spróbuj ponownie".
+ * Próbujemy:
+ *  1) Ponownie nawiązać połączenie (browser i tak ma `online` event, ale forsujemy fetch).
+ *  2) Jeśli był aktywny utwór — przeładować go.
+ *  3) Re-hydrate user state.
+ */
+async function retryNetworkAction() {
+  try {
+    // Lekki ping na endpoint który ma SWR cache (nie obciąży serwera).
+    await fetchJson("/api/page/home", { timeout: 6000, retry: { attempts: 1 } });
+    showToast(t("offlineRetrySuccess"), "success");
+    // Re-hydrate w tle
+    hydrateUserState();
+    // Przeładuj utwór jeśli był grany
+    const track = nowPlaying.value;
+    if (track?.videoId && !isPlaying.value) {
+      engineLoad(track).catch(() => {});
+    }
+  } catch (err) {
+    showToast(t("offlineRetryFailed"), "warning");
+  }
+}
+
 async function loadAuthSession() {
   try {
     authSession.value = await fetchJson("/api/auth/session", { timeout: 5000 });
@@ -457,6 +846,37 @@ async function loadAuthSession() {
     authSession.value = { auth: { enabled: false, connected: false } };
   }
 }
+
+/**
+ * Mapowanie kodów błędów OAuth z `?error=...` redirectu na komunikaty UI.
+ * Backend wysyła konkretne kody (oauth_no_client_id / oauth_redirect_mismatch / etc).
+ */
+const AUTH_ERROR_KEYS = {
+  oauth_no_client_id: "authErrorNoClientId",
+  oauth_no_client_secret: "authErrorNoClientSecret",
+  oauth_no_redirect_uri: "authErrorNoRedirectUri",
+  oauth_init_failed: "authErrorInitFailed",
+  oauth_cancelled: "authErrorCancelled",
+  oauth_no_code: "authErrorNoCode",
+  oauth_invalid_grant: "authErrorInvalidGrant",
+  oauth_redirect_mismatch: "authErrorRedirectMismatch",
+  auth_failed: "authErrorFailed",
+};
+
+// Watch na query.error — pokaż toast i wyczyść URL (clean state).
+watch(
+  () => route.query.error,
+  (errorCode) => {
+    if (!errorCode) return;
+    const key = AUTH_ERROR_KEYS[String(errorCode)] || "authErrorFailed";
+    const isConfigError = ["oauth_no_client_id", "oauth_no_client_secret", "oauth_no_redirect_uri"]
+      .includes(String(errorCode));
+    showToast(t(key), isConfigError ? "warning" : "error");
+    // Usuń `?error=...` z URL żeby reload nie pokazał ponownie tego samego toastu.
+    router.replace({ query: { ...route.query, error: undefined } }).catch(() => {});
+  },
+  { immediate: true },
+);
 
 async function logout() {
   try {
@@ -488,6 +908,26 @@ async function hydrateUserState() {
     if (state.themeState?.theme) theme.value = state.themeState.theme;
     if (state.themeState?.accent) accent.value = state.themeState.accent;
     lastPersistedUserState.value = stableStringify(getPersistableState());
+
+    // Filtruj usunięte z YouTube — nie pokazujemy w UI martwych wpisów.
+    recentPlays.value = filterAvailable(recentPlays.value);
+
+    // Background scan: raz na 7 dni weryfikujemy availability w tle.
+    if (shouldRunBackgroundScan() && Object.keys(favoriteTracks.value).length) {
+      // Sleep 5s aby nie spowalniać startu — potem odpalamy w idle callback.
+      window.setTimeout(() => {
+        const tracks = Object.values(favoriteTracks.value);
+        scanLibrary(tracks, { batchSize: 3 })
+          .then((removed) => {
+            if (removed.length) {
+              showToast(t("libraryScanRemoved", { count: removed.length }), "info");
+              // Refiltruj UI list po skanie
+              recentPlays.value = filterAvailable(recentPlays.value);
+            }
+          })
+          .catch(() => { /* skan opcjonalny — błąd ignorujemy */ });
+      }, 5000);
+    }
   } catch (error) {
     console.warn("Could not hydrate user state:", error.message);
   } finally {
@@ -561,11 +1001,37 @@ function initYouTubePlayer() {
     events: {
       onReady: () => {
         ytPlayer?.setVolume?.(volume.value);
-        if (nowPlaying.value?.videoId) ytPlayer?.loadVideoById?.(nowPlaying.value.videoId);
+        applyAudioQuality(ytPlayer);
+
+        // Jeśli był track w kolejce (np. user kliknął play zanim ytPlayer się zainicjalizował),
+        // załaduj go teraz.
+        if (pendingIframeTrack?.videoId) {
+          const track = pendingIframeTrack;
+          pendingIframeTrack = null;
+          pauseHtml5Quietly();
+          try {
+            ytPlayer.loadVideoById(track.videoId);
+            activeEngine.value = "iframe";
+          } catch (err) {
+            console.warn("[player] pending iframe load failed:", err?.message || err);
+          }
+          return;
+        }
+
+        // Załaduj utwór do iframe TYLKO jeśli aktywny silnik to iframe.
+        // W trybie HTML5 iframe pozostaje uśpiony.
+        if (
+          activeEngine.value === "iframe" &&
+          nowPlaying.value?.videoId
+        ) {
+          ytPlayer?.loadVideoById?.(nowPlaying.value.videoId);
+        }
       },
       onStateChange: (event) => {
         const states = window.YT?.PlayerState;
         if (!states) return;
+        // Ignoruj eventy iframe gdy aktywny silnik to HTML5 (iframe drzemie).
+        if (activeEngine.value !== "iframe") return;
         if (event.data === states.PLAYING) {
           isPlaying.value = true;
           startProgressTimer();
@@ -583,7 +1049,9 @@ function initYouTubePlayer() {
           }
         }
       },
-      onError: () => showToast(t("cantPlay"), "error"),
+      onError: () => {
+        if (activeEngine.value === "iframe") showToast(t("cantPlay"), "error");
+      },
     },
   });
 }
@@ -592,9 +1060,21 @@ function startProgressTimer() {
   stopProgressTimer();
   progressTimer = window.setInterval(() => {
     try {
-      currentTime.value = ytPlayer?.getCurrentTime?.() || currentTime.value;
-      const duration = ytPlayer?.getDuration?.() || 0;
+      const cur = engineGetTime();
+      if (Number.isFinite(cur) && cur > 0) currentTime.value = cur;
+      const duration = engineGetDuration();
       if (duration > 0) audioDuration.value = duration;
+
+      // SponsorBlock auto-skip: jeśli aktualna pozycja wpada w segment z akcją "skip",
+      // od razu przeskocz do końca segmentu.
+      const segments = nowPlaying.value?.sponsorSegments;
+      if (Array.isArray(segments) && segments.length) {
+        const skip = findSegmentToSkip(segments, cur);
+        if (skip && skip.end > cur + 0.2) {
+          showToast(t("sponsorSkipped", { category: skip.segment?.category || "" }), "info");
+          engineSeek(skip.end + 0.05);
+        }
+      }
     } catch {
       stopProgressTimer();
     }
@@ -649,39 +1129,31 @@ function play(item, newQueue = null) {
     timeout: 4500,
   }).catch(() => {});
 
-  if (track.videoId && ytPlayer?.loadVideoById) {
-    ytPlayer.loadVideoById(track.videoId);
-  } else if (!track.videoId) {
+  if (track.videoId) {
+    engineLoad(track).catch((err) => {
+      console.error("[player] engineLoad failed:", err);
+      // 404/410 = utwór usunięty z YouTube — oznacz w library graveyard.
+      const msg = String(err?.message || "");
+      if (/40[049]/.test(msg) || /not_found|removed/i.test(msg)) {
+        markUnavailable(track.videoId);
+        showToast(t("libraryTrackUnavailable", { title: track.title }), "warning");
+      }
+    });
+  } else {
     showToast(t("noVideoId"), "warning");
   }
 }
 
 function togglePlay() {
-  if (!ytPlayer) {
-    showToast(t("playerNotReady"), "warning");
-    return;
-  }
-  try {
-    const state = ytPlayer.getPlayerState();
-    if (state === window.YT?.PlayerState?.PLAYING) ytPlayer.pauseVideo();
-    else ytPlayer.playVideo();
-  } catch {
-    showToast(t("playerNotReady"), "warning");
-  }
+  engineTogglePlay();
 }
 
 function seekTo(seconds) {
-  currentTime.value = Math.max(0, Number(seconds) || 0);
-  try {
-    ytPlayer?.seekTo?.(currentTime.value, true);
-  } catch {}
+  engineSeek(seconds);
 }
 
 function setVolume(next) {
-  volume.value = clamp(Number(next), 0, 100);
-  try {
-    ytPlayer?.setVolume?.(volume.value);
-  } catch {}
+  engineSetVolume(next);
 }
 
 function nextTrack() {
@@ -802,6 +1274,7 @@ function toggleFavoriteTrack(track) {
   const key = trackKey(normalized);
   const nextFavorites = new Set(favorites.value);
   const nextTracks = { ...favoriteTracks.value };
+  let added = false;
   if (nextFavorites.has(key)) {
     nextFavorites.delete(key);
     delete nextTracks[key];
@@ -810,6 +1283,7 @@ function toggleFavoriteTrack(track) {
     nextFavorites.add(key);
     nextTracks[key] = normalized;
     showToast(t("addedToFavorites"), "success");
+    added = true;
   }
   favorites.value = nextFavorites;
   favoriteTracks.value = nextTracks;
@@ -820,6 +1294,32 @@ function toggleFavoriteTrack(track) {
     body: JSON.stringify({ track: normalized }),
     timeout: 4500,
   }).catch(() => {});
+
+  // Auto-download nowo dodanych ulubionych (jeśli włączone i zgoda RODO)
+  if (added && offlineSettings.autoDownloadFavorites && offlineSettings.legalAccepted && normalized.videoId) {
+    if (enqueueDownload(normalized)) showToast(t("downloadStarted"), "info");
+  }
+}
+
+function requestDownloadConsent(track) {
+  pendingDownloadTrack.value = track || null;
+  showLegalModal.value = true;
+}
+
+function handleLegalAccept() {
+  setLegalAccepted(true);
+  showLegalModal.value = false;
+  if (pendingDownloadTrack.value) {
+    if (enqueueDownload(pendingDownloadTrack.value)) {
+      showToast(t("downloadStarted"), "success");
+    }
+    pendingDownloadTrack.value = null;
+  }
+}
+
+function handleLegalDecline() {
+  showLegalModal.value = false;
+  pendingDownloadTrack.value = null;
 }
 
 function handleSearchResultClick(item) {
@@ -965,6 +1465,11 @@ provide("appState", {
   sleepTimerMinutes,
   setSleepTimer,
   clearSleepTimer,
+  openEqualizer: () => { showEqualizerModal.value = true; },
+  requestDownloadConsent,
+  playerPreference,
+  activeEngine,
+  setPlayerPreference: persistPlayerPreference,
 });
 
 onMounted(() => {
@@ -977,12 +1482,37 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  // 1) Globalne event listenery
   document.removeEventListener("click", handleDocumentClick);
   document.removeEventListener("keydown", handleKeyboard);
+
+  // 2) Timery
   window.clearTimeout(searchTimer);
   window.clearTimeout(persistTimer);
   stopProgressTimer();
   clearSleepTimer();
+
+  // 3) Silence detector — disconnect AnalyserNode + cancelAnimationFrame
+  detachSilenceDetector();
+  setSilenceSkipCallback(null);
+
+  // 4) Audio engine — disconnect MediaElementSource + EQ + bass + filtry
+  //    (5 nodes per element). Krytyczne, bo bez tego co reload wycieka chain.
+  if (html5Audio) {
+    try { detachFromAudioEngine(html5Audio); } catch { /* ignore */ }
+    try { html5Audio.pause(); } catch { /* ignore */ }
+    try { html5Audio.removeAttribute("src"); html5Audio.load(); } catch { /* ignore */ }
+    try { html5Audio.remove(); } catch { /* ignore */ }
+    html5Audio = null;
+    html5Attached = false;
+  }
+
+  // 5) YouTube iframe player — pełny cleanup
+  if (ytPlayer) {
+    try { ytPlayer.destroy?.(); } catch { /* ignore */ }
+    ytPlayer = null;
+    ytReady = false;
+  }
 });
 </script>
 

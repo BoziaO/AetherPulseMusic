@@ -1,5 +1,9 @@
 <template>
-  <div class="full-player" @click.self="$emit('close')">
+  <div
+    class="full-player"
+    :class="{ 'is-minimal': minimalMode }"
+    @click.self="$emit('close')"
+  >
     <canvas ref="canvasRef" style="display: none;" />
     <div class="dynamic-bg" :style="playerBackgroundStyle">
       <img v-if="cover" :src="cover" class="bg-image" alt="" />
@@ -14,7 +18,15 @@
         <p class="hdr-eyebrow">{{ t('fromQueue') }}</p>
         <p class="hdr-title">{{ playlistName || t('queue') }}</p>
       </div>
-      <div class="w-9" />
+      <button
+        class="icon-btn"
+        type="button"
+        :title="t(minimalMode ? 'minimalModeOff' : 'minimalModeOn')"
+        @click="toggleMinimalMode"
+      >
+        <Maximize2 v-if="minimalMode" :size="18" />
+        <Minimize2 v-else :size="18" />
+      </button>
     </header>
 
     <div class="full-body">
@@ -98,6 +110,9 @@
               <button class="ctrl-sm" type="button" :title="t('timestampComments')" @click="showComments = !showComments">
                 <MessageSquare :size="20" />
               </button>
+              <button class="ctrl-sm" type="button" :title="t('audioMixer')" @click="app?.openEqualizer?.()">
+                <SlidersHorizontal :size="20" />
+              </button>
               <button class="ctrl-sm" type="button" :title="t('audioVisualizer')" @click="showVisualizer = !showVisualizer">
                 <span style="font-size:18px;font-weight:700;line-height:1">≈</span>
               </button>
@@ -170,7 +185,9 @@ import {
   ChevronDown,
   Heart,
   ListMusic,
+  Maximize2,
   MessageSquare,
+  Minimize2,
   Music,
   Pause,
   Play,
@@ -178,6 +195,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  SlidersHorizontal,
   Volume2,
   VolumeX,
   X,
@@ -187,6 +205,7 @@ import TrackComments from "./TrackComments.vue";
 import SleepTimer from "./SleepTimer.vue";
 import { formatClock, formatNumber } from "../lib/format";
 import { fetchJson } from "../lib/api";
+import { getEffectiveOffset, lyricsOffsetState } from "../lib/lyricsOffset";
 
 const props = defineProps({
   track: { type: Object, required: true },
@@ -224,6 +243,23 @@ const showVisualizer = ref(false);
 const showComments = ref(false);
 const showLyrics = ref(false);
 const titleOverflows = ref(false);
+
+// Minimalistyczny tryb — ukrywa wszystko poza okładką, tytułem i podstawowymi
+// kontrolkami. Stan zapisywany w localStorage.
+const minimalMode = ref(localStorage.getItem("ap-fullplayer-minimal") === "1");
+
+function toggleMinimalMode() {
+  minimalMode.value = !minimalMode.value;
+  try {
+    localStorage.setItem("ap-fullplayer-minimal", minimalMode.value ? "1" : "0");
+  } catch { /* ignore */ }
+  // Wyłączamy panele boczne aby nie kolidowały z minimalnym wyglądem.
+  if (minimalMode.value) {
+    showLyrics.value = false;
+    showVisualizer.value = false;
+    showComments.value = false;
+  }
+}
 // Default: neutral deep bg — overridden by extracted dominant color
 const dominantColor = ref("rgba(20, 20, 24, 1)");
 const accentColor = ref("rgba(80, 80, 90, 1)");
@@ -268,7 +304,7 @@ let resizeObs = null;
 async function loadDislikes(track) {
   if (!track?.videoId || track.dislikes !== undefined) return;
   try {
-    const songData = await fetchJson(`/ytmusic/song/${track.videoId}`);
+    const songData = await fetchJson(`/api/ytmusic/song/${track.videoId}`);
     if (songData.dislikes !== undefined) {
       // Update the track object (assuming it's reactive)
       track.dislikes = songData.dislikes;
@@ -384,34 +420,42 @@ const playerBackgroundStyle = computed(() => ({
 // Get high-resolution cover art URL
 function getHighResCover(url) {
   if (!url) return url;
-  
-  const upgrades = [
-    ['default.jpg', 'maxresdefault.jpg'],
-    ['mqdefault.jpg', 'maxresdefault.jpg'],
-    ['hqdefault.jpg', 'maxresdefault.jpg'],
-    ['sddefault.jpg', 'maxresdefault.jpg'],
-    ['w120', 'w544-h544'],
-    ['w226', 'w544-h544'],
-    ['s192', 's544'],
-  ];
-  
   let upgraded = url;
-  for (const [from, to] of upgrades) {
-    if (upgraded.includes(from)) {
-      upgraded = upgraded.replace(from, to);
-      break;
+
+  // YouTube thumbnail patterns
+  upgraded = upgraded.replace(/\/vi\/(.+?)\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/vi/$1/maxresdefault.jpg');
+  upgraded = upgraded.replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/maxresdefault.jpg');
+
+  // Wymuszamy większy rozmiar z parametru query, jeśli jest.
+  try {
+    const parsed = new URL(upgraded, window.location.href);
+    if (parsed.searchParams.has('w')) {
+      parsed.searchParams.set('w', '544');
+      parsed.searchParams.set('h', '544');
+      parsed.searchParams.set('c', '1');
+      upgraded = parsed.toString();
     }
+  } catch {
+    // ignore invalid URL
   }
-  
+
   return upgraded;
 }
 
-// Compute active lyric line based on current time
+// Effective lyrics offset: per-track > global. Reaktywne na zmianę.
+const lyricsOffset = computed(() => {
+  void lyricsOffsetState.global;
+  void lyricsOffsetState.perTrack;
+  return getEffectiveOffset(props.track?.videoId);
+});
+
+// Compute active lyric line based on current time + offset.
 const activeLyricIndex = computed(() => {
   if (!timedLyrics.value.length) return -1;
+  const visibleTime = props.currentTime + lyricsOffset.value;
   let index = 0;
   for (let i = 0; i < timedLyrics.value.length; i += 1) {
-    if (timedLyrics.value[i].time <= props.currentTime + 0.2) index = i;
+    if (timedLyrics.value[i].time <= visibleTime + 0.2) index = i;
   }
   return index;
 });
@@ -1165,5 +1209,86 @@ function parseTimedLyrics(text) {
   background: rgba(255, 0, 0, 0.6);
   border-radius: 2px;
   cursor: pointer;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Minimalistyczny tryb — duże przyciski, ukryta sidebar, więcej oddechu
+   ──────────────────────────────────────────────────────────────────────── */
+.full-player.is-minimal .hdr-eyebrow,
+.full-player.is-minimal .hdr-title,
+.full-player.is-minimal .row-actions,
+.full-player.is-minimal .visualizer-section,
+.full-player.is-minimal .comments-section,
+.full-player.is-minimal .right-panel,
+.full-player.is-minimal .dislikes,
+.full-player.is-minimal .sponsor-segments,
+.full-player.is-minimal .volume {
+  display: none !important;
+}
+
+.full-player.is-minimal .hdr-meta {
+  visibility: hidden; /* zachowaj zarezerwowaną przestrzeń aby header miał wyśrodkowany przycisk */
+}
+
+.full-player.is-minimal .left-panel {
+  max-width: 580px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.full-player.is-minimal .album-frame {
+  margin-top: 4vh;
+}
+
+.full-player.is-minimal .album-cover img {
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.full-player.is-minimal .track-text {
+  text-align: center;
+  margin-top: 32px;
+}
+
+.full-player.is-minimal .track-title {
+  font-size: clamp(22px, 4.5vw, 36px);
+  text-align: center;
+}
+
+.full-player.is-minimal .track-artist {
+  font-size: 16px;
+  text-align: center;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.full-player.is-minimal .controls {
+  margin-top: 36px;
+  gap: clamp(20px, 5vw, 56px);
+}
+
+.full-player.is-minimal .ctrl {
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
+}
+
+.full-player.is-minimal .big-play {
+  width: 88px;
+  height: 88px;
+  font-size: 28px;
+}
+
+.full-player.is-minimal .bottom-row {
+  margin-top: 40px;
+  justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .full-player.is-minimal .controls {
+    gap: 28px;
+  }
+  .full-player.is-minimal .ctrl { width: 48px; height: 48px; }
+  .full-player.is-minimal .big-play { width: 76px; height: 76px; }
 }
 </style>

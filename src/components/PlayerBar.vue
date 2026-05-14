@@ -267,23 +267,11 @@ const progressPercent = computed(() =>
 );
 
 function togglePlay() {
-  $emit('toggle-play');
-}
-
-function toggleShuffle() {
-  $emit('shuffle');
-}
-
-function toggleRepeat() {
-  $emit('repeat');
+  emit('toggle-play');
 }
 
 function seekTo(position) {
-  $emit('seek', position);
-}
-
-function setVolume(volume) {
-  $emit('volume', volume / 100);
+  emit('seek', position);
 }
 </script>
 

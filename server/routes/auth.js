@@ -60,17 +60,48 @@ function createAuthRouter(oauth2Client, getFrontendRedirectUrl) {
     return items;
   }
 
+  // Wskazuje czy OAuth jest skonfigurowany — używane przez frontend i `/google` route.
+  function isOAuthConfigured() {
+    return Boolean(
+      process.env.GOOGLE_CLIENT_ID &&
+      process.env.GOOGLE_CLIENT_SECRET &&
+      (process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URI),
+    );
+  }
+
   router.get('/google', (req, res) => {
-    const url = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: SCOPES,
-      prompt: 'select_account',
-    });
-    res.redirect(url);
+    // Bez klucza → przyjazny redirect zamiast 400 z Google ("missing client_id").
+    if (!isOAuthConfigured()) {
+      const reason = !process.env.GOOGLE_CLIENT_ID
+        ? 'oauth_no_client_id'
+        : !process.env.GOOGLE_CLIENT_SECRET
+        ? 'oauth_no_client_secret'
+        : 'oauth_no_redirect_uri';
+      console.warn(`[auth] /google login attempted without ${reason}`);
+      return res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=${reason}`);
+    }
+    try {
+      const url = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: SCOPES,
+        prompt: 'select_account',
+      });
+      res.redirect(url);
+    } catch (err) {
+      console.error('[auth] generateAuthUrl failed:', err?.message || err);
+      res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=oauth_init_failed`);
+    }
   });
 
   router.get('/google/callback', async (req, res) => {
-    const { code } = req.query;
+    const { code, error: oauthError } = req.query;
+    // User cancelled OAuth — wraca z `?error=access_denied` w query
+    if (oauthError) {
+      return res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=oauth_cancelled`);
+    }
+    if (!code) {
+      return res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=oauth_no_code`);
+    }
     try {
       const { tokens } = await oauth2Client.getToken(code);
       req.session.tokens = tokens;
@@ -81,8 +112,14 @@ function createAuthRouter(oauth2Client, getFrontendRedirectUrl) {
 
       res.redirect(getFrontendRedirectUrl(req, '/'));
     } catch (error) {
-      console.error('Error during Google Auth callback:', error);
-      res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=auth_failed`);
+      console.error('Error during Google Auth callback:', error?.message || error);
+      // Rozróżnij rodzaje błędów żeby frontend mógł pokazać celne komunikaty
+      const code = error?.response?.data?.error || error?.code;
+      const errorParam =
+        code === 'invalid_grant' ? 'oauth_invalid_grant' :
+        code === 'redirect_uri_mismatch' ? 'oauth_redirect_mismatch' :
+        'auth_failed';
+      res.redirect(`${getFrontendRedirectUrl(req, '/')}?error=${errorParam}`);
     }
   });
 

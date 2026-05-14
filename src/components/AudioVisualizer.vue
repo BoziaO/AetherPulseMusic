@@ -19,7 +19,8 @@
 </template>
 
 <script setup>
-import { inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { inject, onMounted, onBeforeUnmount, ref } from 'vue';
+import { getChainForElement } from '../lib/audioEngine';
 
 const appState = inject('appState');
 
@@ -27,11 +28,15 @@ const canvas = ref(null);
 const width = ref(300);
 const height = ref(80);
 const isAnalyzing = ref(false);
-let audioContext = null;
+
+// AnalyserNode jest podpinany RÓWNOLEGLE do istniejącego chain'a audioEngine
+// (nie tworzymy własnego MediaElementSource — to wywoływałoby InvalidStateError,
+// bo HTML5 audio jest już podłączony do globalnego AudioContext przez audioEngine).
 let analyser = null;
+let analyserCtx = null;
 let animationId = null;
-let sourceNode = null;
 let retryInterval = null;
+let lastTapNode = null;
 
 function toggle() {
   isAnalyzing.value = !isAnalyzing.value;
@@ -52,6 +57,17 @@ function stopVisualization() {
     clearInterval(retryInterval);
     retryInterval = null;
   }
+  // Disconnect analyser z chain'a audioEngine (chain żyje dalej, my odpinamy się od niego).
+  if (analyser) {
+    try { analyser.disconnect(); } catch { /* ignore */ }
+  }
+  if (lastTapNode && analyser) {
+    try { lastTapNode.disconnect(analyser); } catch { /* ignore */ }
+  }
+  analyser = null;
+  analyserCtx = null;
+  lastTapNode = null;
+
   const ctx = canvas.value?.getContext('2d');
   if (ctx) {
     ctx.clearRect(0, 0, width.value, height.value);
@@ -59,58 +75,44 @@ function stopVisualization() {
 }
 
 function initializeAudio() {
-  if (audioContext) return;
-
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioContext = new AudioContext();
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 512;
-    analyser.smoothingTimeConstant = 0.8;
-
-    connectToMediaElement();
-    
+  if (analyser) return;
+  // Próbuje natychmiast podłączyć się do globalnego chain HTML5 audio.
+  if (!connectToAudioEngine()) {
+    // Jeśli HTML5 audio jeszcze nie istnieje (iframe mode), retry co 2s.
     retryInterval = setInterval(() => {
-      if (!sourceNode && isAnalyzing.value) {
-        connectToMediaElement();
+      if (!analyser && isAnalyzing.value) {
+        connectToAudioEngine();
       }
     }, 2000);
-  } catch (e) {
-    console.warn('Audio API not available:', e.message);
-    isAnalyzing.value = false;
-    appState?.showToast?.('Visualizer initialization failed', 'error');
   }
 }
 
-function connectToMediaElement() {
+function connectToAudioEngine() {
   try {
-    const videoElements = document.querySelectorAll('video');
-    let mediaElement = null;
-    
-    for (const video of videoElements) {
-      if (video.readyState >= 2 && video.duration > 0 && !video.paused) {
-        mediaElement = video;
-        break;
-      }
-    }
+    const audioEl = document.getElementById('ap-html5-player');
+    if (!audioEl) return false;
+    const handle = getChainForElement(audioEl);
+    if (!handle?.context || !handle?.tap) return false;
 
-    if (mediaElement) {
-      if (sourceNode) {
-        sourceNode.disconnect();
-      }
-      
-      sourceNode = audioContext.createMediaElementSource(mediaElement);
-      sourceNode.connect(analyser);
-      analyser.connect(audioContext.destination);
-      
-      console.log('Audio visualizer connected to media element');
-      if (retryInterval) {
-        clearInterval(retryInterval);
-        retryInterval = null;
-      }
+    // Tworzymy AnalyserNode w TYM SAMYM AudioContext co audioEngine.
+    analyserCtx = handle.context;
+    analyser = analyserCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.8;
+
+    // Równoległe podpięcie — chain audio jest dalej kierowany do destination
+    // (przez `tap` → destination), my dodajemy gałąź `tap → analyser`.
+    handle.tap.connect(analyser);
+    lastTapNode = handle.tap;
+
+    if (retryInterval) {
+      clearInterval(retryInterval);
+      retryInterval = null;
     }
+    return true;
   } catch (err) {
-    console.warn('Failed to connect to media element:', err.message);
+    console.warn('Failed to connect visualizer to audio engine:', err.message);
+    return false;
   }
 }
 
@@ -172,15 +174,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  // stopVisualization() obsługuje cancel rAF, clearInterval i disconnect analyser
+  // — NIE zamykamy AudioContext, bo jest współdzielony z audioEngine.
   stopVisualization();
-  if (sourceNode) {
-    sourceNode.disconnect();
-    sourceNode = null;
-  }
-  if (audioContext) {
-    audioContext.close();
-    audioContext = null;
-  }
 });
 </script>
 

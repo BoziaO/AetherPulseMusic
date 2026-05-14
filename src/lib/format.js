@@ -2,20 +2,45 @@ export function trackKey(track) {
   return track?.videoId || `${track?.title || "track"}-${track?.artist || track?.subtitle || track?.author || ""}`;
 }
 
+function normalizeImageUrl(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = normalizeImageUrl(item);
+      if (url) return url;
+    }
+    return null;
+  }
+  if (typeof value === 'object') {
+    return (
+      value.url || value.src || value.thumbnail || value.default || value.high || value.hq ||
+      Object.values(value).map(normalizeImageUrl).find(Boolean) || null
+    );
+  }
+  return null;
+}
+
 export function normalizeTrack(item = {}) {
   const artist = item.artist
     || item.subtitle
     || item.author
-    || (Array.isArray(item.artists) ? item.artists.map((entry) => entry.name).filter(Boolean).join(", ") : "");
+    || (Array.isArray(item.artists) ? item.artists.map((entry) => entry.name).filter(Boolean).join(', ') : '');
+  const thumbnail = normalizeImageUrl(item.thumbnail || item.cover || item.art || item.thumbnails || item.snippet?.thumbnails);
 
   return {
     ...item,
-    title: item.title || item.name || "Nieznany utwor",
+    title: item.title || item.name || item?.snippet?.title || 'Nieznany utwor',
     artist,
-    art: item.art || item.thumbnail || item.cover || null,
-    thumbnail: item.thumbnail || item.cover || item.art || null,
-    duration: item.duration || "",
-    videoId: item.videoId || null,
+    art: normalizeImageUrl(item.art || item.thumbnail || item.cover || item.thumbnails || item.snippet?.thumbnails),
+    thumbnail,
+    duration: item.duration || item?.video?.duration || item?.snippet?.duration || '',
+    videoId:
+      item.videoId ||
+      (typeof item.id === 'string' ? item.id : null) ||
+      item.id?.videoId ||
+      item.video?.id ||
+      null,
   };
 }
 

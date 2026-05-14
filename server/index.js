@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const { google } = require('googleapis');
 const cors = require('cors');
 const path = require('path');
@@ -14,6 +15,8 @@ const createLyricsRouter = require('./routes/lyrics');
 const createPagesRouter = require('./routes/pages');
 const createFlowsRouter = require('./routes/flows');
 const createUserRouter = require('./routes/user');
+const createRecommendationsRouter = require('./routes/recommendations');
+const createDownloadsRouter = require('./routes/downloads');
 
 // Initialize the SQLite database (runs schema + legacy JSON migration on first boot).
 require('./utils/db').getDb();
@@ -75,8 +78,22 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// gzip/brotli compression — pomija strumieniowe odpowiedzi audio (binary already compressed)
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    // Nie kompresuj proxy strumieni audio (raw audio jest już skompresowane)
+    if (req.path.startsWith('/api/downloads/stream')) return false;
+    return compression.filter(req, res);
+  },
+}));
+
 app.use(express.json({ limit: '256kb' }));
 app.set('trust proxy', 1);
+
+// ETag (lekki hash) dla cache'owania odpowiedzi przez przeglądarkę i SW
+app.set('etag', 'weak');
 
 // Rate limiters. Tight limits for endpoints that proxy YouTube traffic
 // (high risk of upstream blocking), looser limits for everything else.
@@ -161,23 +178,67 @@ app.use('/api/ytmusic', ytApiLimiter);
 app.use('/api/lyrics', ytApiLimiter);
 app.use('/api/page', ytApiLimiter);
 app.use('/api/flows', ytApiLimiter);
+app.use('/api/recommendations', ytApiLimiter);
+app.use('/api/downloads', ytApiLimiter);
 app.use('/api/local', generalApiLimiter);
 app.use('/api/user', generalApiLimiter);
 app.use('/api/auth', generalApiLimiter);
 
-app.use('/api/auth', createAuthRouter(oauth2Client, getFrontendRedirectUrl));
-app.use('/api/ytmusic', createYtmusicRouter(yt));
-app.use('/api/local/playlists', createLocalPlaylistsRouter(yt));
-app.use('/api/lyrics', createLyricsRouter(yt));
-app.use('/api/page', createPagesRouter(yt));
-app.use('/api/flows', createFlowsRouter(yt));
-app.use('/api/user', createUserRouter());
+// Cache-Control middleware: krótki TTL dla zapytań listujących, brak cache
+// dla mutacji i danych użytkownika (sesyjnych).
+function cacheControl(maxAgeSeconds) {
+  return (req, res, next) => {
+    if (req.method === 'GET' && !res.headersSent) {
+      res.setHeader(
+        'Cache-Control',
+        `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${maxAgeSeconds * 2}`,
+      );
+      res.setHeader('Vary', 'Accept-Encoding, Cookie');
+    }
+    next();
+  };
+}
+
+function noCache(req, res, next) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+}
+
+app.use('/api/auth', noCache, createAuthRouter(oauth2Client, getFrontendRedirectUrl));
+app.use('/api/ytmusic', cacheControl(120), createYtmusicRouter(yt));
+app.use('/api/local/playlists', noCache, createLocalPlaylistsRouter(yt));
+app.use('/api/lyrics', cacheControl(3600), createLyricsRouter(yt));
+app.use('/api/page', cacheControl(180), createPagesRouter(yt));
+app.use('/api/flows', cacheControl(60), createFlowsRouter(yt));
+app.use('/api/user', noCache, createUserRouter());
+app.use('/api/recommendations', cacheControl(60), createRecommendationsRouter(yt));
+app.use('/api/downloads', noCache, createDownloadsRouter());
 
 const clientDistPath = path.join(__dirname, '../dist');
 
-// Static files for production
+// Static files for production — z immutable cache dla hashed assets
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(clientDistPath));
+  // Pliki w /assets mają hash w nazwie (Vite) — można je cache'ować bardzo długo
+  app.use('/assets', express.static(path.join(clientDistPath, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+    etag: true,
+    lastModified: true,
+  }));
+
+  // Reszta (index.html, manifest, sw.js) — krótki cache, bo bez hasha
+  app.use(express.static(clientDistPath, {
+    maxAge: '5m',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // sw.js MUSI mieć no-cache, żeby update SW był natychmiastowy
+      if (filePath.endsWith('sw.js')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    },
+  }));
 }
 
 // Catch-all for Vue Router (production)

@@ -16,10 +16,41 @@
     <link rel="icon" type="image/x-icon" sizes="192x192" href="/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.svg" />
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- Preconnect: szybsze nawiązanie połączenia z najczęstszymi origin -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://www.youtube.com" />
     <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://yt3.googleusercontent.com" />
+    <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
+
+    <!-- Critical CSS inline (LCP improvement) — placeholder w trakcie ładowania bundla -->
+    <style>
+      :root {
+        color-scheme: dark light;
+      }
+      html, body {
+        background: #000;
+        color: #fff;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      #app:empty::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 50% 40%, #1a1a1a 0%, #000 70%);
+        animation: ap-boot 1.2s ease-out infinite alternate;
+      }
+      @keyframes ap-boot {
+        from { opacity: 0.6; }
+        to   { opacity: 1; }
+      }
+    </style>
+
     <title>AetherPulse Music</title>
   </head>
   <body>

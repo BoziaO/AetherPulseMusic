@@ -1,8 +1,7 @@
 // AetherPulse — Stream Extractor dla YouTube (backend)
 // Ekstrakcja URL strumieni audio z YouTube Music używając youtubei.js
 
-const Innertube = require('youtubei.js').default;
-const { UniversalCache } = require('youtubei.js/dist/src/utils');
+const Innertube = require('youtubei.js');
 
 let innertube = null;
 const streamCache = new Map(); // Prosta cache dla URL'ów
@@ -11,7 +10,7 @@ async function getInnertube() {
   if (!innertube) {
     try {
       innertube = await Innertube.create({
-        cache: new UniversalCache(false),
+        cache: true,
         generate_session_locally: true,
       });
     } catch (err) {

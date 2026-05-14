@@ -79,12 +79,25 @@ app.use(cors({
   credentials: true
 }));
 
+// ⭐ CORS HEADERS DLA /api/downloads/* - krytyczne dla HTML5 audio playback
+app.use('/api/downloads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Type, Content-Range, Content-Length');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Content-Type, Accept-Ranges');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // gzip/brotli compression — pomija strumieniowe odpowiedzi audio (binary already compressed)
 app.use(compression({
   threshold: 1024,
   filter: (req, res) => {
     // Nie kompresuj proxy strumieni audio (raw audio jest już skompresowane)
-    if (req.path.startsWith('/api/downloads/stream')) return false;
+    if (req.path.startsWith('/api/downloads/stream') || req.path.startsWith('/api/downloads/playback')) return false;
     return compression.filter(req, res);
   },
 }));
@@ -149,7 +162,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "frame-src https://www.youtube.com; " +
-    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com;" +
+    "img-src 'self' data: blob: https://*.ytimg.com https://i.ytimg.com https://lh3.googleusercontent.com https://*.ggpht.com https://yt3.ggpht.com https://yt3.googleusercontent.com https://music.youtube.com; " +
     "media-src 'self' blob: https://www.youtube.com https://s.ytimg.com"
   );
 

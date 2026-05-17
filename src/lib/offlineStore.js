@@ -370,17 +370,27 @@ async function downloadOne(item) {
 }
 
 async function persistDownloaded(item, blob, info) {
+  const mimeType = info.mimeType || blob.type || "audio/mpeg";
+  let storedBlob = blob;
+
+  try {
+    const buffer = await blob.arrayBuffer();
+    storedBlob = new Blob([buffer], { type: mimeType });
+  } catch (err) {
+    console.warn("offlineStore.persistDownloaded: blob clone fallback failed", err);
+  }
+
   const meta = {
-    videoId: item.videoId,
+    videoId: String(item.videoId),
     title: item.title || info.title || "",
     artist: item.artist || info.artist || "",
     thumbnail: item.thumbnail || info.thumbnail || null,
     duration: item.duration || info.duration || "",
     format: settings.format,
-    mimeType: info.mimeType || blob.type || "audio/mpeg",
-    size: blob.size,
+    mimeType,
+    size: storedBlob.size,
     downloadedAt: Date.now(),
-    sourceVideoId: item.videoId,
+    sourceVideoId: String(item.videoId),
   };
 
   const db = await openDb();
@@ -388,8 +398,8 @@ async function persistDownloaded(item, blob, info) {
     const transaction = db.transaction([STORE_META, STORE_BLOBS], "readwrite");
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
-    transaction.objectStore(STORE_META).put(meta);
-    transaction.objectStore(STORE_BLOBS).put({ videoId: item.videoId, blob });
+    transaction.objectStore(STORE_META).put(JSON.parse(JSON.stringify(meta)));
+    transaction.objectStore(STORE_BLOBS).put({ videoId: meta.videoId, blob: storedBlob });
   });
   offlineIndex.set(meta.videoId, meta);
   await refreshStorageEstimate();

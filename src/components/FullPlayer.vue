@@ -6,7 +6,7 @@
   >
     <canvas ref="canvasRef" style="display: none;" />
     <div class="dynamic-bg" :style="playerBackgroundStyle">
-      <img v-if="cover" :src="cover" class="bg-image" alt="" />
+      <img v-if="cover" :src="getHighResCover(cover)" class="bg-image" alt="" />
       <div class="bg-overlay" />
     </div>
 
@@ -107,6 +107,9 @@
               />
             </div>
             <div class="row-actions">
+              <button class="ctrl-sm" type="button" :title="t('download')" @click="handleDownload">
+                <Download :size="20" :style="isDownloaded(track?.videoId) ? 'color: var(--success)' : ''" />
+              </button>
               <button class="ctrl-sm" type="button" :title="t('timestampComments')" @click="showComments = !showComments">
                 <MessageSquare :size="20" />
               </button>
@@ -183,6 +186,7 @@ import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import {
   Captions,
   ChevronDown,
+  Download,
   Heart,
   ListMusic,
   Maximize2,
@@ -206,6 +210,7 @@ import SleepTimer from "./SleepTimer.vue";
 import { formatClock, formatNumber } from "../lib/format";
 import { fetchJson } from "../lib/api";
 import { getEffectiveOffset, lyricsOffsetState } from "../lib/lyricsOffset";
+import { isDownloaded, enqueueDownload, removeDownload, settings as offlineSettings } from "../lib/offlineStore";
 
 const props = defineProps({
   track: { type: Object, required: true },
@@ -263,6 +268,28 @@ function toggleMinimalMode() {
 // Default: neutral deep bg — overridden by extracted dominant color
 const dominantColor = ref("rgba(20, 20, 24, 1)");
 const accentColor = ref("rgba(80, 80, 90, 1)");
+
+function handleDownload() {
+  const track = props.track;
+  if (!track?.videoId) return;
+
+  if (isDownloaded(track.videoId)) {
+    if (window.confirm(t("confirmClear"))) {
+      removeDownload(track.videoId);
+      app?.showToast?.(t("downloadRemoved"), "info");
+    }
+    return;
+  }
+
+  if (!offlineSettings.legalAccepted) {
+    app?.requestDownloadConsent?.(track);
+    return;
+  }
+
+  if (enqueueDownload(track)) {
+    app?.showToast?.(t("downloadStarted"), "success");
+  }
+}
 
 // Lyrics state
 const lyricsLoading = ref(false);
@@ -423,16 +450,29 @@ function getHighResCover(url) {
   let upgraded = url;
 
   // YouTube thumbnail patterns
-  upgraded = upgraded.replace(/\/vi\/(.+?)\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/vi/$1/maxresdefault.jpg');
-  upgraded = upgraded.replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/maxresdefault.jpg');
+  if (upgraded.includes('ytimg.com')) {
+    upgraded = upgraded.replace(/\/vi\/(.+?)\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/vi/$1/maxresdefault.jpg');
+    upgraded = upgraded.replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/maxresdefault.jpg');
+  }
 
-  // Wymuszamy większy rozmiar z parametru query, jeśli jest.
+  if (upgraded.includes('googleusercontent.com')) {
+    try {
+      const parsed = new URL(upgraded, window.location.href);
+      parsed.searchParams.set('w', '1200');
+      parsed.searchParams.set('h', '1200');
+      parsed.searchParams.set('c', '1');
+      return parsed.toString();
+    } catch {
+      return upgraded;
+    }
+  }
+
   try {
     const parsed = new URL(upgraded, window.location.href);
-    if (parsed.searchParams.has('w')) {
-      parsed.searchParams.set('w', '544');
-      parsed.searchParams.set('h', '544');
-      parsed.searchParams.set('c', '1');
+    const sizeParam = parsed.searchParams.get('s') || parsed.searchParams.get('sz');
+    if (sizeParam) {
+      parsed.searchParams.set('s', '1200');
+      parsed.searchParams.set('sz', '1200');
       upgraded = parsed.toString();
     }
   } catch {

@@ -2,23 +2,50 @@ export function trackKey(track) {
   return track?.videoId || `${track?.title || "track"}-${track?.artist || track?.subtitle || track?.author || ""}`;
 }
 
+function scoreImageUrl(url) {
+  if (typeof url !== 'string') return 0;
+  const lower = url.toLowerCase();
+  let score = 0;
+
+  if (lower.includes('maxresdefault')) score += 1200;
+  else if (lower.includes('sddefault')) score += 1100;
+  else if (lower.includes('hqdefault')) score += 1000;
+  else if (lower.includes('mqdefault')) score += 900;
+  else if (lower.includes('default')) score += 800;
+
+  const sizeMatch = lower.match(/[?&]s=(\d+)/);
+  if (sizeMatch) score += Number(sizeMatch[1]);
+  const resMatch = lower.match(/\/(\d+)x(\d+)\//);
+  if (resMatch) score += Math.max(Number(resMatch[1]), Number(resMatch[2]));
+  return score;
+}
+
 function normalizeImageUrl(value) {
   if (!value) return null;
   if (typeof value === 'string') return value;
+
+  const candidates = [];
   if (Array.isArray(value)) {
     for (const item of value) {
       const url = normalizeImageUrl(item);
-      if (url) return url;
+      if (url) candidates.push(url);
     }
-    return null;
+  } else if (typeof value === 'object') {
+    const direct = value.url || value.src || value.thumbnail || value.default || value.high || value.hq;
+    if (typeof direct === 'string') {
+      candidates.push(direct);
+    } else if (Array.isArray(direct)) {
+      const nested = normalizeImageUrl(direct);
+      if (nested) candidates.push(nested);
+    }
+    for (const nested of Object.values(value)) {
+      const url = normalizeImageUrl(nested);
+      if (url) candidates.push(url);
+    }
   }
-  if (typeof value === 'object') {
-    return (
-      value.url || value.src || value.thumbnail || value.default || value.high || value.hq ||
-      Object.values(value).map(normalizeImageUrl).find(Boolean) || null
-    );
-  }
-  return null;
+
+  if (!candidates.length) return null;
+  return candidates.sort((a, b) => scoreImageUrl(b) - scoreImageUrl(a))[0] || null;
 }
 
 export function normalizeTrack(item = {}) {
@@ -26,13 +53,13 @@ export function normalizeTrack(item = {}) {
     || item.subtitle
     || item.author
     || (Array.isArray(item.artists) ? item.artists.map((entry) => entry.name).filter(Boolean).join(', ') : '');
-  const thumbnail = normalizeImageUrl(item.thumbnail || item.cover || item.art || item.thumbnails || item.snippet?.thumbnails);
+  const thumbnail = normalizeImageUrl(item.thumbnails || item.thumbnail || item.cover || item.art || item.snippet?.thumbnails);
 
   return {
     ...item,
     title: item.title || item.name || item?.snippet?.title || 'Nieznany utwor',
     artist,
-    art: normalizeImageUrl(item.art || item.thumbnail || item.cover || item.thumbnails || item.snippet?.thumbnails),
+    art: normalizeImageUrl(item.thumbnails || item.art || item.thumbnail || item.cover || item.snippet?.thumbnails),
     thumbnail,
     duration: item.duration || item?.video?.duration || item?.snippet?.duration || '',
     videoId:

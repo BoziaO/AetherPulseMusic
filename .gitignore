@@ -26,9 +26,6 @@ pnpm-lock.yaml
 headers.json
 
 # Persisted server data
-server/.data/
-server/data/
-server/ytmusic-snapshots/
 localPlaylists.json
 userState.json
 
@@ -67,3 +64,15 @@ desktop.ini
 .eslintcache
 .stylelintcache
 *.tsbuildinfo
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/
+.venv/
+venv/
+ENV/
+
+# ── App specific ────────────────────────────────────────────
+downloads/

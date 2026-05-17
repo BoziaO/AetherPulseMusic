@@ -89,6 +89,9 @@
 
          <!-- Right controls -->
          <div class="right">
+           <button class="icon-btn hidden md:inline-flex" type="button" :title="t('download')" @click="handleDownload">
+             <Download :size="18" :style="isDownloaded(track?.videoId) ? 'color: var(--success)' : ''" />
+           </button>
            <button class="icon-btn hidden md:inline-flex" type="button" :title="t('lyrics')" @click="$emit('lyrics')">
              <Captions :size="18" />
            </button>
@@ -179,6 +182,7 @@ import {
   Captions,
   ChevronDown,
   ChevronUp,
+  Download,
   Heart,
   ListMusic,
   Music2,
@@ -192,6 +196,7 @@ import {
   VolumeX,
 } from "lucide-vue-next";
 import { formatClock } from "../lib/format";
+import { isDownloaded, enqueueDownload, removeDownload, settings as offlineSettings } from "../lib/offlineStore";
 
 const titleInnerRef = ref(null);
 const titleNeedsMarquee = ref(false);
@@ -265,6 +270,28 @@ const safeDuration = computed(() =>
 const progressPercent = computed(() =>
   Math.min(100, (props.currentTime / safeDuration.value) * 100),
 );
+
+function handleDownload() {
+  const track = props.track;
+  if (!track?.videoId) return;
+
+  if (isDownloaded(track.videoId)) {
+    if (window.confirm(t("confirmClear"))) {
+      removeDownload(track.videoId);
+      app?.showToast?.(t("downloadRemoved"), "info");
+    }
+    return;
+  }
+
+  if (!offlineSettings.legalAccepted) {
+    app?.requestDownloadConsent?.(track);
+    return;
+  }
+
+  if (enqueueDownload(track)) {
+    app?.showToast?.(t("downloadStarted"), "success");
+  }
+}
 
 function togglePlay() {
   emit('toggle-play');

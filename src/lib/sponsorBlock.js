@@ -57,7 +57,7 @@ export function setSponsorEnabled(enabled) {
 }
 
 export function setSponsorCategory(category, action) {
-  if (!sponsorSettings.categories.hasOwnProperty(category)) return;
+  if (!(category in sponsorSettings.categories)) return;
   if (!["skip", "mark", "off"].includes(action)) return;
   sponsorSettings.categories[category] = action;
   persist();

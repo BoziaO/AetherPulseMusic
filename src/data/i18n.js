@@ -58,6 +58,7 @@ const messages = {
     saveFailed: "Nie udało się zapisać",
     expandPlayer: "Rozwiń odtwarzacz",
     collapsePlayer: "Zwiń odtwarzacz",
+    seekProgress: "Przewiń utwór",
 
     // Tracks / Library
     tracks: "Utwory",
@@ -360,6 +361,9 @@ const messages = {
     moodPlay: "Włącz mood",
     minimalModeOn: "Tryb minimalny",
     minimalModeOff: "Pełny widok",
+    autoScroll: "Auto-scroll",
+    lyricsFollowOn: "Wyłącz auto-scroll",
+    lyricsFollowOff: "Włącz auto-scroll",
 
     // Section 7: Privacy / RODO (PrivacyPage rozszerzone)
     privacyTitle: "Polityka Prywatności",
@@ -597,6 +601,7 @@ const messages = {
     saveFailed: "Could not save",
     expandPlayer: "Expand player",
     collapsePlayer: "Collapse player",
+    seekProgress: "Seek track",
 
     tracks: "Tracks",
     favorites: "Favorites",
@@ -892,6 +897,9 @@ const messages = {
     moodPlay: "Play mood",
     minimalModeOn: "Minimal mode",
     minimalModeOff: "Full view",
+    autoScroll: "Auto-scroll",
+    lyricsFollowOn: "Disable auto-scroll",
+    lyricsFollowOff: "Enable auto-scroll",
 
     // Section 7: Privacy / GDPR (PrivacyPage extended)
     privacyTitle: "Privacy Policy",

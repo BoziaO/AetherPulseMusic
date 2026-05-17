@@ -124,20 +124,37 @@
         <CloudOff :size="28" />
         <p>{{ t('downloadsEmpty') }}</p>
       </div>
-      <TrackList
-        v-else
-        :tracks="downloads"
-        :now-playing="appState.nowPlaying.value"
-        :favorite-keys="appState.favoriteKeys.value"
-        @play="(track) => appState.play(track, downloads)"
-        @add-queue="appState.addToQueue"
-        @play-next="appState.playNext"
-        @toggle-favorite="appState.toggleFavoriteTrack"
-      />
+      <ul v-else class="dl-list">
+        <li
+          v-for="track in downloads"
+          :key="track.videoId"
+          class="dl-item"
+          :class="{ 'is-current': appState.nowPlaying.value?.videoId === track.videoId }"
+        >
+          <button class="dl-play" type="button" @click="appState.play(track, downloads)">
+            <span class="dl-thumb">
+              <img v-if="track.thumbnail" :src="track.thumbnail" alt="" loading="lazy" />
+              <Music2 v-else :size="16" />
+            </span>
+            <span class="dl-meta">
+              <span class="dl-title">{{ track.title }}</span>
+              <span class="dl-sub">{{ track.artist }} · {{ track.format?.toUpperCase() }} · {{ formatBytes(track.size) }}</span>
+            </span>
+          </button>
+          <button
+            class="icon-btn danger-btn"
+            type="button"
+            :title="t('removeDownload')"
+            @click="onRemove(track.videoId)"
+          >
+            <Trash2 :size="14" />
+          </button>
+        </li>
+      </ul>
 
       <div v-if="downloads.length" class="card-actions">
         <button class="btn-secondary danger" type="button" @click="clearAll">
-          <Trash2 :size="14" /> {{ t('clear') }}
+          <Trash2 :size="14" /> {{ t('clear') }} ({{ downloads.length }})
         </button>
       </div>
     </section>
@@ -156,7 +173,6 @@ import {
   Trash2,
   X,
 } from "lucide-vue-next";
-import TrackList from "../components/TrackList.vue";
 import {
   cancelDownload,
   clearAllDownloads,
@@ -178,15 +194,17 @@ function t(key, vars) {
 }
 
 const formatOptions = [
-  { id: "opus", labelKey: "downloadFormatOpus" },
   { id: "m4a", labelKey: "downloadFormatM4a" },
   { id: "mp3", labelKey: "downloadFormatMp3" },
 ];
 
 const downloads = computed(() => {
-  // dependency on offlineIndex.size — Map jest reactive
   void offlineIndex.size;
-  return listDownloads();
+  return listDownloads().map((track) => ({
+    ...track,
+    // Repair missing thumbnails for tracks downloaded before the fix
+    thumbnail: track.thumbnail || `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`,
+  }));
 });
 
 const storagePercent = computed(() => {
@@ -247,8 +265,10 @@ async function clearAll() {
   appState?.showToast?.(t("downloadRemoved"), "info");
 }
 
-// expose for unused warnings
-void removeDownload;
+async function onRemove(videoId) {
+  await removeDownload(videoId);
+  appState?.showToast?.(t("downloadRemoved"), "info");
+}
 </script>
 
 <style scoped>
@@ -364,7 +384,7 @@ void removeDownload;
 }
 
 .bar {
-  height: 8px;
+  height: 6px;
   background: var(--bg-input);
   border-radius: 999px;
   overflow: hidden;
@@ -376,9 +396,9 @@ void removeDownload;
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.5), var(--primary));
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.6), var(--primary));
   border-radius: 999px;
-  transition: width 0.25s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .storage-warn {
@@ -553,5 +573,100 @@ void removeDownload;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.dl-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.dl-item:hover {
+  background: var(--bg-hover);
+}
+
+.dl-item.is-current .dl-title {
+  color: var(--primary);
+}
+
+.dl-play {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.dl-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.dl-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dl-meta {
+  min-width: 0;
+}
+
+.dl-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.danger-btn {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.dl-item:hover .danger-btn {
+  opacity: 1;
+}
+
+.danger-btn:hover {
+  color: var(--danger);
 }
 </style>

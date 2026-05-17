@@ -42,6 +42,7 @@ export async function fetchJson(path, options = {}) {
   const url = buildApiUrl(path);
   const timeoutMs = options.timeout || 10000;
   const retryConfig = { ...DEFAULT_RETRY, ...(options.retry || {}) };
+  const externalSignal = options.signal || null;
 
   // Mutacje (POST/PUT/DELETE) nie powinny być automatycznie retry'owane,
   // chyba że użytkownik świadomie ustawi `retry`.
@@ -50,23 +51,46 @@ export async function fetchJson(path, options = {}) {
 
   let lastError = null;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    // Sprawdź zewnętrzny sygnał przed każdą próbą
+    if (externalSignal?.aborted) {
+      const err = new DOMException("Aborted", "AbortError");
+      throw err;
+    }
     if (!networkStatus.online) {
       throw new Error("Brak połączenia z internetem.");
     }
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    // Propaguj zewnętrzny AbortSignal do wewnętrznego controllera
+    const externalAbortHandler = externalSignal
+      ? () => controller.abort()
+      : null;
+    if (externalSignal && externalAbortHandler) {
+      externalSignal.addEventListener("abort", externalAbortHandler, { once: true });
+    }
+
     const requestOptions = {
       ...options,
       signal: controller.signal,
       credentials: options.credentials || "include",
     };
+    // Nie przekazuj dalej naszych własnych opcji do fetch
+    delete requestOptions.timeout;
+    delete requestOptions.retry;
+
     let response = null;
     try {
       response = await fetch(url, requestOptions);
     } catch (err) {
       lastError = err;
       window.clearTimeout(timeoutId);
+      if (externalSignal && externalAbortHandler) {
+        externalSignal.removeEventListener("abort", externalAbortHandler);
+      }
       if (err.name === "AbortError") {
+        // Zewnętrzny abort (np. user zmienił query) — propaguj bez retries
+        if (externalSignal?.aborted) throw err;
         // Timeout — można retry jeśli pozwolono
         if (attempt + 1 < maxAttempts && !isMutating) {
           await sleep(jitter(retryConfig.baseDelayMs, attempt, retryConfig.maxDelayMs));
@@ -81,6 +105,9 @@ export async function fetchJson(path, options = {}) {
       throw new Error(`Błąd połączenia z API (${url}): ${err.message}. Upewnij się, że backend działa.`);
     } finally {
       window.clearTimeout(timeoutId);
+      if (externalSignal && externalAbortHandler) {
+        externalSignal.removeEventListener("abort", externalAbortHandler);
+      }
     }
 
     const contentType = response.headers.get("content-type") || "";

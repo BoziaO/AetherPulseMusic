@@ -1,5 +1,5 @@
 <template>
-  <div v-if="open" class="modal-overlay animate-fade" @click.self="$emit('close')">
+  <div v-if="open" class="modal-overlay animate-fade" @click.self="$emit('close')" @keydown.esc.window="$emit('close')">
     <section class="modal animate-slide-up">
       <header class="modal-header">
         <div>

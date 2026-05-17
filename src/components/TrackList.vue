@@ -172,29 +172,33 @@ function onDownloadClick(track) {
 .track-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .track-row {
   display: grid;
-  grid-template-columns: 32px 44px minmax(0, 1fr) 56px auto;
+  grid-template-columns: 32px 44px minmax(0, 1fr) 60px auto;
   align-items: center;
-  gap: 14px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 7px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.track-row + .track-row {
-  margin-top: 2px;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  border: 1px solid transparent;
 }
 
 .track-row:hover {
   background: var(--bg-hover);
+  border-color: var(--line);
+}
+
+.track-row:active {
+  transform: scale(0.995);
 }
 
 .track-row.is-current {
-  background: var(--bg-hover);
+  background: rgba(var(--primary-rgb), 0.07);
+  border-color: rgba(var(--primary-rgb), 0.15);
 }
 
 .track-row.is-current .title {
@@ -276,18 +280,25 @@ function onDownloadClick(track) {
 .cover {
   width: 44px;
   height: 44px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-elevated);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform var(--transition-base);
+}
+
+.track-row:hover .cover img {
+  transform: scale(1.04);
 }
 
 .cover {
@@ -342,7 +353,7 @@ function onDownloadClick(track) {
 .actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
@@ -353,8 +364,8 @@ function onDownloadClick(track) {
 }
 
 .actions .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 
 .empty {
@@ -368,15 +379,18 @@ function onDownloadClick(track) {
 @media (max-width: 720px) {
   .track-row {
     grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 7px 8px;
   }
   .num,
-  .duration,
-  .actions {
+  .duration {
     display: none;
   }
-  .track-row::after {
-    content: "›";
-    color: var(--text-tertiary);
+  .actions {
+    opacity: 1;
+  }
+  .actions .icon-btn:not(:last-child) {
+    display: none;
   }
 }
 </style>

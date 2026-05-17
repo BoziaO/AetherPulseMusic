@@ -96,6 +96,8 @@
           </header>
           <MediaGrid
             :items="primaryItems"
+            :current-video-id="appState.nowPlaying.value?.videoId"
+            :is-playing="appState.isPlaying.value"
             @open="openItem"
             @play="playMediaItem"
           />
@@ -127,6 +129,8 @@
           <MediaGrid
             :items="secondaryItems"
             :circle="circleSecondary"
+            :current-video-id="appState.nowPlaying.value?.videoId"
+            :is-playing="appState.isPlaying.value"
             @open="openItem"
             @play="playMediaItem"
           />
@@ -138,6 +142,8 @@
           </header>
           <MediaGrid
             :items="tertiaryItems"
+            :current-video-id="appState.nowPlaying.value?.videoId"
+            :is-playing="appState.isPlaying.value"
             @open="openItem"
             @play="playMediaItem"
           />
@@ -188,7 +194,7 @@
     </template>
 
     <!-- Playlist composer -->
-    <div v-if="showPlaylistComposer" class="modal-overlay animate-fade" @click.self="showPlaylistComposer = false">
+    <div v-if="showPlaylistComposer" class="modal-overlay animate-fade" @click.self="showPlaylistComposer = false" @keydown.esc.window="showPlaylistComposer = false">
       <section class="modal animate-slide-up">
         <header class="modal-header">
           <h2 class="modal-title">{{ t('newPlaylist') }}</h2>
@@ -405,7 +411,7 @@ function openItem(item) {
     openLocalPlaylist(id.replace("local-", ""));
     return;
   }
-  if (item.resultType === "artist" || id.startsWith?.("UC")) {
+  if (item.resultType === "artist" || (typeof id === "string" && id.startsWith("UC"))) {
     router.push(`/artist/${id}`);
   } else if (item.resultType === "album") {
     router.push(`/album/${id}`);

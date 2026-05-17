@@ -1,7 +1,7 @@
 <template>
   <section class="page-hero" :style="bgStyle">
     <div v-if="cover" class="hero-cover">
-      <img :src="cover" alt="" loading="lazy" />
+      <img :src="hiResCover" alt="" loading="lazy" />
     </div>
 
     <div class="hero-text">
@@ -46,6 +46,7 @@
 <script setup>
 import { computed } from "vue";
 import { Play, Shuffle } from "lucide-vue-next";
+import { upgradeThumbUrl } from "../lib/format";
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -61,6 +62,8 @@ const props = defineProps({
 });
 
 defineEmits(["play", "shuffle"]);
+
+const hiResCover = computed(() => upgradeThumbUrl(props.cover));
 
 const bgStyle = computed(() => {
   if (!props.cover) return {};

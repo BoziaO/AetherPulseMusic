@@ -65,7 +65,7 @@ import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
 import ContextNotes from "../components/ContextNotes.vue";
 import { fetchJson } from "../lib/api";
-import { cleanData, normalizeTrack } from "../lib/format";
+import { cleanData, normalizeTrack, upgradeThumbUrl } from "../lib/format";
 
 const props = defineProps({
   artistId: { type: String, required: true },
@@ -91,7 +91,10 @@ const albums = computed(() =>
   (artist.value?.albums?.results || artist.value?.albums || [])
     .map((album) => ({
       title: album.title,
-      thumbnail: album.thumbnail || album.thumbnails?.[album.thumbnails.length - 1]?.url,
+      thumbnail: upgradeThumbUrl(
+        album.thumbnail ||
+        album.thumbnails?.slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0]?.url
+      ),
       browseId: album.browseId,
       subtitle: album.year || "",
     }))
@@ -102,7 +105,10 @@ const singles = computed(() =>
   (artist.value?.singles?.results || artist.value?.singles || [])
     .map((single) => ({
       title: single.title,
-      thumbnail: single.thumbnail || single.thumbnails?.[single.thumbnails.length - 1]?.url,
+      thumbnail: upgradeThumbUrl(
+        single.thumbnail ||
+        single.thumbnails?.slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0]?.url
+      ),
       browseId: single.browseId,
       subtitle: single.year || "",
     }))

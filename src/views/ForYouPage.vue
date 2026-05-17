@@ -60,6 +60,7 @@
                 :src="track.thumbnail || track.cover || track.art"
                 :alt="track.title"
                 loading="lazy"
+                @error="$event.target.style.display='none'"
               />
             </div>
             <span class="play-fab"><Play :size="18" fill="currentColor" /></span>
@@ -258,13 +259,11 @@ async function loadPool(force = false) {
   if (!force && pool.value.length) return;
   poolLoading.value = true;
   try {
-    const seedIds = history.value
+    const seedId = history.value
       .map((track) => track.videoId)
-      .filter(Boolean)
-      .slice(0, 5)
-      .join(",");
+      .filter(Boolean)[0] || null;
     const params = new URLSearchParams();
-    if (seedIds) params.set("seeds", seedIds);
+    if (seedId) params.set("seeds", seedId);
     const data = await fetchJson(`/api/recommendations/pool?${params.toString()}`, {
       timeout: 15000,
     });
@@ -287,7 +286,7 @@ async function startSmartRadio() {
     const data = await fetchJson(`/api/recommendations/smart-radio/${seed.videoId}`, {
       timeout: 15000,
     });
-    const tracks = Array.isArray(data?.tracks) ? data.tracks.map(normalize) : [];
+    const tracks = Array.isArray(data?.items) ? data.items.map(normalize) : [];
     if (tracks.length) {
       appState?.play?.(tracks[0], tracks);
       appState?.showToast?.(t("smartRadioStarted"), "success");

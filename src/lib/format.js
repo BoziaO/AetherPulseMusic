@@ -20,14 +20,20 @@ function scoreImageUrl(url) {
   return score;
 }
 
-function normalizeImageUrl(value) {
+function normalizeImageUrl(value, _visited = new Set()) {
   if (!value) return null;
   if (typeof value === 'string') return value;
+
+  // Guard against circular references
+  if (typeof value === 'object') {
+    if (_visited.has(value)) return null;
+    _visited.add(value);
+  }
 
   const candidates = [];
   if (Array.isArray(value)) {
     for (const item of value) {
-      const url = normalizeImageUrl(item);
+      const url = normalizeImageUrl(item, _visited);
       if (url) candidates.push(url);
     }
   } else if (typeof value === 'object') {
@@ -35,12 +41,14 @@ function normalizeImageUrl(value) {
     if (typeof direct === 'string') {
       candidates.push(direct);
     } else if (Array.isArray(direct)) {
-      const nested = normalizeImageUrl(direct);
+      const nested = normalizeImageUrl(direct, _visited);
       if (nested) candidates.push(nested);
     }
     for (const nested of Object.values(value)) {
-      const url = normalizeImageUrl(nested);
-      if (url) candidates.push(url);
+      if (nested && typeof nested === 'object') {
+        const url = normalizeImageUrl(nested, _visited);
+        if (url) candidates.push(url);
+      }
     }
   }
 
@@ -53,13 +61,14 @@ export function normalizeTrack(item = {}) {
     || item.subtitle
     || item.author
     || (Array.isArray(item.artists) ? item.artists.map((entry) => entry.name).filter(Boolean).join(', ') : '');
-  const thumbnail = normalizeImageUrl(item.thumbnails || item.thumbnail || item.cover || item.art || item.snippet?.thumbnails);
+  const rawThumb = normalizeImageUrl(item.thumbnails || item.thumbnail || item.cover || item.art || item.snippet?.thumbnails);
+  const thumbnail = upgradeThumbUrl(rawThumb);
 
   return {
     ...item,
-    title: item.title || item.name || item?.snippet?.title || 'Nieznany utwor',
+    title: item.title || item.name || item?.snippet?.title || '',
     artist,
-    art: normalizeImageUrl(item.thumbnails || item.art || item.thumbnail || item.cover || item.snippet?.thumbnails),
+    art: thumbnail,
     thumbnail,
     duration: item.duration || item?.video?.duration || item?.snippet?.duration || '',
     videoId:
@@ -69,6 +78,15 @@ export function normalizeTrack(item = {}) {
       item.video?.id ||
       null,
   };
+}
+
+export function formatNumber(num) {
+  if (num === null || num === undefined) return "";
+  const n = Number(num);
+  if (isNaN(n)) return num;
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+  return n.toString();
 }
 
 export function secondsFromDuration(duration) {
@@ -109,7 +127,6 @@ const MOJIBAKE_REPLACEMENTS = [
   ["Ĺ", "Ń"],
   ["Ă“", "Ó"],
   ["Ĺš", "Ś"],
-  ["Ĺš", "Ś"],
   ["Ĺą", "Ź"],
   ["Ĺ»", "Ż"],
   ["â€”", "-"],
@@ -134,8 +151,23 @@ export function cleanData(value) {
   return cleanText(value);
 }
 
-export function formatNumber(num) {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
+// Upgrade thumbnail URL to the highest available resolution.
+// Shared utility used by FullPlayer, offlineStore, and normalizeTrack.
+export function upgradeThumbUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  // lh3/yt3 googleusercontent — YTMusic album art, artist photos
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    return url
+      .replace(/=w\d+-h\d+(-[a-z0-9-]+)*/i, '=w1200-h1200-l90-rj')
+      .replace(/=s\d+(-[a-z0-9-]+)*/i, '=s1200')
+      .replace(/=w\d+$/i, '=w1200');
+  }
+  // ytimg.com — standard YouTube video thumbnails
+  if (url.includes('ytimg.com')) {
+    return url.replace(
+      /\/(default|mqdefault|hqdefault|sddefault|0|1|2|3)\.jpg/i,
+      '/maxresdefault.jpg',
+    );
+  }
+  return url;
 }

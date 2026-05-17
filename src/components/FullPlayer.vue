@@ -6,7 +6,7 @@
   >
     <canvas ref="canvasRef" style="display: none;" />
     <div class="dynamic-bg" :style="playerBackgroundStyle">
-      <img v-if="cover" :src="getHighResCover(cover)" class="bg-image" alt="" />
+      <img v-if="cover" :src="cover" class="bg-image" alt="" />
       <div class="bg-overlay" />
     </div>
 
@@ -34,7 +34,13 @@
         <div class="left-panel">
           <div class="album-frame">
             <div class="album-cover" :class="{ 'is-playing': isPlaying }">
-              <img v-if="cover" :src="getHighResCover(cover)" alt="" :key="cover" />
+              <img
+                v-if="cover"
+                :src="highResCover"
+                alt=""
+                :key="cover"
+                @error="onCoverError"
+              />
               <Music v-else :size="80" :style="{ color: 'var(--text-tertiary)' }" />
             </div>
           </div>
@@ -43,7 +49,7 @@
             <h2 class="track-title" :class="{ 'marquee': titleOverflows }">
               <span class="track-title-inner" ref="titleRef">{{ track?.title }}</span>
             </h2>
-            <p class="track-artist">{{ artist }} <span v-if="track?.dislikes !== undefined" class="dislikes">👎 {{ formatNumber(track.dislikes) }}</span></p>
+            <p class="track-artist">{{ artist }}<span v-if="trackDislikes !== null" class="dislikes"> · 👎 {{ formatNumber(trackDislikes) }}</span></p>
           </div>
 
           <div class="track-progress">
@@ -136,12 +142,24 @@
         <div v-if="showLyrics" class="right-panel lyrics-panel">
           <div class="lyrics-header">
             <h3 class="lyrics-title">{{ t('lyrics') }}</h3>
-            <button class="lyrics-toggle" type="button" @click="showLyrics = false">
-              <X :size="18" />
-            </button>
+            <div class="lyrics-header-actions">
+              <button
+                class="lyrics-follow-btn"
+                :class="{ active: lyricsFollowMode }"
+                type="button"
+                :title="lyricsFollowMode ? t('lyricsFollowOn') : t('lyricsFollowOff')"
+                @click="toggleLyricsFollow"
+              >
+                <span class="follow-dot" />
+                {{ t('autoScroll') }}
+              </button>
+              <button class="lyrics-toggle" type="button" @click="showLyrics = false">
+                <X :size="16" />
+              </button>
+            </div>
           </div>
           <div class="lyrics-body-wrap">
-            <div ref="lyricsContainerRef" class="lyrics-content custom-scroll">
+            <div ref="lyricsContainerRef" class="lyrics-content">
               <div v-if="lyricsLoading" class="lyrics-loading">
                 <div class="loading-dots"><span /><span /><span /></div>
               </div>
@@ -155,6 +173,7 @@
                     'is-past': index < activeLyricIndex,
                     'is-future': index > activeLyricIndex && activeLyricIndex >= 0,
                   }"
+                  :data-index="index"
                   type="button"
                   @click="$emit('seek', line.time)"
                 >
@@ -207,7 +226,7 @@ import {
 import AudioVisualizer from "./AudioVisualizer.vue";
 import TrackComments from "./TrackComments.vue";
 import SleepTimer from "./SleepTimer.vue";
-import { formatClock, formatNumber } from "../lib/format";
+import { formatClock, formatNumber, upgradeThumbUrl } from "../lib/format";
 import { fetchJson } from "../lib/api";
 import { getEffectiveOffset, lyricsOffsetState } from "../lib/lyricsOffset";
 import { isDownloaded, enqueueDownload, removeDownload, settings as offlineSettings } from "../lib/offlineStore";
@@ -303,6 +322,20 @@ function t(key) {
 const cover = computed(
   () => props.track?.art || props.track?.thumbnail || props.track?.cover || null,
 );
+
+// Upgraded cover URL — with fallback to original on 404
+const coverErrored = ref(false);
+watch(cover, () => { coverErrored.value = false; });
+
+const highResCover = computed(() =>
+  coverErrored.value ? cover.value : getHighResCover(cover.value),
+);
+
+function onCoverError() {
+  if (!coverErrored.value) {
+    coverErrored.value = true; // triggers fallback to original URL
+  }
+}
 const artist = computed(
   () => props.track?.artist || props.track?.subtitle || props.track?.author || "",
 );
@@ -327,27 +360,25 @@ function checkTitleOverflow() {
 
 let resizeObs = null;
 
-// Load dislikes for the track if not already loaded
-async function loadDislikes(track) {
-  if (!track?.videoId || track.dislikes !== undefined) return;
+// Load dislikes — read-only, stored in local ref, never mutates prop
+const trackDislikes = ref(null);
+
+async function loadDislikes(videoId) {
+  if (!videoId) return;
+  trackDislikes.value = null;
   try {
-    const songData = await fetchJson(`/api/ytmusic/song/${track.videoId}`);
-    if (songData.dislikes !== undefined) {
-      // Update the track object (assuming it's reactive)
-      track.dislikes = songData.dislikes;
+    const songData = await fetchJson(`/api/ytmusic/song/${videoId}`);
+    if (Number.isFinite(songData?.dislikes)) {
+      trackDislikes.value = songData.dislikes;
     }
-  } catch (error) {
-    console.error('Error loading dislikes:', error);
+  } catch {
+    // dislikes are optional — ignore errors
   }
 }
 
 watch(
-  () => props.track,
-  async (newTrack) => {
-    if (newTrack) {
-      await loadDislikes(newTrack);
-    }
-  },
+  () => props.track?.videoId,
+  (id) => { if (id) loadDislikes(id); },
   { immediate: true },
 );
 
@@ -444,42 +475,9 @@ const playerBackgroundStyle = computed(() => ({
   transition: "background 0.8s ease-in-out",
 }));
 
-// Get high-resolution cover art URL
+// Upgrade thumbnail URL to the highest available resolution.
 function getHighResCover(url) {
-  if (!url) return url;
-  let upgraded = url;
-
-  // YouTube thumbnail patterns
-  if (upgraded.includes('ytimg.com')) {
-    upgraded = upgraded.replace(/\/vi\/(.+?)\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/vi/$1/maxresdefault.jpg');
-    upgraded = upgraded.replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)$/i, '/maxresdefault.jpg');
-  }
-
-  if (upgraded.includes('googleusercontent.com')) {
-    try {
-      const parsed = new URL(upgraded, window.location.href);
-      parsed.searchParams.set('w', '1200');
-      parsed.searchParams.set('h', '1200');
-      parsed.searchParams.set('c', '1');
-      return parsed.toString();
-    } catch {
-      return upgraded;
-    }
-  }
-
-  try {
-    const parsed = new URL(upgraded, window.location.href);
-    const sizeParam = parsed.searchParams.get('s') || parsed.searchParams.get('sz');
-    if (sizeParam) {
-      parsed.searchParams.set('s', '1200');
-      parsed.searchParams.set('sz', '1200');
-      upgraded = parsed.toString();
-    }
-  } catch {
-    // ignore invalid URL
-  }
-
-  return upgraded;
+  return upgradeThumbUrl(url);
 }
 
 // Effective lyrics offset: per-track > global. Reaktywne na zmianę.
@@ -501,6 +499,12 @@ const activeLyricIndex = computed(() => {
 });
 
 const lyricsFollowMode = computed(() => app?.lyricsFollowMode?.value ?? true);
+
+function toggleLyricsFollow() {
+  if (app?.lyricsFollowMode) {
+    app.lyricsFollowMode.value = !app.lyricsFollowMode.value;
+  }
+}
 
 // Fetch lyrics when track changes or lyrics section is opened
 watch(
@@ -540,7 +544,7 @@ watch(
 
 function scrollToActiveLyric(index) {
   if (!lyricsContainerRef.value || index < 0) return;
-  const el = lyricsContainerRef.value.querySelector(`.lyric-line:nth-child(${index + 1})`);
+  const el = lyricsContainerRef.value.querySelector(`[data-index="${index}"]`);
   if (!el) return;
   const containerHeight = lyricsContainerRef.value.clientHeight;
   const targetTop = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2;
@@ -571,18 +575,16 @@ function parseTimedLyrics(text) {
   display: flex;
   flex-direction: column;
   color: #fff;
-  overflow-y: auto;
-  overflow-x: hidden;
   background: #000;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+  overflow: hidden;
 }
 
 .dynamic-bg {
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .bg-image {
@@ -595,6 +597,7 @@ function parseTimedLyrics(text) {
   transform: scale(1.1);
   transition: opacity 1s ease-in-out;
   opacity: 0.85;
+  pointer-events: none;
 }
 
 .bg-overlay {
@@ -615,6 +618,9 @@ function parseTimedLyrics(text) {
   align-items: center;
   justify-content: space-between;
   padding: 18px 20px 4px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .full-header .icon-btn {
@@ -658,51 +664,57 @@ function parseTimedLyrics(text) {
 
 .full-body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
   gap: 20px;
   padding: 20px 32px 32px;
   max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
 }
 
 .player-main {
   display: flex;
   gap: 32px;
-  align-items: stretch;
-  min-height: 0;
+  align-items: flex-start;
+  flex: 1;
 }
 
 .left-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
   gap: 22px;
   min-width: 0;
 }
 
 .right-panel {
-  flex: 0 0 420px;
+  flex: 0 0 380px;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  align-self: stretch;
 }
 
 .lyrics-panel {
-  max-height: 600px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  flex: 1;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
   overflow: hidden;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
 }
 
 .album-frame {
@@ -714,29 +726,38 @@ function parseTimedLyrics(text) {
   width: 100%;
   max-width: 360px;
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
   transform: scale(0.92);
-  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 400ms ease;
+  will-change: transform;
 }
 
 .album-cover.is-playing {
   transform: scale(1);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.65),
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .album-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  animation: cover-fade-in 500ms ease both;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  -ms-interpolation-mode: bicubic;
+  object-position: center;
+  animation: cover-fade-in 400ms ease both;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 @keyframes cover-fade-in {
@@ -957,46 +978,71 @@ function parseTimedLyrics(text) {
 }
 
 /* Lyrics Panel */
-.lyrics-panel .lyrics-header {
-  padding: 14px 18px;
-  flex-shrink: 0;
-}
-
-.lyrics-body-wrap {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .lyrics-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .lyrics-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.lyrics-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.lyrics-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.lyrics-follow-btn.active {
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.15);
+  border-color: rgba(var(--primary-rgb), 0.3);
+}
+
+.follow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .lyrics-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  color: rgba(255, 255, 255, 0.5);
-  transition: all var(--transition-fast);
+  color: rgba(255, 255, 255, 0.4);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .lyrics-toggle:hover {
@@ -1004,24 +1050,25 @@ function parseTimedLyrics(text) {
   color: #fff;
 }
 
-.lyrics-content {
+.lyrics-body-wrap {
+  position: relative;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lyrics-content {
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
-  padding: 40px 16px;
+  padding: 48px 20px 64px;
   scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 }
 
 .lyrics-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.lyrics-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.lyrics-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 2px;
+  display: none;
 }
 
 .lyrics-fade-top,
@@ -1029,19 +1076,19 @@ function parseTimedLyrics(text) {
   position: absolute;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 64px;
   pointer-events: none;
   z-index: 2;
 }
 
 .lyrics-fade-top {
   top: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
 }
 
 .lyrics-fade-bottom {
   bottom: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
 }
 
 .lyrics-loading,
@@ -1049,7 +1096,7 @@ function parseTimedLyrics(text) {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px;
+  min-height: 200px;
   color: rgba(255, 255, 255, 0.3);
   font-size: 14px;
   font-weight: 500;
@@ -1079,50 +1126,54 @@ function parseTimedLyrics(text) {
 .lyrics-lines {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0;
-  padding: 16px 0;
+  align-items: stretch;
+  gap: 2px;
 }
 
+/* No font-size transition — causes layout reflow every beat.
+   Use only opacity + transform (GPU-composited, zero reflow). */
 .lyric-line {
   text-align: center;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.55;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.18);
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   transform-origin: center;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1),
+    background 0.2s ease;
+  will-change: transform, opacity;
 }
 
 .lyric-line:hover {
-  color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .lyric-line.is-past {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 16px;
+  opacity: 0.45;
+  transform: scale(0.97);
 }
 
 .lyric-line.is-future {
-  color: rgba(255, 255, 255, 0.16);
-  font-size: 16px;
+  opacity: 0.22;
+  transform: scale(0.97);
 }
 
 .lyric-line.is-active {
   color: #fff;
-  font-size: 22px;
   font-weight: 800;
-  transform: scale(1.03);
-  text-shadow:
-    0 0 40px rgba(var(--primary-rgb, 255, 255, 255), 0.55),
-    0 2px 16px rgba(0, 0, 0, 0.4);
+  opacity: 1;
+  transform: scale(1.04);
+  text-shadow: 0 0 28px rgba(var(--primary-rgb, 255,255,255), 0.55);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .lyrics-plain {
@@ -1130,7 +1181,7 @@ function parseTimedLyrics(text) {
   white-space: pre-wrap;
   font-family: inherit;
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.85;
   color: rgba(255, 255, 255, 0.6);
   letter-spacing: 0.01em;
   text-align: center;
@@ -1140,19 +1191,18 @@ function parseTimedLyrics(text) {
 @media (max-width: 900px) {
   .player-main {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .right-panel {
     flex: none;
     width: 100%;
+    align-self: auto;
   }
 
   .lyrics-panel {
-    max-height: 400px;
-  }
-
-  .lyrics-panel .lyrics-content {
-    max-height: 320px;
+    min-height: 320px;
+    max-height: 420px;
   }
 
   .full-body {
@@ -1160,31 +1210,12 @@ function parseTimedLyrics(text) {
     padding: 16px 20px 24px;
   }
 
-  .album-cover {
-    max-width: 280px;
-  }
-  
-  .track-title {
-    font-size: 20px;
-  }
-  
-  .track-artist {
-    font-size: 14px;
-  }
-  
-  .controls {
-    gap: 16px;
-  }
-  
-  .big-play {
-    width: 56px;
-    height: 56px;
-  }
-  
-  .ctrl {
-    width: 40px;
-    height: 40px;
-  }
+  .album-cover { max-width: 280px; }
+  .track-title { font-size: 20px; }
+  .track-artist { font-size: 14px; }
+  .controls { gap: 16px; }
+  .big-play { width: 56px; height: 56px; }
+  .ctrl { width: 40px; height: 40px; }
 }
 
 @media (max-width: 480px) {
@@ -1192,48 +1223,27 @@ function parseTimedLyrics(text) {
     padding: 12px 16px 20px;
     gap: 16px;
   }
-  
-  .album-cover {
-    max-width: 240px;
-  }
-  
-  .track-title {
-    font-size: 18px;
-  }
-  
-  .track-artist {
-    font-size: 13px;
-  }
-  
+
+  .album-cover { max-width: 240px; }
+  .track-title { font-size: 18px; }
+  .track-artist { font-size: 13px; }
+
   .bottom-row {
     flex-direction: column;
     gap: 12px;
   }
-  
-  .volume {
-    max-width: 100%;
-  }
-  
-  .row-actions {
-    justify-content: center;
-  }
-  
-  .ctrl-sm {
-    width: 36px;
-    height: 36px;
-  }
-  
-  .full-header {
-    padding: 12px 16px 4px;
-  }
-  
+
+  .volume { max-width: 100%; }
+  .row-actions { justify-content: center; flex-wrap: wrap; }
+  .ctrl-sm { width: 36px; height: 36px; }
+  .full-header { padding: 12px 16px 4px; }
+
   .lyrics-panel {
-    max-height: 350px;
+    min-height: 280px;
+    max-height: 360px;
   }
-  
-  .lyric-line {
-    font-size: 15px;
-  }
+
+  .lyric-line { font-size: 16px; }
 }
 
 .sponsor-segments {

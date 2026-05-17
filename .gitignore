@@ -76,3 +76,8 @@ ENV/
 
 # ── App specific ────────────────────────────────────────────
 downloads/
+**/downloads/
+backend/aetherpulse.db
+*.db
+*.db-journal
+*.sqlite

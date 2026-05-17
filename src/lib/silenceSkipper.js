@@ -62,8 +62,8 @@ function tick() {
     return;
   }
 
-  // Skip when paused / idle
-  if (activeElement.paused || activeElement.ended) {
+  // Skip analysis entirely when disabled — saves ~60 getFloatTimeDomainData calls/sec
+  if (!silenceSettings.enabled || activeElement.paused || activeElement.ended) {
     lastSilentSince = null;
     rafId = window.requestAnimationFrame(tick);
     return;
@@ -75,11 +75,10 @@ function tick() {
   const rms = Math.sqrt(sumSquares / dataArray.length);
   const db = dbFromRms(rms);
 
-  if (silenceSettings.enabled && db < silenceSettings.thresholdDb) {
+  if (db < silenceSettings.thresholdDb) {
     if (lastSilentSince == null) lastSilentSince = performance.now();
     const elapsed = performance.now() - lastSilentSince;
     if (elapsed >= silenceSettings.minSilenceMs) {
-      // Pomiń ciszę: odstrzel callback i zresetuj
       lastSilentSince = null;
       try {
         onSkipCallback?.({ db, durationMs: elapsed });

@@ -802,21 +802,49 @@ function networkLabel(type) {
 
 const accentColors = ["#fa243c", "#ff375f", "#ff9f0a", "#30d158", "#0a84ff", "#bf5af2"];
 
-// Settings state
-const showAnimations = ref(true);
-const themeEffects = ref(true);
-const reduceMotion = ref(false);
-const crossfade = ref(false);
-const crossfadeDuration = ref(3000);
-const normalizer = ref(false);
-const highQuality = ref(true);
-const debugMode = ref(false);
+const DISPLAY_SETTINGS_KEY = "ap:display-settings";
+
+function loadDisplaySettings() {
+  try {
+    const raw = localStorage.getItem(DISPLAY_SETTINGS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch { return {}; }
+}
+
+function saveDisplaySettings() {
+  try {
+    localStorage.setItem(DISPLAY_SETTINGS_KEY, JSON.stringify({
+      showAnimations: showAnimations.value,
+      themeEffects: themeEffects.value,
+      reduceMotion: reduceMotion.value,
+      crossfade: crossfade.value,
+      crossfadeDuration: crossfadeDuration.value,
+      normalizer: normalizer.value,
+      highQuality: highQuality.value,
+      debugMode: debugMode.value,
+    }));
+  } catch { /* ignore */ }
+}
+
+const _ds = loadDisplaySettings();
+const showAnimations = ref(_ds.showAnimations ?? true);
+const themeEffects = ref(_ds.themeEffects ?? true);
+const reduceMotion = ref(_ds.reduceMotion ?? false);
+const crossfade = ref(_ds.crossfade ?? false);
+const crossfadeDuration = ref(_ds.crossfadeDuration ?? 3000);
+const normalizer = ref(_ds.normalizer ?? false);
+const highQuality = ref(_ds.highQuality ?? true);
+const debugMode = ref(_ds.debugMode ?? false);
+
+// Persist whenever any display setting changes
+watch(
+  [showAnimations, themeEffects, reduceMotion, crossfade, crossfadeDuration, normalizer, highQuality, debugMode],
+  saveDisplaySettings,
+);
 
 function updateVolume(value) {
   appState.volume.value = value;
-  try {
-    document.querySelector("#yt-hidden-player");
-  } catch {}
 }
 
 function clearLocalData() {
@@ -1190,8 +1218,8 @@ watch(
 /* Theme Grid */
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
   width: 100%;
   margin-top: 8px;
 }
@@ -1283,7 +1311,9 @@ watch(
   border-radius: 13px;
   background: var(--bg-input);
   position: relative;
+  flex-shrink: 0;
   transition: background var(--transition-fast);
+  border: 1.5px solid var(--line-strong);
 }
 
 .toggle-on {

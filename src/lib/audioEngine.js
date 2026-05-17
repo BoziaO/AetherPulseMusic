@@ -164,14 +164,15 @@ export function attachMediaElement(element) {
   if (!element || !(element instanceof HTMLMediaElement)) return false;
   const ctx = ensureContext();
   if (!ctx) return false;
+
+  // Always resume context — it may have been suspended after backgrounding
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
   if (mediaSources.has(element)) {
-    // już podłączony — tylko reaplikuj stan
     applyState(chains.get(element));
     return true;
   }
   try {
-    // Resume context po user gesture (Chrome wymaga aktywacji)
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
     const source = ctx.createMediaElementSource(element);
     const chain = buildChain(ctx, source);
     mediaSources.set(element, source);
@@ -180,8 +181,6 @@ export function attachMediaElement(element) {
     applyState(chain);
     return true;
   } catch (err) {
-    // Najczęstszy błąd: element już podłączony do innego AudioContext
-    // (np. createMediaElementSource już został wywołany).
     console.warn("audioEngine.attachMediaElement failed:", err.message);
     return false;
   }
@@ -200,6 +199,8 @@ export function getChainForElement(element) {
 
 export function detachMediaElement(element) {
   if (!element) return;
+  // Remove from set FIRST so applyAll() won't touch a partially-disconnected chain
+  attachedElements.delete(element);
   const chain = chains.get(element);
   if (chain) {
     try {
@@ -214,7 +215,6 @@ export function detachMediaElement(element) {
   }
   mediaSources.delete(element);
   chains.delete(element);
-  attachedElements.delete(element);
 }
 
 export function getState() {

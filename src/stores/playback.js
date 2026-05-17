@@ -1,48 +1,37 @@
+/**
+ * PlaybackStore — pomocniczy store do odczytu stanu odtwarzania.
+ *
+ * UWAGA: Rzeczywista logika playbacku (ytPlayer, html5Audio, engineLoad, nextTrack itp.)
+ * żyje w AppLayout.vue i jest udostępniana przez provide/inject("appState").
+ * Ten store jest read-only mirror dla komponentów które nie mają dostępu do inject.
+ *
+ * Żeby zaktualizować wartości wywołaj appState.play() / appState.togglePlay() itp.
+ * Ten store nie posiada własnych akcji modyfikujących odtwarzacz.
+ */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
 export const usePlaybackStore = defineStore('playback', () => {
-  // Current track
+  // Stan synchronizowany przez AppLayout (opcjonalne — jeśli zdecydujesz się na migrację)
   const currentTrack = ref(null);
   const currentPosition = ref(0);
   const duration = ref(0);
-
-  // Playback state
   const isPlaying = ref(false);
-
-  // Modes
   const shuffle = ref(false);
-  const repeatMode = ref('none'); // 'none', 'one', 'all'
+  const repeatMode = ref('none'); // 'none' | 'one' | 'all'
 
-  // Getters
-  const progress = computed(() => {
-    return duration.value > 0
-      ? (currentPosition.value / duration.value) * 100
-      : 0;
-  });
+  const progress = computed(() =>
+    duration.value > 0 ? (currentPosition.value / duration.value) * 100 : 0
+  );
 
-  // Actions
-  function playTrack(track) {
-    currentTrack.value = track;
-    isPlaying.value = true;
-  }
-
-  function togglePlay() {
-    isPlaying.value = !isPlaying.value;
-  }
-
-  function toggleShuffle() {
-    shuffle.value = !shuffle.value;
-  }
-
-  function toggleRepeat() {
-    if (repeatMode.value === 'none') repeatMode.value = 'all';
-    else if (repeatMode.value === 'all') repeatMode.value = 'one';
-    else repeatMode.value = 'none';
-  }
-
-  function seekTo(position) {
-    currentPosition.value = position;
+  // Akcje poniżej to stubs — wołaj appState z inject() zamiast tego store
+  // jeśli chcesz faktycznie sterować odtwarzaczem.
+  function _syncFrom(state) {
+    if (!state) return;
+    if (state.nowPlaying?.value !== undefined) currentTrack.value = state.nowPlaying.value;
+    if (state.currentTime?.value !== undefined) currentPosition.value = state.currentTime.value;
+    if (state.audioDuration?.value !== undefined) duration.value = state.audioDuration.value;
+    if (state.isPlaying?.value !== undefined) isPlaying.value = state.isPlaying.value;
   }
 
   return {
@@ -53,10 +42,6 @@ export const usePlaybackStore = defineStore('playback', () => {
     shuffle,
     repeatMode,
     progress,
-    playTrack,
-    togglePlay,
-    toggleShuffle,
-    toggleRepeat,
-    seekTo,
+    _syncFrom,
   };
 });

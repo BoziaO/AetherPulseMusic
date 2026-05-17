@@ -144,17 +144,17 @@ cp .env.example .env
 
 Development
 
-Uruchom frontend:
+1. Uruchom backend:
 ```bash
-npm run client
-```
-(Dostępny pod http://localhost:5000)
-
-Uruchom backend:
-```bash
-python backend/main.py
+npm run server
 ```
 (Dostępny pod http://localhost:3001)
+
+2. Uruchom frontend:
+```bash
+npm run dev
+```
+(Dostępny pod http://localhost:5000)
 
 ---
 

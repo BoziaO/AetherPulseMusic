@@ -14,7 +14,7 @@
           :value="props.currentTime"
           class="am-slider strip"
           :style="{ '--progress': `${progressPercent}%` }"
-          :aria-label="t('expandPlayer')"
+          :aria-label="t('seekProgress')"
           @input="seekTo(Number($event.target.value))"
         />
       </div>
@@ -305,11 +305,11 @@ function seekTo(position) {
 <style scoped>
 .player-bar {
   background: var(--bg-player);
-  backdrop-filter: var(--glass);
-  -webkit-backdrop-filter: var(--glass);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-top: 1px solid var(--line);
   transition: transform var(--transition-base), box-shadow var(--transition-base);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 -1px 0 var(--line), 0 -8px 32px rgba(0, 0, 0, 0.35);
   animation: bar-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -331,12 +331,13 @@ function seekTo(position) {
 
 .progress-strip {
   position: absolute;
-  top: -2px;
+  top: -4px;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 8px;
   pointer-events: auto;
   z-index: 2;
+  cursor: pointer;
 }
 
 .progress-strip .strip {
@@ -348,7 +349,23 @@ function seekTo(position) {
 }
 
 .progress-strip .strip::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 3px;
+  transition: height var(--transition-fast);
+  border-radius: 2px;
+}
+
+.progress-strip:hover .strip::-webkit-slider-runnable-track {
+  height: 5px;
+}
+
+.progress-strip .strip::-webkit-slider-thumb {
+  opacity: 0;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.progress-strip:hover .strip::-webkit-slider-thumb {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
 /* Full-bar layout (not minimized) */
@@ -400,13 +417,19 @@ function seekTo(position) {
 .cover {
   width: 48px;
   height: 48px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-elevated);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+  transition: box-shadow var(--transition-base);
+}
+
+.is-playing .cover {
+  box-shadow: 0 0 0 2px var(--primary), var(--shadow-card);
 }
 
 .cover img {
@@ -475,31 +498,43 @@ function seekTo(position) {
 .time-row {
   display: flex;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+  letter-spacing: 0.01em;
 }
 
 .play-btn {
   display: inline-flex;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: var(--text-primary);
   color: var(--bg-base);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.play-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
 }
 
 .play-btn:hover {
-  transform: scale(1.06);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3);
 }
 
 .play-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .play-btn.is-playing {
@@ -597,8 +632,8 @@ function seekTo(position) {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px 8px 12px;
-  min-height: 56px;
+  padding: 10px 12px 10px 14px;
+  min-height: 60px;
   animation: fade-swap 260ms ease both;
 }
 

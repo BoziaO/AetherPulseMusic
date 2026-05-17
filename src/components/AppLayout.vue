@@ -241,8 +241,10 @@ import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { BarChart3, Clock, Globe, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
 
 // Lazy-loaded modals — ładowane tylko gdy użytkownik je otworzy.
-// Daje to ~70 KB oszczędności przy pierwszym renderze.
-const FullPlayer = defineAsyncComponent(() => import("./FullPlayer.vue"));
+const FullPlayer = defineAsyncComponent({
+  loader: () => import("./FullPlayer.vue"),
+  timeout: 10000,
+});
 const LyricsModal = defineAsyncComponent(() => import("./LyricsModal.vue"));
 const QueueModal = defineAsyncComponent(() => import("./QueueModal.vue"));
 const EqualizerModal = defineAsyncComponent(() => import("./EqualizerModal.vue"));
@@ -392,7 +394,7 @@ const playerPreference = ref(localStorage.getItem("ap-player-mode") || "auto");
 const activeEngine = ref("iframe"); // aktualnie używany silnik
 let html5Audio = null;
 let html5Attached = false;
-const html5StreamFormat = "auto"; // youtubei.js sam wybierze najlepszy mp4/webm
+const html5StreamFormat = "m4a"; // request m4a for best browser compatibility
 let loadGen = 0;
 let isSwitching = false;
 let pendingIframeTrack = null;
@@ -478,27 +480,14 @@ async function html5Load(track, gen) {
   if (!track?.videoId) return false;
   const audio = ensureHtml5Audio();
   try {
-    // 1) Pauzuj iframe ZANIM zaczniemy nowy stream (zapobiega podwójnemu audio).
     pauseIframeQuietly();
 
-    // 2) Pobierz metadata opcjonalnie. Jeśli info się nie uda, nadal spróbujemy playback.
-    let info = null;
-    try {
-      info = await fetchJson(
-        `/api/downloads/info/${encodeURIComponent(track.videoId)}?format=${html5StreamFormat}`,
-        { timeout: 8000 },
-      );
-    } catch {
-      info = null;
-    }
-
-    // Po await — jeśli inne wywołanie engineLoad wystartowało, porzucamy.
+    // After pause — if another engineLoad started, abandon.
     if (gen !== loadGen) return false;
 
-    // 3) Streamuj przez nasz odtwarzacz HTML5 bezpośrednio z backendu.
+    // Stream directly through the backend proxy — no pre-flight /info request needed.
     const proxyUrl = `/api/downloads/playback/${encodeURIComponent(track.videoId)}?format=${encodeURIComponent(html5StreamFormat)}`;
 
-    // Zapobiegamy event "error" przy zmianie src podczas trwającego ładowania.
     isSwitching = true;
     audio.src = proxyUrl;
     audio.volume = clamp(volume.value, 0, 100) / 100;
@@ -506,15 +495,12 @@ async function html5Load(track, gen) {
     audio.muted = false;
     audio.load();
     lastLoadedHtml5VideoId = track.videoId;
-    // Reset switching flag w next microtask aby nowe `error` events były aktywne.
     Promise.resolve().then(() => { isSwitching = false; });
 
-    // 4) Podłącz Web Audio Graph dopiero po pierwszym sukcesie.
     if (!html5Attached) {
       try {
         attachToAudioEngine(audio);
         html5Attached = true;
-
         const chainHandle = getChainForElement(audio);
         if (chainHandle?.context && chainHandle?.tap) {
           attachSilenceDetector(audio, chainHandle.context, chainHandle.tap);
@@ -530,7 +516,6 @@ async function html5Load(track, gen) {
 
     await audio.play();
 
-    // Po await: ostatnia weryfikacja generation (user mógł przejść next).
     if (gen !== loadGen) {
       try { audio.pause(); } catch { /* ignore */ }
       return false;
@@ -778,29 +763,11 @@ function selectFocusedSearchItem() {
 }
 
 function applyTheme() {
-  document.documentElement.dataset.theme = theme.value === "light" ? "light" : "dark";
-  document.documentElement.style.setProperty("--primary", accent.value);
-  document.documentElement.style.setProperty("--primary-hover", shadeHex(accent.value, -18));
-  const rgb = hexToRgb(accent.value);
-  if (rgb) document.documentElement.style.setProperty("--primary-rgb", rgb.join(", "));
+  // Deleguj do themeStore — tam jest pełna logika (vars, effects, accent).
+  themeStore.applyTheme();
 }
 
-function hexToRgb(hex) {
-  const clean = String(hex || "").replace("#", "");
-  if (clean.length !== 6) return null;
-  return [clean.slice(0, 2), clean.slice(2, 4), clean.slice(4, 6)].map((p) => parseInt(p, 16));
-}
-
-function shadeHex(hex, amount) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  return (
-    "#" +
-    rgb
-      .map((value) => clamp(value + amount, 0, 255).toString(16).padStart(2, "0"))
-      .join("")
-  );
-}
+// hexToRgb / shadeHex are handled by themeStore internally — not needed here.
 
 function setLanguage(next) {
   language.value = next === "en" ? "en" : "pl";
@@ -905,8 +872,8 @@ async function hydrateUserState() {
         : fallbackFavoriteTracks;
     if (Number.isFinite(Number(state.volume))) volume.value = Number(state.volume);
     if (state.language === "en" || state.language === "pl") language.value = state.language;
-    if (state.themeState?.theme) theme.value = state.themeState.theme;
-    if (state.themeState?.accent) accent.value = state.themeState.accent;
+    if (state.themeState?.theme) themeStore.setTheme(state.themeState.theme);
+    if (state.themeState?.accent) themeStore.setAccent(state.themeState.accent);
     lastPersistedUserState.value = stableStringify(getPersistableState());
 
     // Filtruj usunięte z YouTube — nie pokazujemy w UI martwych wpisów.
@@ -943,7 +910,7 @@ function getPersistableState() {
     favoriteTracks: favoriteTracks.value,
     volume: volume.value,
     language: language.value,
-    themeState: { theme: theme.value, accent: accent.value },
+    themeState: { theme: theme.value?.id ?? themeStore.themeId.value, accent: accent.value },
   };
 }
 
@@ -1091,14 +1058,7 @@ function stopProgressTimer() {
 function play(item, newQueue = null) {
   if (!item) return;
   const track = normalizeTrack(item);
-  // Load additional data like sponsor segments
-  if (track.videoId) {
-    fetchSong(track.videoId).then(songData => {
-      if (songData && nowPlaying.value && trackKey(nowPlaying.value) === trackKey(track)) {
-        nowPlaying.value = { ...nowPlaying.value, ...songData };
-      }
-    }).catch(() => {});
-  }
+
   if (newQueue?.length) {
     queue.value = newQueue.map(normalizeTrack).filter(Boolean);
     currentQueueIndex.value = Math.max(
@@ -1125,20 +1085,25 @@ function play(item, newQueue = null) {
   fetchJson("/api/user/recent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ track: stampedTrack }),
+    body: JSON.stringify(stampedTrack),
     timeout: 4500,
   }).catch(() => {});
 
   if (track.videoId) {
     engineLoad(track).catch((err) => {
       console.error("[player] engineLoad failed:", err);
-      // 404/410 = utwór usunięty z YouTube — oznacz w library graveyard.
       const msg = String(err?.message || "");
       if (/40[049]/.test(msg) || /not_found|removed/i.test(msg)) {
         markUnavailable(track.videoId);
         showToast(t("libraryTrackUnavailable", { title: track.title }), "warning");
       }
     });
+    // Fetch extra song data (sponsor segments etc.) in background — non-blocking
+    fetchSong(track.videoId).then(songData => {
+      if (songData && nowPlaying.value && trackKey(nowPlaying.value) === trackKey(track)) {
+        nowPlaying.value = { ...nowPlaying.value, ...songData };
+      }
+    }).catch(() => {});
   } else {
     showToast(t("noVideoId"), "warning");
   }
@@ -1213,12 +1178,23 @@ function playQueueIndex(index) {
 function removeFromQueue(index) {
   const next = [...queue.value];
   next.splice(index, 1);
+  const newLength = next.length;
   queue.value = next;
   if (currentQueueIndex.value > index) {
+    // An element before the current track was removed — shift index down.
     currentQueueIndex.value -= 1;
-  } else if (currentQueueIndex.value === index && index >= queue.value.length) {
-    currentQueueIndex.value = queue.value.length - 1;
-    if (currentQueueIndex.value >= 0) play(queue.value[currentQueueIndex.value]);
+  } else if (currentQueueIndex.value === index) {
+    // The currently playing track itself was removed.
+    if (newLength === 0) {
+      currentQueueIndex.value = -1;
+    } else if (index >= newLength) {
+      // Was the last element — wrap to new last.
+      currentQueueIndex.value = newLength - 1;
+      play(queue.value[currentQueueIndex.value]);
+    } else {
+      // Play the track that now occupies this index (next track stepped up).
+      play(queue.value[currentQueueIndex.value]);
+    }
   }
 }
 
@@ -1291,7 +1267,7 @@ function toggleFavoriteTrack(track) {
   fetchJson("/api/user/favorites/toggle", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ track: normalized }),
+    body: JSON.stringify(normalized),
     timeout: 4500,
   }).catch(() => {});
 
@@ -1348,8 +1324,15 @@ function openMediaItem(item) {
   }
 }
 
+let searchAbortController = null;
+
 watch([query, searchFilter], () => {
   window.clearTimeout(searchTimer);
+  // Anuluj poprzednie zapytanie HTTP (jeśli w toku)
+  if (searchAbortController) {
+    searchAbortController.abort();
+    searchAbortController = null;
+  }
   const clean = query.value.trim();
   if (clean.length < 2) {
     searchResults.value = [];
@@ -1358,30 +1341,42 @@ watch([query, searchFilter], () => {
   }
   searchLoading.value = true;
   searchTimer = window.setTimeout(async () => {
+    const controller = new AbortController();
+    searchAbortController = controller;
     try {
       const params = new URLSearchParams({
         q: clean,
         filter: searchFilter.value,
         limit: "18",
       });
-      const data = await fetchJson(`/api/ytmusic/search?${params.toString()}`, { timeout: 12000 });
-      searchResults.value = Array.isArray(data) ? data : [];
+      const data = await fetchJson(`/api/ytmusic/search?${params.toString()}`, {
+        timeout: 12000,
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) {
+        searchResults.value = Array.isArray(data) ? data : [];
+      }
     } catch (error) {
+      if (error?.name === "AbortError" || controller.signal.aborted) return;
       searchResults.value = [];
       showToast(error.message, "error");
     } finally {
-      searchLoading.value = false;
+      if (!controller.signal.aborted) {
+        searchLoading.value = false;
+        searchAbortController = null;
+      }
     }
   }, 300);
 });
 
 watch(
-  [recentPlays, favoriteTracks, favorites, volume, searchHistory, language, theme, accent],
+  [recentPlays, favoriteTracks, favorites, volume, searchHistory, language, themeStore.themeId, accent],
   persistUserState,
   { deep: true },
 );
 
-watch([theme, accent], applyTheme);
+// Nota: applyTheme() jest wywoływana przez themeStore automatycznie przy zmianie theme/accent.
+// Tutaj synchronizujemy tylko localStorage przez persistUserState.
 
 watch(
   () => route.fullPath,
@@ -1467,6 +1462,8 @@ provide("appState", {
   clearSleepTimer,
   openEqualizer: () => { showEqualizerModal.value = true; },
   requestDownloadConsent,
+  chartsRegion,
+  setRegion,
   playerPreference,
   activeEngine,
   setPlayerPreference: persistPlayerPreference,
@@ -1491,6 +1488,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(persistTimer);
   stopProgressTimer();
   clearSleepTimer();
+  if (searchAbortController) { searchAbortController.abort(); searchAbortController = null; }
 
   // 3) Silence detector — disconnect AnalyserNode + cancelAnimationFrame
   detachSilenceDetector();
@@ -1634,7 +1632,7 @@ onBeforeUnmount(() => {
 
 .search-input {
   width: 100%;
-  height: 42px;
+  height: 40px;
   padding: 0 44px 0 42px;
   border-radius: 100px;
   background: var(--bg-elevated);
@@ -1882,11 +1880,12 @@ onBeforeUnmount(() => {
   padding: 8px 10px;
   border-radius: 10px;
   text-align: left;
-  transition: background 0.12s;
+  transition: background 0.12s, transform 0.1s;
   cursor: pointer;
 }
 
 .result-row:hover { background: var(--bg-hover); }
+.result-row:active { transform: scale(0.99); }
 .result-row:hover .result-play-overlay { opacity: 1; }
 .result-row:hover .result-cover img { filter: brightness(0.65); }
 

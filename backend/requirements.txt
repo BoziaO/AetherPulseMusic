@@ -1,8 +1,6 @@
 fastapi
-uvicorn
+uvicorn[standard]
 ytmusicapi==1.12.0
 yt-dlp
-requests
 python-multipart
 httpx
-aiocache

@@ -47,7 +47,7 @@ import PageSkeleton from "../components/PageSkeleton.vue";
 import TrackList from "../components/TrackList.vue";
 import ContextNotes from "../components/ContextNotes.vue";
 import { fetchJson } from "../lib/api";
-import { cleanData, normalizeTrack } from "../lib/format";
+import { cleanData, normalizeTrack, upgradeThumbUrl } from "../lib/format";
 
 const props = defineProps({
   albumId: { type: String, required: true },
@@ -68,7 +68,7 @@ const tracks = computed(() =>
       normalizeTrack({
         ...track,
         artist: track.artist || album.value?.artist || "",
-        thumbnail: track.thumbnail || album.value?.thumbnail,
+        thumbnail: upgradeThumbUrl(track.thumbnail || album.value?.thumbnail),
       }),
     )
     .filter((track) => track.title),

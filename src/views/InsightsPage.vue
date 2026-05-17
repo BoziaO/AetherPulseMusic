@@ -203,7 +203,7 @@ const totalListenMinutes = computed(() => {
 
 const avgEnergy = computed(() => {
   if (!recentPlays.value.length) return 0;
-  const sum = recentPlays.value.reduce((a, t) => a + estimateEnergy(t), 0);
+  const sum = recentPlays.value.reduce((acc, track) => acc + estimateEnergy(track), 0);
   return Math.round(sum / recentPlays.value.length);
 });
 
@@ -571,7 +571,7 @@ const heatmapData = computed(() => {
   color: var(--text-tertiary);
 }
 
-.trend-axis span:nth-child(odd) { /* ukryj co drugą datę aby nie zaczyniać */
+.trend-axis span:nth-child(even) { /* hide every other date to avoid crowding */
   visibility: hidden;
 }
 
@@ -618,8 +618,9 @@ const heatmapData = computed(() => {
 
 .heatmap-cell {
   aspect-ratio: 1 / 1;
-  min-height: 14px;
-  border-radius: 2px;
+  min-height: 12px;
+  min-width: 8px;
+  border-radius: 3px;
   background: rgba(var(--primary-rgb), calc(0.05 + var(--intensity, 0) * 0.85));
   transition: transform 0.1s;
 }

@@ -37,6 +37,16 @@
             </span>
             <span class="truncate">{{ t(item.labelKey) }}</span>
           </RouterLink>
+          <button
+            class="nav-link w-full text-left"
+            type="button"
+            @click="app?.openImportModal?.()"
+          >
+            <span class="nav-icon-wrap">
+              <DownloadCloud :size="15" />
+            </span>
+            <span class="truncate">{{ t('importPlaylist') }}</span>
+          </button>
         </div>
       </section>
     </nav>

@@ -139,7 +139,11 @@
           </div>
         </Transition>
 
-        <RouterView />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" :key="route.fullPath" />
+          </transition>
+        </router-view>
       </div>
     </main>
 
@@ -200,7 +204,7 @@
     <QueueModal
       :open="showQueueModal"
       :tracks="visibleQueue"
-      :current-index="currentQueueIndex"
+      :current-index="playback.currentQueueIndex"
       :is-favorite="isFavorite"
       @close="showQueueModal = false"
       @play-index="playQueueIndex"
@@ -218,6 +222,35 @@
       @close="showLyricsModal = false"
       @seek="seekTo"
     />
+
+    <Transition name="fade">
+      <div v-if="showImportModal" class="modal-overlay" @click.self="showImportModal = false">
+        <div class="modal-content animate-slide-up">
+          <header class="modal-header">
+            <h3>{{ t('importPlaylist') }}</h3>
+            <button class="icon-btn" @click="showImportModal = false"><X :size="18" /></button>
+          </header>
+          <div class="modal-body">
+            <p class="text-sm text-tertiary mb-4">{{ t('importPlaylistDesc') }}</p>
+            <input
+              v-model="importUrl"
+              type="text"
+              class="am-input mb-4"
+              :placeholder="t('importPlaceholder')"
+              @keydown.enter="handleImportPlaylist"
+            />
+            <button
+              class="btn-primary w-full"
+              :disabled="importLoading || !importUrl.trim()"
+              @click="handleImportPlaylist"
+            >
+              <span v-if="importLoading" class="spinner-sm mr-2" />
+              {{ t('import') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <CookieBanner />
 
@@ -239,8 +272,10 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { BarChart3, Clock, Globe, LogIn, Menu, Mic2, Music2, Play, Search, Settings, X } from "lucide-vue-next";
+import { storeToRefs } from "pinia";
+import { usePlaybackStore } from "../stores/playback";
 
-// Lazy-loaded modals — ładowane tylko gdy użytkownik je otworzy.
+// Lazy-loaded modals
 const FullPlayer = defineAsyncComponent({
   loader: () => import("./FullPlayer.vue"),
   timeout: 10000,
@@ -256,23 +291,10 @@ import ToastStack from "./ToastStack.vue";
 import CookieBanner from "./CookieBanner.vue";
 import OfflineBanner from "./OfflineBanner.vue";
 import { translate } from "../data/i18n";
-import { buildApiUrl, fetchJson, fetchSong } from "../lib/api";
-import { clamp, normalizeTrack, secondsFromDuration, trackKey } from "../lib/format";
+import { buildApiUrl, fetchJson } from "../lib/api";
+import { normalizeTrack, trackKey } from "../lib/format";
 import { useTheme } from "../lib/useTheme";
-import { applyToYouTubePlayer as applyAudioQuality } from "../lib/audioQuality";
-import {
-  attachMediaElement as attachToAudioEngine,
-  detachMediaElement as detachFromAudioEngine,
-  getChainForElement,
-} from "../lib/audioEngine";
-import {
-  attachSilenceDetector,
-  detachSilenceDetector,
-  setSkipCallback as setSilenceSkipCallback,
-  silenceSettings,
-} from "../lib/silenceSkipper";
-import { findSegmentToSkip } from "../lib/sponsorBlock";
-import { filterAvailable, markUnavailable, scanLibrary, shouldRunBackgroundScan } from "../lib/librarySync";
+import { filterAvailable, scanLibrary, shouldRunBackgroundScan } from "../lib/librarySync";
 import {
   enqueueDownload,
   setLegalAccepted,
@@ -281,6 +303,22 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const playback = usePlaybackStore();
+
+const {
+  nowPlaying,
+  isPlaying,
+  currentTime,
+  audioDuration,
+  volume,
+  queue,
+  isShuffled,
+  repeatMode,
+  visibleQueue,
+  playerPreference,
+  activeEngine,
+  playerMinimized,
+} = storeToRefs(playback);
 
 const searchFilters = [
   { value: "songs", labelKey: "filterSongs" },
@@ -301,39 +339,48 @@ const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchOpen = ref(false);
 const searchHistory = ref(readJson("ap:search-history", []));
-const searchSuggestions = ref([]);
-const searchFocusIndex = ref(-1);
 const chartsRegion = ref(localStorage.getItem("ap:region") || "ZZ");
 const toasts = ref([]);
-
-let suggestionsTimer = null;
 
 const authSession = ref({ auth: { enabled: false, connected: false } });
 const language = ref(localStorage.getItem("ap:language") || "pl");
 
-// Theme engine — encapsulates dark/light + preset palettes + accent overrides.
 const themeStore = useTheme();
-const themeId = themeStore.themeId;
 const theme = themeStore.theme;
 const accent = themeStore.accent;
 
-const nowPlaying = ref(null);
-const isPlaying = ref(false);
-const currentTime = ref(0);
-const audioDuration = ref(0);
-const volume = ref(clamp(Number(localStorage.getItem("ap-player-volume") || 80), 0, 100));
-const queue = ref([]);
-const shuffledQueue = ref([]);
-const currentQueueIndex = ref(-1);
-const isShuffled = ref(false);
-const repeatMode = ref("none");
 const showQueueModal = ref(false);
 const showLyricsModal = ref(false);
 const showFullPlayer = ref(false);
 const showEqualizerModal = ref(false);
 const showLegalModal = ref(false);
+const showImportModal = ref(false);
 const pendingDownloadTrack = ref(null);
-const playerMinimized = ref(false);
+
+const importUrl = ref("");
+const importLoading = ref(false);
+
+async function handleImportPlaylist() {
+  const url = importUrl.value.trim();
+  if (!url) return;
+  importLoading.value = true;
+  try {
+    const res = await fetchJson("/api/import/playlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    showToast(t("importSuccess", { title: res.title }), "success");
+    showImportModal.value = false;
+    importUrl.value = "";
+    // Refresh playlists if we are on that page or just generally
+    router.push({ path: "/playlists", query: { playlist: res.id } });
+  } catch (err) {
+    showToast(err.message, "error");
+  } finally {
+    importLoading.value = false;
+  }
+}
 
 const recentPlays = ref(readJson("boziamusic:recent", []));
 const favorites = ref(new Set(readJson("boziamusic:favorites", [])));
@@ -355,7 +402,7 @@ function setSleepTimer(minutes) {
     }
     if (sleepTimerSeconds.value <= 0) {
       clearSleepTimer();
-      if (isPlaying.value) togglePlay();
+      if (isPlaying.value) playback.togglePlay();
       showToast(t("sleepTimerDone"), "info");
     }
   }, 1000);
@@ -371,323 +418,86 @@ const userStateHydrated = ref(false);
 const lastPersistedUserState = ref("");
 let persistTimer = null;
 let searchTimer = null;
-let progressTimer = null;
-let ytPlayer = null;
-let ytReady = false;
 
-// ---------------------------------------------------------------------------
-// Player engine
-// "auto"  — preferuje HTML5 audio (EQ działa), fallback do iframe gdy backend
-//           nie umie wyciągnąć URL (np. video age-restricted dla iOS klienta).
-// "html5" — wymuszone HTML5; brak fallbacku.
-// "iframe" — klasyczne odtwarzanie YT iframe (bez EQ na cross-origin).
-//
-// Synchronizacja:
-// - `loadGen` (monotonicznie rosnący) chroni przed race conditions: każdy
-//   `engineLoad(track)` startuje z własnym `gen`; stare wywołania porzucamy.
-// - `isSwitching` flaga blokuje fallback z `error` handlera w trakcie switchu.
-// - Zarówno `html5Load` jak i `iframeLoad` są SYMETRYCZNE: każdy pauzuje drugi
-//   silnik PRZED rozpoczęciem własnego odtwarzania.
-// - `pendingIframeTrack` przechowuje track do załadowania, jeśli ytPlayer
-//   jeszcze nie jest gotowy — załadujemy go w onReady.
-// ---------------------------------------------------------------------------
-const playerPreference = ref(localStorage.getItem("ap-player-mode") || "auto");
-const activeEngine = ref("iframe"); // aktualnie używany silnik
-let html5Audio = null;
-let html5Attached = false;
-const html5StreamFormat = "m4a"; // request m4a for best browser compatibility
-let loadGen = 0;
-let isSwitching = false;
-let pendingIframeTrack = null;
-let lastLoadedHtml5VideoId = null;
+function play(item, newQueue = null) {
+  if (!item) return;
+  const track = normalizeTrack(item);
+  playback.play(item, newQueue);
 
-function persistPlayerPreference(value) {
-  if (playerPreference.value === value) return;
-  playerPreference.value = value;
-  try { localStorage.setItem("ap-player-mode", value); } catch { /* ignore */ }
+  const playedAt = new Date().toISOString();
+  const stampedTrack = { ...track, playedAt };
+  recentPlays.value = [
+    stampedTrack,
+    ...recentPlays.value.filter((entry) => trackKey(entry) !== trackKey(track)),
+  ].slice(0, 25);
+  fetchJson("/api/user/recent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(stampedTrack),
+    timeout: 4500,
+  }).catch(() => {});
 }
 
-function pauseIframeQuietly() {
-  try { ytPlayer?.pauseVideo?.(); } catch { /* ignore */ }
-  // Nie wywołujemy stopVideo — zachowujemy stan na wypadek powrotu.
+function togglePlay() { playback.togglePlay(); }
+function seekTo(seconds) { playback.seekTo(seconds); }
+function setVolume(next) { playback.setVolume(next); }
+function nextTrack() { playback.nextTrack(); }
+function prevTrack() { playback.prevTrack(); }
+
+function playNext(track) {
+  playback.playNext(track);
+  showToast(t("addedAsNext"), "success");
 }
 
-function pauseHtml5Quietly() {
-  if (!html5Audio) return;
-  isSwitching = true;
-  try { html5Audio.pause(); } catch { /* ignore */ }
-  // Nie zerujemy `src` — `audio.src=""` powoduje synchroniczny `error` event,
-  // który mógłby wywołać niechciany fallback. Zostawiamy poprzedni source.
-  // Resetujemy flagę po mikrotasku, gdy pause już się propagowało.
-  Promise.resolve().then(() => { isSwitching = false; });
+function addToQueue(track) {
+  playback.addToQueue(track);
+  showToast(t("addedToQueue"), "success");
 }
 
-function ensureHtml5Audio() {
-  if (html5Audio) return html5Audio;
-  html5Audio = document.createElement("audio");
-  html5Audio.id = "ap-html5-player";
-  html5Audio.preload = "auto";
-  html5Audio.crossOrigin = "anonymous";
-  html5Audio.style.display = "none";
-  document.body.appendChild(html5Audio);
-
-  html5Audio.addEventListener("play", () => {
-    if (activeEngine.value === "html5") {
-      isPlaying.value = true;
-      startProgressTimer();
-    }
-  });
-  html5Audio.addEventListener("pause", () => {
-    if (activeEngine.value === "html5" && !isSwitching) {
-      isPlaying.value = false;
-      stopProgressTimer();
-    }
-  });
-  html5Audio.addEventListener("ended", () => {
-    if (activeEngine.value !== "html5") return;
-    isPlaying.value = false;
-    stopProgressTimer();
-    if (repeatMode.value === "one") {
-      html5Audio.currentTime = 0;
-      html5Audio.play().catch(() => {});
-    } else {
-      nextTrack();
-    }
-  });
-  html5Audio.addEventListener("loadedmetadata", () => {
-    if (Number.isFinite(html5Audio.duration) && html5Audio.duration > 0) {
-      audioDuration.value = html5Audio.duration;
-    }
-  });
-  html5Audio.addEventListener("error", () => {
-    // Ignoruj błędy podczas ręcznego switchu engine.
-    if (isSwitching) return;
-    if (activeEngine.value !== "html5") return;
-    console.warn("[player] HTML5 audio error", html5Audio.error);
-    const track = nowPlaying.value;
-    // Fallback do iframe TYLKO w trybie auto i tylko gdy mamy track.
-    if (playerPreference.value === "auto" && track?.videoId) {
-      showToast(t("playerHtml5Failed"), "info");
-      iframeLoad(track);
-    } else {
-      showToast(t("playerHtml5Failed"), "warning");
-    }
-  });
-
-  return html5Audio;
-}
-
-async function html5Load(track, gen) {
-  if (!track?.videoId) return false;
-  const audio = ensureHtml5Audio();
-  try {
-    pauseIframeQuietly();
-
-    // After pause — if another engineLoad started, abandon.
-    if (gen !== loadGen) return false;
-
-    // Stream directly through the backend proxy — no pre-flight /info request needed.
-    const proxyUrl = `/api/downloads/playback/${encodeURIComponent(track.videoId)}?format=${encodeURIComponent(html5StreamFormat)}`;
-
-    isSwitching = true;
-    audio.src = proxyUrl;
-    audio.volume = clamp(volume.value, 0, 100) / 100;
-    audio.currentTime = 0;
-    audio.muted = false;
-    audio.load();
-    lastLoadedHtml5VideoId = track.videoId;
-    Promise.resolve().then(() => { isSwitching = false; });
-
-    if (!html5Attached) {
-      try {
-        attachToAudioEngine(audio);
-        html5Attached = true;
-        const chainHandle = getChainForElement(audio);
-        if (chainHandle?.context && chainHandle?.tap) {
-          attachSilenceDetector(audio, chainHandle.context, chainHandle.tap);
-          setSilenceSkipCallback(({ db, durationMs }) => {
-            console.debug(`[silence] skip ${durationMs.toFixed(0)}ms @ ${db.toFixed(1)}dB`);
-            nextTrack();
-          });
-        }
-      } catch (err) {
-        console.warn("[player] attachToAudioEngine failed:", err.message);
-      }
-    }
-
-    await audio.play();
-
-    if (gen !== loadGen) {
-      try { audio.pause(); } catch { /* ignore */ }
-      return false;
-    }
-
-    activeEngine.value = "html5";
-    isPlaying.value = true;
-    return true;
-  } catch (err) {
-    console.warn("[player] html5Load failed:", err?.message || err);
-    return false;
+function playQueueIndex(index) {
+  const list = visibleQueue.value;
+  if (index >= 0 && index < list.length) {
+    playback.play(list[index]);
   }
 }
 
-function iframeLoad(track, gen) {
-  if (!track?.videoId) return false;
-
-  // Jeśli ytPlayer jeszcze nie gotowy — kolejkuj track i poczekaj na onReady.
-  if (!ytPlayer?.loadVideoById) {
-    pendingIframeTrack = track;
-    // Nie zmieniamy activeEngine — zachowujemy poprzedni stan dopóki iframe
-    // realnie nie wystartuje (uniknięcie niespójności w UI).
-    return false;
-  }
-
-  // Stary gen? user już przeszedł dalej — porzucamy.
-  if (gen !== undefined && gen !== loadGen) return false;
-
-  // 1) Pauzuj HTML5 audio ZANIM zaczniemy iframe.
-  pauseHtml5Quietly();
-
-  // 2) Załaduj wideo — UWAGA: nie zerujemy src html5Audio, by uniknąć
-  //    synchronicznego `error` eventu który mógłby wywołać błędny fallback.
-  try {
-    ytPlayer.loadVideoById(track.videoId);
-    applyAudioQuality(ytPlayer);
-    activeEngine.value = "iframe";
-    pendingIframeTrack = null;
-    return true;
-  } catch (err) {
-    console.warn("[player] iframe loadVideoById failed:", err?.message || err);
-    return false;
-  }
+function removeFromQueue(index) {
+  const next = [...queue.value];
+  next.splice(index, 1);
+  queue.value = next;
 }
 
-async function engineLoad(track) {
-  if (!track?.videoId) return false;
-
-  // Każde wywołanie dostaje unikalny generation — chroni przed race.
-  const gen = ++loadGen;
-  const pref = playerPreference.value;
-
-  if (pref === "iframe") {
-    return iframeLoad(track, gen);
-  }
-
-  if (pref === "html5") {
-    const ok = await html5Load(track, gen);
-    // Sprawdzamy gen po await — nie wyświetlamy toastu jeśli już zmieniliśmy track.
-    if (!ok && gen === loadGen) {
-      showToast(t("playerHtml5Failed"), "warning");
-    }
-    return ok;
-  }
-
-  // auto: try HTML5 first, then iframe (jeśli ten sam gen).
-  const ok = await html5Load(track, gen);
-  if (ok) return true;
-  if (gen !== loadGen) return false; // user przeszedł dalej w tym czasie
-  return iframeLoad(track, gen);
+function clearQueue() {
+  playback.clearQueue();
+  showToast(t("queueCleared"), "info");
 }
 
-/**
- * Restartuje aktualnie odtwarzany utwór gdy zmienia się preferencja silnika.
- * Wywoływane z watch(playerPreference, ...).
- */
-async function reloadCurrentTrackOnEngineChange() {
-  const track = nowPlaying.value;
-  if (!track?.videoId) return;
-  // Zachowaj pozycję w utworze przy przełączaniu silnika.
-  const savedTime = currentTime.value;
-  const wasPlaying = isPlaying.value;
-
-  // Zatrzymaj OBA silniki przed przeładowaniem.
-  pauseIframeQuietly();
-  pauseHtml5Quietly();
-  isPlaying.value = false;
-
-  const ok = await engineLoad(track);
-  if (!ok) return;
-
-  // Przywróć pozycję
-  if (savedTime > 1) {
-    setTimeout(() => {
-      try { engineSeek(savedTime); } catch { /* ignore */ }
-      if (!wasPlaying) {
-        // Jeśli był na pauzie — od razu pauzujemy nowy silnik.
-        if (activeEngine.value === "html5" && html5Audio) {
-          try { html5Audio.pause(); } catch { /* ignore */ }
-        } else {
-          try { ytPlayer?.pauseVideo?.(); } catch { /* ignore */ }
-        }
-      }
-    }, 250);
-  }
+function saveQueue(title) {
+  if (!title?.trim()) return;
+  fetchJson("/api/user/queues", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: title.trim(), tracks: [...queue.value] }),
+    timeout: 4500,
+  })
+    .then(() => {
+      showToast(t("saved"), "success");
+      showQueueModal.value = false;
+    })
+    .catch(() => showToast(t("saveFailed"), "error"));
 }
 
-// Watch zmian preferencji silnika i reloadu obecnego utworu.
-watch(playerPreference, (newPref, oldPref) => {
-  if (newPref === oldPref) return;
-  if (!nowPlaying.value?.videoId) return;
-  showToast(t("playerEngineSwitching", { mode: newPref }), "info");
-  reloadCurrentTrackOnEngineChange();
-});
-
-function engineTogglePlay() {
-  if (activeEngine.value === "html5" && html5Audio) {
-    if (html5Audio.paused) html5Audio.play().catch(() => {});
-    else html5Audio.pause();
-    return;
-  }
-  if (!ytPlayer) {
-    showToast(t("playerNotReady"), "warning");
-    return;
-  }
-  try {
-    const state = ytPlayer.getPlayerState();
-    if (state === window.YT?.PlayerState?.PLAYING) ytPlayer.pauseVideo();
-    else ytPlayer.playVideo();
-  } catch {
-    showToast(t("playerNotReady"), "warning");
-  }
+function getCurrentPlaylistName() {
+  if (!queue.value.length) return "";
+  return t("trackCount", { count: queue.value.length });
 }
 
-function engineSeek(seconds) {
-  const value = Math.max(0, Number(seconds) || 0);
-  currentTime.value = value;
-  if (activeEngine.value === "html5" && html5Audio) {
-    try { html5Audio.currentTime = value; } catch { /* ignore */ }
-  } else {
-    try { ytPlayer?.seekTo?.(value, true); } catch { /* ignore */ }
-  }
-}
-
-function engineSetVolume(next) {
-  const value = clamp(Number(next), 0, 100);
-  volume.value = value;
-  if (html5Audio) {
-    try { html5Audio.volume = value / 100; } catch { /* ignore */ }
-  }
-  try { ytPlayer?.setVolume?.(value); } catch { /* ignore */ }
-}
-
-function engineGetTime() {
-  if (activeEngine.value === "html5" && html5Audio) {
-    return Number.isFinite(html5Audio.currentTime) ? html5Audio.currentTime : 0;
-  }
-  try { return ytPlayer?.getCurrentTime?.() || 0; } catch { return 0; }
-}
-
-function engineGetDuration() {
-  if (activeEngine.value === "html5" && html5Audio) {
-    return Number.isFinite(html5Audio.duration) ? html5Audio.duration : 0;
-  }
-  try { return ytPlayer?.getDuration?.() || 0; } catch { return 0; }
-}
+function toggleShuffle() { playback.toggleShuffle(); }
+function toggleRepeat() { playback.toggleRepeat(); }
 
 const loginUrl = computed(() => buildApiUrl("/api/auth/google"));
 const favoriteKeys = computed(() => new Set(favorites.value));
 const favoriteItems = computed(() => Object.values(favoriteTracks.value || {}));
-const visibleQueue = computed(() => (isShuffled.value ? shuffledQueue.value : queue.value));
 
 function isFavorite(track) {
   return favoriteKeys.value.has(trackKey(track));
@@ -737,45 +547,15 @@ function setRegion(code) {
   localStorage.setItem("ap:region", code);
 }
 
-const searchFocusableCount = computed(() => {
-  const clean = query.value.trim();
-  if (!clean) return searchHistory.value.length;
-  if (clean.length < 2) return searchSuggestions.value.length;
-  return searchResults.value.length;
-});
-
-function selectFocusedSearchItem() {
-  const clean = query.value.trim();
-  const idx = searchFocusIndex.value;
-  if (idx < 0) return;
-  if (!clean && searchHistory.value[idx] !== undefined) {
-    query.value = searchHistory.value[idx];
-    searchFocusIndex.value = -1;
-    return;
-  }
-  if (clean.length < 2 && searchSuggestions.value[idx] !== undefined) {
-    query.value = searchSuggestions.value[idx];
-    searchFocusIndex.value = -1;
-    return;
-  }
-  if (clean.length >= 2 && searchResults.value[idx]) {
-    handleSearchResultClick(searchResults.value[idx]);
-  }
-}
-
 function applyTheme() {
-  // Deleguj do themeStore — tam jest pełna logika (vars, effects, accent).
   themeStore.applyTheme();
 }
-
-// hexToRgb / shadeHex are handled by themeStore internally — not needed here.
 
 function setLanguage(next) {
   language.value = next === "en" ? "en" : "pl";
 }
 
 function setTheme(next) {
-  // Use themeStore's setTheme which handles full theme IDs
   themeStore.setTheme(next);
 }
 
@@ -783,24 +563,13 @@ function setAccent(next) {
   accent.value = next;
 }
 
-/**
- * Wywoływane z OfflineBanner gdy użytkownik klika "Spróbuj ponownie".
- * Próbujemy:
- *  1) Ponownie nawiązać połączenie (browser i tak ma `online` event, ale forsujemy fetch).
- *  2) Jeśli był aktywny utwór — przeładować go.
- *  3) Re-hydrate user state.
- */
 async function retryNetworkAction() {
   try {
-    // Lekki ping na endpoint który ma SWR cache (nie obciąży serwera).
     await fetchJson("/api/page/home", { timeout: 6000, retry: { attempts: 1 } });
     showToast(t("offlineRetrySuccess"), "success");
-    // Re-hydrate w tle
     hydrateUserState();
-    // Przeładuj utwór jeśli był grany
-    const track = nowPlaying.value;
-    if (track?.videoId && !isPlaying.value) {
-      engineLoad(track).catch(() => {});
+    if (nowPlaying.value?.videoId && !isPlaying.value) {
+      playback.engineLoad(nowPlaying.value).catch(() => {});
     }
   } catch (err) {
     showToast(t("offlineRetryFailed"), "warning");
@@ -815,10 +584,6 @@ async function loadAuthSession() {
   }
 }
 
-/**
- * Mapowanie kodów błędów OAuth z `?error=...` redirectu na komunikaty UI.
- * Backend wysyła konkretne kody (oauth_no_client_id / oauth_redirect_mismatch / etc).
- */
 const AUTH_ERROR_KEYS = {
   oauth_no_client_id: "authErrorNoClientId",
   oauth_no_client_secret: "authErrorNoClientSecret",
@@ -831,7 +596,6 @@ const AUTH_ERROR_KEYS = {
   auth_failed: "authErrorFailed",
 };
 
-// Watch na query.error — pokaż toast i wyczyść URL (clean state).
 watch(
   () => route.query.error,
   (errorCode) => {
@@ -840,7 +604,6 @@ watch(
     const isConfigError = ["oauth_no_client_id", "oauth_no_client_secret", "oauth_no_redirect_uri"]
       .includes(String(errorCode));
     showToast(t(key), isConfigError ? "warning" : "error");
-    // Usuń `?error=...` z URL żeby reload nie pokazał ponownie tego samego toastu.
     router.replace({ query: { ...route.query, error: undefined } }).catch(() => {});
   },
   { immediate: true },
@@ -877,23 +640,19 @@ async function hydrateUserState() {
     if (state.themeState?.accent) themeStore.setAccent(state.themeState.accent);
     lastPersistedUserState.value = stableStringify(getPersistableState());
 
-    // Filtruj usunięte z YouTube — nie pokazujemy w UI martwych wpisów.
     recentPlays.value = filterAvailable(recentPlays.value);
 
-    // Background scan: raz na 7 dni weryfikujemy availability w tle.
     if (shouldRunBackgroundScan() && Object.keys(favoriteTracks.value).length) {
-      // Sleep 5s aby nie spowalniać startu — potem odpalamy w idle callback.
       window.setTimeout(() => {
         const tracks = Object.values(favoriteTracks.value);
         scanLibrary(tracks, { batchSize: 3 })
           .then((removed) => {
             if (removed.length) {
               showToast(t("libraryScanRemoved", { count: removed.length }), "info");
-              // Refiltruj UI list po skanie
               recentPlays.value = filterAvailable(recentPlays.value);
             }
           })
-          .catch(() => { /* skan opcjonalny — błąd ignorujemy */ });
+          .catch(() => {});
       }, 5000);
     }
   } catch (error) {
@@ -944,359 +703,19 @@ function persistUserState() {
 
 function loadYouTubeApi() {
   if (window.YT?.Player) {
-    initYouTubePlayer();
+    playback.initYouTubePlayer("yt-hidden-player");
     return;
   }
   const previousReady = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = () => {
     previousReady?.();
-    initYouTubePlayer();
+    playback.initYouTubePlayer("yt-hidden-player");
   };
   if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
     const script = document.createElement("script");
     script.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(script);
   }
-}
-
-function initYouTubePlayer() {
-  if (ytReady) return;
-  ytReady = true;
-  ytPlayer = new window.YT.Player("yt-hidden-player", {
-    height: "1",
-    width: "1",
-    playerVars: { autoplay: 0, controls: 0, fs: 0, rel: 0, modestbranding: 1, playsinline: 1 },
-    events: {
-      onReady: () => {
-        ytPlayer?.setVolume?.(volume.value);
-        applyAudioQuality(ytPlayer);
-
-        // Jeśli był track w kolejce (np. user kliknął play zanim ytPlayer się zainicjalizował),
-        // załaduj go teraz.
-        if (pendingIframeTrack?.videoId) {
-          const track = pendingIframeTrack;
-          pendingIframeTrack = null;
-          pauseHtml5Quietly();
-          try {
-            ytPlayer.loadVideoById(track.videoId);
-            activeEngine.value = "iframe";
-          } catch (err) {
-            console.warn("[player] pending iframe load failed:", err?.message || err);
-          }
-          return;
-        }
-
-        // Załaduj utwór do iframe TYLKO jeśli aktywny silnik to iframe.
-        // W trybie HTML5 iframe pozostaje uśpiony.
-        if (
-          activeEngine.value === "iframe" &&
-          nowPlaying.value?.videoId
-        ) {
-          ytPlayer?.loadVideoById?.(nowPlaying.value.videoId);
-        }
-      },
-      onStateChange: (event) => {
-        const states = window.YT?.PlayerState;
-        if (!states) return;
-        // Ignoruj eventy iframe gdy aktywny silnik to HTML5 (iframe drzemie).
-        if (activeEngine.value !== "iframe") return;
-        if (event.data === states.PLAYING) {
-          isPlaying.value = true;
-          startProgressTimer();
-        } else if (event.data === states.PAUSED) {
-          isPlaying.value = false;
-          stopProgressTimer();
-        } else if (event.data === states.ENDED) {
-          isPlaying.value = false;
-          stopProgressTimer();
-          if (repeatMode.value === "one") {
-            seekTo(0);
-            ytPlayer?.playVideo?.();
-          } else {
-            nextTrack();
-          }
-        }
-      },
-      onError: () => {
-        if (activeEngine.value === "iframe") showToast(t("cantPlay"), "error");
-      },
-    },
-  });
-}
-
-function startProgressTimer() {
-  stopProgressTimer();
-  progressTimer = window.setInterval(() => {
-    try {
-      const cur = engineGetTime();
-      if (Number.isFinite(cur) && cur > 0) currentTime.value = cur;
-      const duration = engineGetDuration();
-      if (duration > 0) audioDuration.value = duration;
-
-      // SponsorBlock auto-skip: jeśli aktualna pozycja wpada w segment z akcją "skip",
-      // od razu przeskocz do końca segmentu.
-      const segments = nowPlaying.value?.sponsorSegments;
-      if (Array.isArray(segments) && segments.length) {
-        const skip = findSegmentToSkip(segments, cur);
-        if (skip && skip.end > cur + 0.2) {
-          showToast(t("sponsorSkipped", { category: skip.segment?.category || "" }), "info");
-          engineSeek(skip.end + 0.05);
-        }
-      }
-    } catch {
-      stopProgressTimer();
-    }
-  }, 500);
-}
-
-function stopProgressTimer() {
-  if (progressTimer) {
-    window.clearInterval(progressTimer);
-    progressTimer = null;
-  }
-}
-
-function play(item, newQueue = null) {
-  if (!item) return;
-  const track = normalizeTrack(item);
-
-  if (newQueue?.length) {
-    queue.value = newQueue.map(normalizeTrack).filter(Boolean);
-    currentQueueIndex.value = Math.max(
-      0,
-      queue.value.findIndex((entry) => trackKey(entry) === trackKey(track)),
-    );
-    if (isShuffled.value) shuffledQueue.value = shuffle(queue.value);
-  } else if (visibleQueue.value.length) {
-    const index = visibleQueue.value.findIndex((entry) => trackKey(entry) === trackKey(track));
-    if (index >= 0) currentQueueIndex.value = index;
-  }
-
-  nowPlaying.value = track;
-  currentTime.value = 0;
-  audioDuration.value = track.durationSeconds || secondsFromDuration(track.duration) || 0;
-  document.title = `${track.title} — ${t("appName")}`;
-
-  const playedAt = new Date().toISOString();
-  const stampedTrack = { ...track, playedAt };
-  recentPlays.value = [
-    stampedTrack,
-    ...recentPlays.value.filter((entry) => trackKey(entry) !== trackKey(track)),
-  ].slice(0, 25);
-  fetchJson("/api/user/recent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(stampedTrack),
-    timeout: 4500,
-  }).catch(() => {});
-
-  if (track.videoId) {
-    engineLoad(track).catch((err) => {
-      console.error("[player] engineLoad failed:", err);
-      const msg = String(err?.message || "");
-      if (/40[049]/.test(msg) || /not_found|removed/i.test(msg)) {
-        markUnavailable(track.videoId);
-        showToast(t("libraryTrackUnavailable", { title: track.title }), "warning");
-      }
-    });
-    // Fetch extra song data (sponsor segments etc.) in background — non-blocking
-    fetchSong(track.videoId).then(songData => {
-      if (songData && nowPlaying.value && trackKey(nowPlaying.value) === trackKey(track)) {
-        nowPlaying.value = { ...nowPlaying.value, ...songData };
-      }
-    }).catch(() => {});
-  } else {
-    showToast(t("noVideoId"), "warning");
-  }
-}
-
-function togglePlay() {
-  engineTogglePlay();
-}
-
-function seekTo(seconds) {
-  engineSeek(seconds);
-}
-
-function setVolume(next) {
-  engineSetVolume(next);
-}
-
-function nextTrack() {
-  const list = visibleQueue.value;
-  if (!list.length) return;
-  const nextIndex =
-    currentQueueIndex.value < list.length - 1
-      ? currentQueueIndex.value + 1
-      : repeatMode.value === "all"
-      ? 0
-      : -1;
-  if (nextIndex >= 0) {
-    currentQueueIndex.value = nextIndex;
-    play(list[nextIndex]);
-  } else {
-    showToast(t("endOfQueue"), "info");
-  }
-}
-
-function prevTrack() {
-  if (currentTime.value > 5) {
-    seekTo(0);
-    return;
-  }
-  const list = visibleQueue.value;
-  const prevIndex = currentQueueIndex.value > 0 ? currentQueueIndex.value - 1 : -1;
-  if (prevIndex >= 0) {
-    currentQueueIndex.value = prevIndex;
-    play(list[prevIndex]);
-  } else {
-    seekTo(0);
-  }
-}
-
-function playNext(track) {
-  const normalized = normalizeTrack(track);
-  const next = [...queue.value];
-  const insertAt = Math.max(currentQueueIndex.value + 1, 0);
-  next.splice(insertAt, 0, normalized);
-  queue.value = next;
-  showToast(t("addedAsNext"), "success");
-}
-
-function addToQueue(track) {
-  queue.value = [...queue.value, normalizeTrack(track)];
-  showToast(t("addedToQueue"), "success");
-}
-
-function playQueueIndex(index) {
-  const list = visibleQueue.value;
-  if (index >= 0 && index < list.length) {
-    currentQueueIndex.value = index;
-    play(list[index]);
-  }
-}
-
-function removeFromQueue(index) {
-  const next = [...queue.value];
-  next.splice(index, 1);
-  const newLength = next.length;
-  queue.value = next;
-  if (currentQueueIndex.value > index) {
-    // An element before the current track was removed — shift index down.
-    currentQueueIndex.value -= 1;
-  } else if (currentQueueIndex.value === index) {
-    // The currently playing track itself was removed.
-    if (newLength === 0) {
-      currentQueueIndex.value = -1;
-    } else if (index >= newLength) {
-      // Was the last element — wrap to new last.
-      currentQueueIndex.value = newLength - 1;
-      play(queue.value[currentQueueIndex.value]);
-    } else {
-      // Play the track that now occupies this index (next track stepped up).
-      play(queue.value[currentQueueIndex.value]);
-    }
-  }
-}
-
-function clearQueue() {
-  queue.value = [];
-  shuffledQueue.value = [];
-  currentQueueIndex.value = -1;
-  showToast(t("queueCleared"), "info");
-}
-
-function saveQueue(title) {
-  if (!title?.trim()) return;
-  fetchJson("/api/user/queues", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: title.trim(), tracks: [...queue.value] }),
-    timeout: 4500,
-  })
-    .then(() => {
-      showToast(t("saved"), "success");
-      showQueueModal.value = false;
-    })
-    .catch(() => showToast(t("saveFailed"), "error"));
-}
-
-function getCurrentPlaylistName() {
-  if (!queue.value.length) return "";
-  return t("trackCount", { count: queue.value.length });
-}
-
-function toggleShuffle() {
-  isShuffled.value = !isShuffled.value;
-  if (isShuffled.value) shuffledQueue.value = shuffle(queue.value);
-}
-
-function toggleRepeat() {
-  repeatMode.value =
-    repeatMode.value === "none" ? "all" : repeatMode.value === "all" ? "one" : "none";
-}
-
-function shuffle(items) {
-  const copy = [...items];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const next = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[next]] = [copy[next], copy[index]];
-  }
-  return copy;
-}
-
-function toggleFavoriteTrack(track) {
-  if (!track) return;
-  const normalized = normalizeTrack(track);
-  const key = trackKey(normalized);
-  const nextFavorites = new Set(favorites.value);
-  const nextTracks = { ...favoriteTracks.value };
-  let added = false;
-  if (nextFavorites.has(key)) {
-    nextFavorites.delete(key);
-    delete nextTracks[key];
-    showToast(t("removedFromFavorites"), "info");
-  } else {
-    nextFavorites.add(key);
-    nextTracks[key] = normalized;
-    showToast(t("addedToFavorites"), "success");
-    added = true;
-  }
-  favorites.value = nextFavorites;
-  favoriteTracks.value = nextTracks;
-
-  fetchJson("/api/user/favorites/toggle", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(normalized),
-    timeout: 4500,
-  }).catch(() => {});
-
-  // Auto-download nowo dodanych ulubionych (jeśli włączone i zgoda RODO)
-  if (added && offlineSettings.autoDownloadFavorites && offlineSettings.legalAccepted && normalized.videoId) {
-    if (enqueueDownload(normalized)) showToast(t("downloadStarted"), "info");
-  }
-}
-
-function requestDownloadConsent(track) {
-  pendingDownloadTrack.value = track || null;
-  showLegalModal.value = true;
-}
-
-function handleLegalAccept() {
-  setLegalAccepted(true);
-  showLegalModal.value = false;
-  if (pendingDownloadTrack.value) {
-    if (enqueueDownload(pendingDownloadTrack.value)) {
-      showToast(t("downloadStarted"), "success");
-    }
-    pendingDownloadTrack.value = null;
-  }
-}
-
-function handleLegalDecline() {
-  showLegalModal.value = false;
-  pendingDownloadTrack.value = null;
 }
 
 function handleSearchResultClick(item) {
@@ -1329,7 +748,6 @@ let searchAbortController = null;
 
 watch([query, searchFilter], () => {
   window.clearTimeout(searchTimer);
-  // Anuluj poprzednie zapytanie HTTP (jeśli w toku)
   if (searchAbortController) {
     searchAbortController.abort();
     searchAbortController = null;
@@ -1376,9 +794,6 @@ watch(
   { deep: true },
 );
 
-// Nota: applyTheme() jest wywoływana przez themeStore automatycznie przy zmianie theme/accent.
-// Tutaj synchronizujemy tylko localStorage przez persistUserState.
-
 watch(
   () => route.fullPath,
   () => {
@@ -1391,7 +806,6 @@ watch(lyricsFollowMode, () => {
   localStorage.setItem("ap-lyrics-follow-mode", JSON.stringify(lyricsFollowMode.value));
 });
 
-// Update data-now-playing attribute for CSS animations
 watch([isPlaying, nowPlaying], ([playing, track]) => {
   document.documentElement.dataset.nowPlaying = (playing && track) ? "true" : "false";
 });
@@ -1412,11 +826,11 @@ function handleKeyboard(event) {
   if (isTyping) return;
   if (event.key === " " || event.key.toLowerCase() === "k") {
     event.preventDefault();
-    togglePlay();
+    playback.togglePlay();
   } else if (event.key === "ArrowRight") {
-    event.shiftKey ? nextTrack() : seekTo(currentTime.value + 10);
+    event.shiftKey ? playback.nextTrack() : playback.seekTo(currentTime.value + 10);
   } else if (event.key === "ArrowLeft") {
-    event.shiftKey ? prevTrack() : seekTo(currentTime.value - 10);
+    event.shiftKey ? playback.prevTrack() : playback.seekTo(currentTime.value - 10);
   } else if (event.key.toLowerCase() === "q") {
     showQueueModal.value = true;
   } else if (event.key.toLowerCase() === "l") {
@@ -1429,50 +843,76 @@ function handleKeyboard(event) {
   }
 }
 
+function toggleFavoriteTrack(track) {
+  if (!track) return;
+  const normalized = normalizeTrack(track);
+  const key = trackKey(normalized);
+  const nextFavorites = new Set(favorites.value);
+  const nextTracks = { ...favoriteTracks.value };
+  let added = false;
+  if (nextFavorites.has(key)) {
+    nextFavorites.delete(key);
+    delete nextTracks[key];
+    showToast(t("removedFromFavorites"), "info");
+  } else {
+    nextFavorites.add(key);
+    nextTracks[key] = normalized;
+    showToast(t("addedToFavorites"), "success");
+    added = true;
+  }
+  favorites.value = nextFavorites;
+  favoriteTracks.value = nextTracks;
+
+  fetchJson("/api/user/favorites/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(normalized),
+    timeout: 4500,
+  }).catch(() => {});
+
+  if (added && offlineSettings.autoDownloadFavorites && offlineSettings.legalAccepted && normalized.videoId) {
+    if (enqueueDownload(normalized)) showToast(t("downloadStarted"), "info");
+  }
+}
+
+function requestDownloadConsent(track) {
+  pendingDownloadTrack.value = track || null;
+  showLegalModal.value = true;
+}
+
+function handleLegalAccept() {
+  setLegalAccepted(true);
+  showLegalModal.value = false;
+  if (pendingDownloadTrack.value) {
+    if (enqueueDownload(pendingDownloadTrack.value)) {
+      showToast(t("downloadStarted"), "success");
+    }
+    pendingDownloadTrack.value = null;
+  }
+}
+
+function handleLegalDecline() {
+  showLegalModal.value = false;
+  pendingDownloadTrack.value = null;
+}
+
 provide("appState", {
-  language,
-  t,
-  setLanguage,
-  theme,
-  themeId: themeStore.themeId,
-  setTheme,
-  accent,
-  setAccent,
-  authSession,
-  loginUrl,
-  logout,
-  play,
-  playNext,
-  addToQueue,
-  openMediaItem,
-  nowPlaying,
-  isPlaying,
-  currentTime,
-  audioDuration,
-  volume,
-  queue,
-  favoriteKeys,
-  favoriteItems,
-  recentPlays,
-  toggleFavoriteTrack,
-  showToast,
-  lyricsFollowMode,
-  sleepTimerSeconds,
-  sleepTimerMinutes,
-  setSleepTimer,
-  clearSleepTimer,
+  language, t, setLanguage,
+  theme, themeId: themeStore.themeId, setTheme,
+  accent, setAccent,
+  authSession, loginUrl, logout,
+  play, playNext, addToQueue, openMediaItem,
+  nowPlaying, isPlaying, currentTime, audioDuration, volume, queue,
+  favoriteKeys, favoriteItems, recentPlays, toggleFavoriteTrack,
+  showToast, lyricsFollowMode,
+  sleepTimerSeconds, sleepTimerMinutes, setSleepTimer, clearSleepTimer,
   openEqualizer: () => { showEqualizerModal.value = true; },
   requestDownloadConsent,
-  chartsRegion,
-  setRegion,
-  playerPreference,
-  activeEngine,
-  setPlayerPreference: persistPlayerPreference,
+  chartsRegion, setRegion,
+  playerPreference, activeEngine,
+  setPlayerPreference: (v) => playback.setPlayerPreference(v),
+  openImportModal: () => { showImportModal.value = true; },
 });
-
-function handlePageScroll() {
-  topbarScrolled.value = window.scrollY > 8;
-}
 
 onMounted(() => {
   applyTheme();
@@ -1481,43 +921,19 @@ onMounted(() => {
   loadYouTubeApi();
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleKeyboard);
-  window.addEventListener("scroll", handlePageScroll, { passive: true });
+  window.addEventListener("scroll", () => {
+    topbarScrolled.value = window.scrollY > 8;
+  }, { passive: true });
 });
 
 onBeforeUnmount(() => {
-  // 1) Globalne event listenery
   document.removeEventListener("click", handleDocumentClick);
   document.removeEventListener("keydown", handleKeyboard);
-  window.removeEventListener("scroll", handlePageScroll);
-
-  // 2) Timery
   window.clearTimeout(searchTimer);
   window.clearTimeout(persistTimer);
-  stopProgressTimer();
   clearSleepTimer();
   if (searchAbortController) { searchAbortController.abort(); searchAbortController = null; }
-
-  // 3) Silence detector — disconnect AnalyserNode + cancelAnimationFrame
-  detachSilenceDetector();
-  setSilenceSkipCallback(null);
-
-  // 4) Audio engine — disconnect MediaElementSource + EQ + bass + filtry
-  //    (5 nodes per element). Krytyczne, bo bez tego co reload wycieka chain.
-  if (html5Audio) {
-    try { detachFromAudioEngine(html5Audio); } catch { /* ignore */ }
-    try { html5Audio.pause(); } catch { /* ignore */ }
-    try { html5Audio.removeAttribute("src"); html5Audio.load(); } catch { /* ignore */ }
-    try { html5Audio.remove(); } catch { /* ignore */ }
-    html5Audio = null;
-    html5Attached = false;
-  }
-
-  // 5) YouTube iframe player — pełny cleanup
-  if (ytPlayer) {
-    try { ytPlayer.destroy?.(); } catch { /* ignore */ }
-    ytPlayer = null;
-    ytReady = false;
-  }
+  playback.cleanup();
 });
 </script>
 
@@ -1538,7 +954,6 @@ onBeforeUnmount(() => {
   padding-bottom: 92px;
 }
 
-/* ── Cancel button (mobile only, hidden by default) ── */
 .search-cancel-btn {
   display: none;
 }
@@ -1557,13 +972,11 @@ onBeforeUnmount(() => {
     gap: 8px;
   }
 
-  /* Search input: larger font to stop iOS auto-zoom */
   .search-input {
     font-size: 16px;
     height: 40px;
   }
 
-  /* When search is open on mobile: hide hamburger + header icons, show cancel */
   .topbar-inner.search-active .hamburger-btn {
     display: none;
   }
@@ -1586,7 +999,6 @@ onBeforeUnmount(() => {
     cursor: pointer;
   }
 
-  /* Search page on mobile */
   .search-pop {
     position: relative;
     margin: 0;
@@ -1594,7 +1006,6 @@ onBeforeUnmount(() => {
     border-radius: 0;
   }
 
-  /* Smaller covers on mobile results */
   .result-cover {
     width: 42px;
     height: 42px;
@@ -1637,7 +1048,6 @@ onBeforeUnmount(() => {
   margin: 0 auto;
 }
 
-/* ── Search bar ── */
 .search-wrap {
   position: relative;
   flex: 1;
@@ -1705,13 +1115,11 @@ onBeforeUnmount(() => {
   transform: translateY(-50%) scale(1.1);
 }
 
-/* Clear button transition */
 .fade-clear-enter-active,
 .fade-clear-leave-active { transition: opacity 0.15s, transform 0.15s; }
 .fade-clear-enter-from,
 .fade-clear-leave-to { opacity: 0; transform: translateY(-50%) scale(0.7); }
 
-/* ── Search dropdown ── */
 .search-pop-anim-enter-active {
   transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
@@ -1745,7 +1153,6 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-/* ── Filter pills ── */
 .search-filters {
   display: flex;
   gap: 6px;
@@ -1782,7 +1189,6 @@ onBeforeUnmount(() => {
   border-color: transparent;
 }
 
-/* ── Recent searches ── */
 .search-section {
   padding: 10px 6px 8px;
   overflow-y: auto;
@@ -1856,7 +1262,6 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* ── Loading ── */
 .search-loading {
   display: flex;
   align-items: center;
@@ -1878,7 +1283,6 @@ onBeforeUnmount(() => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Result list ── */
 .result-list {
   display: flex;
   flex-direction: column;
@@ -1982,7 +1386,6 @@ onBeforeUnmount(() => {
   border-radius: 100px;
 }
 
-/* ── Empty / state messages ── */
 .state-msg {
   display: flex;
   flex-direction: column;
@@ -2034,6 +1437,21 @@ onBeforeUnmount(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 .truncate {

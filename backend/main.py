@@ -571,19 +571,72 @@ async def search(
 
 
 # ---------------------------------------------------------------------------
-# Song / Album / Artist / Playlist detail
+# Metadata Enrichment (Last.fm)
 # ---------------------------------------------------------------------------
+LASTFM_API_KEY = os.environ.get("LASTFM_API_KEY", "")
+
+
+async def _fetch_lastfm_track_info(artist: str, title: str) -> Optional[Dict[str, Any]]:
+    """Fetch extra metadata from Last.fm."""
+    if not LASTFM_API_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(
+                "https://ws.audioscrobbler.com/2.0/",
+                params={
+                    "method": "track.getInfo",
+                    "api_key": LASTFM_API_KEY,
+                    "artist": artist,
+                    "track": title,
+                    "format": "json",
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                track = data.get("track", {})
+                album = track.get("album", {})
+                images = album.get("image", [])
+                
+                # Get the largest image
+                best_image = None
+                if images:
+                    for img in reversed(images):
+                        if img.get("#text"):
+                            best_image = img["#text"]
+                            break
+                
+                return {
+                    "lastfm_url": track.get("url"),
+                    "tags": [tag.get("name") for tag in track.get("toptags", {}).get("tag", [])][:5],
+                    "summary": track.get("wiki", {}).get("summary"),
+                    "high_res_cover": best_image,
+                }
+    except Exception as exc:
+        log.warning("[lastfm] failed for %s - %s: %s", artist, title, exc)
+    return None
+
+
 @app.get("/api/ytmusic/song/{video_id}")
 async def get_song(video_id: str):
     if not _valid_video_id(video_id):
         raise HTTPException(status_code=400, detail="Invalid video ID")
-    cache_key = f"song:{video_id}"
+    cache_key = f"song:v2:{video_id}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
     try:
         info = await asyncio.to_thread(ytmusic.get_song, video_id)
         data = normalize_track(info.get("videoDetails", info))
+        
+        # Enrich with Last.fm if possible
+        if data.get("artist") and data.get("title"):
+            lfm_data = await _fetch_lastfm_track_info(data["artist"], data["title"])
+            if lfm_data:
+                data["enrichment"] = lfm_data
+                if lfm_data.get("high_res_cover"):
+                    data["thumbnail"] = lfm_data["high_res_cover"]
+
         _cache_set(cache_key, data, 3600)
         return data
     except Exception as exc:
@@ -663,25 +716,93 @@ async def get_playlist(
 # ---------------------------------------------------------------------------
 # Lyrics
 # ---------------------------------------------------------------------------
+async def _fetch_lrclib_lyrics(artist: str, title: str, album: Optional[str] = None, duration: int = 0) -> Optional[Dict[str, Any]]:
+    """Fetch synced lyrics from LRCLIB.net."""
+    try:
+        params = {
+            "artist_name": artist,
+            "track_name": title,
+        }
+        if album:
+            params["album_name"] = album
+        if duration > 0:
+            params["duration"] = duration
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get("https://lrclib.net/api/get", params=params)
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "lyrics": data.get("syncedLyrics") or data.get("plainLyrics"),
+                    "syncedLyrics": data.get("syncedLyrics"),
+                    "source": "lrclib"
+                }
+    except Exception as exc:
+        log.warning("[lrclib] failed for %s - %s: %s", artist, title, exc)
+    return None
+
+
 @app.get("/api/lyrics")
-async def get_lyrics(videoId: str = Query(...)):
+async def get_lyrics(
+    videoId: str = Query(...),
+    artist: Optional[str] = None,
+    title: Optional[str] = None,
+    album: Optional[str] = None,
+    duration: Optional[int] = None
+):
     if not _valid_video_id(videoId):
         raise HTTPException(status_code=400, detail="Invalid video ID")
-    cache_key = f"lyrics:{videoId}"
+
+    cache_key = f"lyrics:v2:{videoId}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
+
+    # Metadata for LRCLIB lookup
+    meta_artist = artist
+    meta_title = title
+    meta_album = album
+    meta_duration = duration
+
+    # If metadata missing, fetch from YT
+    if not (meta_artist and meta_title):
+        try:
+            song_info = await asyncio.to_thread(ytmusic.get_song, videoId)
+            details = song_info.get("videoDetails", {})
+            meta_artist = details.get("author")
+            meta_title = details.get("title")
+            meta_duration = int(details.get("lengthSeconds", 0))
+        except Exception:
+            pass
+
+    # 1. Try YouTube lyrics first
+    yt_lyrics = {"lyrics": "", "hasLyrics": False}
     try:
         watch = await asyncio.to_thread(ytmusic.get_watch_playlist, videoId)
         browse_id = watch.get("lyrics")
-        if not browse_id:
-            return {"lyrics": "", "hasLyrics": False}
-        data = await asyncio.to_thread(ytmusic.get_lyrics, browse_id)
-        result = {**data, "hasLyrics": bool(data.get("lyrics"))}
-        _cache_set(cache_key, result, 86400)
-        return result
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=_safe_error(exc))
+        if browse_id:
+            data = await asyncio.to_thread(ytmusic.get_lyrics, browse_id)
+            if data.get("lyrics"):
+                yt_lyrics = {**data, "hasLyrics": True, "source": "youtube"}
+    except Exception:
+        pass
+
+    # 2. Try LRCLIB for synced lyrics (or fallback if YT failed)
+    if meta_artist and meta_title:
+        lrc_data = await _fetch_lrclib_lyrics(meta_artist, meta_title, meta_album, meta_duration or 0)
+        if lrc_data and (lrc_data.get("syncedLyrics") or not yt_lyrics["hasLyrics"]):
+            result = {
+                "lyrics": lrc_data["lyrics"],
+                "syncedLyrics": lrc_data.get("syncedLyrics"),
+                "hasLyrics": True,
+                "source": "lrclib"
+            }
+            _cache_set(cache_key, result, 86400)
+            return result
+
+    # 3. Return YouTube lyrics if found, else empty
+    _cache_set(cache_key, yt_lyrics, 86400)
+    return yt_lyrics
 
 
 # ---------------------------------------------------------------------------
@@ -1409,11 +1530,8 @@ async def remove_track_from_playlist(playlist_id: str, video_id: str):
     return {"status": "ok"}
 
 
-@app.post("/api/local/playlists/import-yt/{playlist_id}")
 async def import_yt_playlist(playlist_id: str):
-    """Import a YouTube Music playlist as a local playlist."""
-    if not _valid_browse_id(playlist_id):
-        raise HTTPException(status_code=400, detail="Invalid playlist ID")
+    """Internal helper to import a YouTube Music playlist."""
     try:
         yt_pl = await asyncio.to_thread(ytmusic.get_playlist, playlist_id, 200)
         title = yt_pl.get("title") or "Imported Playlist"
@@ -1426,6 +1544,28 @@ async def import_yt_playlist(playlist_id: str):
         return {"status": "ok", "id": pl_id, "title": title, "imported": len(yt_pl.get("tracks") or [])}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=_safe_error(exc))
+
+
+@app.post("/api/import/playlist")
+async def import_playlist_by_url(data: Dict[str, Any]):
+    url = data.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    # 1. YouTube / YouTube Music
+    yt_match = re.search(r"(?:list=)([A-Za-z0-9_-]+)", url)
+    if yt_match:
+        playlist_id = yt_match.group(1)
+        return await import_yt_playlist(playlist_id)
+
+    # 2. Spotify (Stub for now)
+    if "spotify.com" in url:
+        raise HTTPException(
+            status_code=501,
+            detail="Spotify import requires an API key. YouTube/YT Music links are currently supported."
+        )
+
+    raise HTTPException(status_code=400, detail="Unsupported or invalid URL")
 
 
 # ---------------------------------------------------------------------------

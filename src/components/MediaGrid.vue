@@ -3,8 +3,9 @@
     <button
       v-for="(item, index) in items"
       :key="itemKey(item, index)"
-      class="card"
+      class="card stagger-item"
       :class="{ 'is-current': item.videoId && item.videoId === currentVideoId }"
+      :style="{ '--index': index < 20 ? index : 20 }"
       type="button"
       @click="$emit('open', item)"
     >
@@ -109,6 +110,22 @@ function itemKey(item, index) {
 
 .card:active {
   transform: scale(0.97) translateY(0);
+}
+
+.stagger-item {
+  animation: card-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--index) * 45ms);
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .card-cover {

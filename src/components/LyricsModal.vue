@@ -210,17 +210,27 @@ function scrollToActive(index) {
 
 function parseTimedLyrics(text) {
   if (!text || typeof text !== "string") return [];
-  return text
-    .split(/\r?\n/)
-    .map((line) => {
-      const match = line.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)$/);
-      if (!match) return null;
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  const timeRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+
+  for (const line of lines) {
+    const times = [];
+    let match;
+    while ((match = timeRegex.exec(line)) !== null) {
       const minutes = Number(match[1]);
       const seconds = Number(match[2]);
-      const millis = Number((match[3] || "0").padEnd(3, "0"));
-      return { time: minutes * 60 + seconds + millis / 1000, text: match[4] || "…" };
-    })
-    .filter(Boolean);
+      const ms = Number((match[3] || "0").padEnd(3, "0").slice(0, 3));
+      times.push(minutes * 60 + seconds + ms / 1000);
+    }
+    const lyricText = line.replace(timeRegex, "").trim();
+    if (lyricText || times.length > 0) {
+      for (const time of times) {
+        result.push({ time, text: lyricText || "…" });
+      }
+    }
+  }
+  return result.sort((a, b) => a.time - b.time);
 }
 </script>
 

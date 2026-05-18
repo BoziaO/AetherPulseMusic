@@ -32,7 +32,9 @@
             :class="isActive(item) ? 'is-active' : ''"
             @click="emit('close')"
           >
-            <component :is="iconFor(item.key)" :size="18" />
+            <span class="nav-icon-wrap" :class="isActive(item) ? 'nav-icon-active' : ''">
+              <component :is="iconFor(item.key)" :size="15" />
+            </span>
             <span class="truncate">{{ t(item.labelKey) }}</span>
           </RouterLink>
         </div>
@@ -181,6 +183,30 @@ function isActive(item) {
   background: rgba(var(--primary-rgb), 0.1);
   color: var(--primary);
   font-weight: 600;
+}
+
+.nav-icon-wrap {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.nav-link:hover .nav-icon-wrap {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.nav-icon-active {
+  background: rgba(var(--primary-rgb), 0.18) !important;
+  color: var(--primary) !important;
 }
 
 .nav-link.is-active::before {

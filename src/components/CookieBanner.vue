@@ -1,319 +1,315 @@
 <template>
-  <Transition name="slide-up">
-    <div v-if="showBanner" class="cookie-banner" role="dialog" aria-modal="false" aria-labelledby="cookie-title">
-      <div class="cookie-content">
-        <div class="cookie-text">
-          <h3 id="cookie-title" class="sr-only">{{ t('cookieSettings') }}</h3>
-          <p>{{ t('cookieMessage') }}</p>
+  <Transition name="cookie-rise">
+    <div v-if="showBanner" class="cookie-wrap" role="dialog" aria-modal="false" aria-labelledby="cookie-title">
+      <div class="cookie-card">
+        <div class="cookie-icon">🍪</div>
+        <div class="cookie-body">
+          <h3 id="cookie-title" class="cookie-title">Prywatność</h3>
+          <p class="cookie-text">Używamy plików cookie, aby poprawić Twoje doświadczenie. Możesz wybrać, które dane chcesz udostępnić.</p>
         </div>
-        
-        <!-- Main Action Buttons -->
-        <div class="cookie-buttons">
-          <button 
-            class="btn-accept" 
-            @click="acceptAll" 
-            :aria-label="t('acceptAll')"
-          >
-            {{ t('acceptAll') }}
-          </button>
-          
-          <button 
-            class="btn-custom" 
-            @click="showCustomize = true" 
-            :aria-label="t('customize')"
-          >
-            {{ t('customize') }}
-          </button>
-          
-          <button 
-            class="btn-reject" 
-            @click="reject" 
-            :aria-label="t('reject')"
-          >
-            {{ t('reject') }}
-          </button>
+        <div class="cookie-actions">
+          <button class="cookie-btn cookie-btn-ghost" type="button" @click="reject">Odrzuć</button>
+          <button class="cookie-btn cookie-btn-outline" type="button" @click="showCustomize = true">Dostosuj</button>
+          <button class="cookie-btn cookie-btn-primary" type="button" @click="acceptAll">Akceptuję wszystkie</button>
         </div>
+        <button class="cookie-close" type="button" :title="'Zamknij'" @click="reject">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
 
-      <!-- Customization Panel -->
-      <div v-if="showCustomize" class="cookie-customize" role="region" aria-label="Cookie settings">
-        <h3>{{ t('cookieSettings') }}</h3>
-        <label class="toggle-label">
-          <input 
-            type="checkbox" 
-            v-model="analytics" 
-            aria-describedby="analytics-desc"
-          />
-          <span>{{ t('analyticsCookies') }}</span>
-        </label>
-        <p id="analytics-desc" class="help-text">
-          {{ t('analyticsDescription') || 'We use these to improve your experience.' }}
-        </p>
-
-        <div class="customize-buttons">
-          <button @click="saveCustom" class="btn-save">{{ t('saveSettings') }}</button>
-          <button @click="showCustomize = false" class="btn-cancel">{{ t('cancel') }}</button>
+      <Transition name="fade-up">
+        <div v-if="showCustomize" class="cookie-panel">
+          <h4 class="panel-title">Ustawienia plików cookie</h4>
+          <label class="panel-toggle">
+            <div class="toggle-info">
+              <span class="toggle-name">Analityczne</span>
+              <span class="toggle-desc">Pomagają nam ulepszać aplikację</span>
+            </div>
+            <button
+              class="toggle-switch"
+              :class="analytics ? 'is-on' : ''"
+              type="button"
+              role="switch"
+              :aria-checked="analytics"
+              @click="analytics = !analytics"
+            >
+              <span class="toggle-knob" />
+            </button>
+          </label>
+          <div class="panel-actions">
+            <button class="cookie-btn cookie-btn-ghost" type="button" @click="showCustomize = false">Anuluj</button>
+            <button class="cookie-btn cookie-btn-primary" type="button" @click="saveCustom">Zapisz</button>
+          </div>
         </div>
-      </div>
+      </Transition>
     </div>
   </Transition>
 </template>
 
 <script setup>
-import { ref, onMounted, inject, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 
-// Props & Emits
 const emit = defineEmits(['consent-changed']);
 
-// State
 const showBanner = ref(false);
 const showCustomize = ref(false);
 const analytics = ref(false);
-
-// Dependencies
-const app = inject('appState');
-
-// Helper for translations
-function t(key) {
-  return app?.t?.(key) ?? key;
-}
-
-// --- Actions ---
 
 function acceptAll() {
   localStorage.setItem('cookieConsent', 'all');
   localStorage.setItem('analytics', 'true');
   analytics.value = true;
-  closeBanner();
+  showBanner.value = false;
   emit('consent-changed', { type: 'all', analytics: true });
-  applyAnalytics(true);
 }
 
 function reject() {
   localStorage.setItem('cookieConsent', 'none');
   localStorage.setItem('analytics', 'false');
-  analytics.value = false;
-  closeBanner();
+  showBanner.value = false;
   emit('consent-changed', { type: 'none', analytics: false });
-  applyAnalytics(false);
 }
 
 function saveCustom() {
   localStorage.setItem('cookieConsent', 'custom');
   localStorage.setItem('analytics', analytics.value.toString());
-  closeBanner();
+  showBanner.value = false;
   showCustomize.value = false;
   emit('consent-changed', { type: 'custom', analytics: analytics.value });
-  applyAnalytics(analytics.value);
 }
-
-function closeBanner() {
-  showBanner.value = false;
-}
-
-// --- Lifecycle & Logic ---
 
 onMounted(() => {
   const consent = localStorage.getItem('cookieConsent');
-  
   if (!consent) {
-    showBanner.value = true;
-    analytics.value = false; // Default to off
+    setTimeout(() => { showBanner.value = true; }, 1200);
   } else {
-    // Restore state
     analytics.value = localStorage.getItem('analytics') === 'true';
-    
-    // Re-apply analytics if they were previously accepted
-    if (consent === 'all' || (consent === 'custom' && analytics.value)) {
-      applyAnalytics(true);
-    }
   }
 });
 
-// Watch for Escape key to close customize panel
 watch(showCustomize, (val) => {
   if (val) {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') showCustomize.value = false;
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+    const close = (e) => { if (e.key === 'Escape') showCustomize.value = false; };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
   }
 });
-
-// --- Analytics Logic ---
-
-/**
- * Placeholder for your actual analytics initialization.
- * Replace this with your specific library (GA4, Plausible, etc.)
- */
-function applyAnalytics(enabled) {
-  if (enabled) {
-    if (!window.analyticsInitialized) {
-      console.log('🍪 Analytics enabled');
-      // TODO: Initialize your analytics script here
-      // Example: initGoogleAnalytics();
-      window.analyticsInitialized = true;
-    }
-  } else {
-    console.log('🚫 Analytics disabled');
-    // Optional: Clean up listeners if your library supports it
-  }
-}
 </script>
 
 <style scoped>
-/* Animation */
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+.cookie-rise-enter-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translateY(100%);
+.cookie-rise-leave-active {
+  transition: all 0.25s ease-in;
+}
+.cookie-rise-enter-from {
   opacity: 0;
+  transform: translateY(24px) scale(0.96);
+}
+.cookie-rise-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.97);
 }
 
-/* Layout */
-.cookie-banner {
+.fade-up-enter-active { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.fade-up-leave-active { transition: all 0.2s ease; }
+.fade-up-enter-from { opacity: 0; transform: translateY(8px); }
+.fade-up-leave-to { opacity: 0; transform: translateY(4px); }
+
+.cookie-wrap {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border);
-  padding: 16px 24px;
-  z-index: 1000;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.cookie-content {
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  z-index: 9000;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 1200px;
-  margin: 0 auto;
+  gap: 10px;
 }
 
-@media (min-width: 768px) {
-  .cookie-content {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.cookie-text p {
-  margin: 0;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.cookie-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-/* Buttons */
-button {
-  font-family: inherit;
-  font-size: 0.9rem;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.btn-accept {
-  background: var(--primary);
-  color: white;
-  border: 1px solid var(--primary);
-}
-
-.btn-accept:hover {
-  background: var(--primary-dark, #0056b3); /* Fallback */
-  transform: translateY(-1px);
-}
-
-.btn-custom {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-}
-
-.btn-custom:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--text-secondary);
-}
-
-.btn-reject {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-}
-
-.btn-reject:hover {
-  background: rgba(0,0,0,0.05);
-  color: var(--text-primary);
-}
-
-/* Customize Panel */
-.cookie-customize {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.toggle-label {
+.cookie-card {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  cursor: pointer;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(18, 18, 24, 0.92);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
 }
 
-.help-text {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin: 0 0 16px 0;
+.cookie-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
-.customize-buttons {
+.cookie-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cookie-title {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cookie-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cookie-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.btn-save {
-  background: var(--primary);
-  color: white;
+.cookie-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
   border: none;
 }
 
-.btn-cancel {
+.cookie-btn-ghost {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.45);
+}
+.cookie-btn-ghost:hover { color: rgba(255, 255, 255, 0.8); }
+
+.cookie-btn-outline {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.cookie-btn-outline:hover { background: rgba(255, 255, 255, 0.14); }
+
+.cookie-btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.cookie-btn-primary:hover { filter: brightness(1.1); }
+
+.cookie-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+.cookie-close:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.08); }
+
+.cookie-panel {
+  background: rgba(18, 18, 24, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* Accessibility Utilities */
-.sr-only {
+.panel-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.toggle-info { flex: 1; min-width: 0; }
+
+.toggle-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+
+.toggle-desc {
+  display: block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 2px;
+}
+
+.toggle-switch {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.15);
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+.toggle-switch.is-on { background: var(--primary); }
+
+.toggle-knob {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.toggle-switch.is-on .toggle-knob { transform: translateX(18px); }
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .cookie-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-right: 36px;
+  }
+  .cookie-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
 }
 </style>

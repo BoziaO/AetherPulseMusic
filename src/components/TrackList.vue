@@ -85,15 +85,6 @@
           <BadgeCheck v-if="hasOffline(track)" :size="15" :style="{ color: 'var(--success)' }" />
           <DownloadIcon v-else :size="15" />
         </button>
-        <button
-          v-if="track.videoId"
-          class="icon-btn"
-          type="button"
-          :title="t('saveToDevice')"
-          @click.stop="onSaveToDevice(track)"
-        >
-          <HardDriveDownload :size="15" />
-        </button>
       </span>
     </div>
   </div>
@@ -109,7 +100,6 @@ import { computed, inject } from "vue";
 import {
   BadgeCheck,
   Download as DownloadIcon,
-  HardDriveDownload,
   Heart,
   ListPlus,
   Music2,
@@ -119,72 +109,53 @@ import {
 import { trackKey } from "../lib/format";
 import {
   enqueueDownload,
-  isDownloaded,
   offlineIndex,
-  removeDownload,
-  saveToDevice,
-  settings as offlineSettings,
 } from "../lib/offlineStore";
 
 const props = defineProps({
   tracks: { type: Array, default: () => [] },
   nowPlaying: { type: Object, default: null },
-  favoriteKeys: { type: Object, default: () => new Set() },
+  favoriteKeys: { type: Set, default: () => new Set() },
   emptyLabel: { type: String, default: "" },
 });
 
-defineEmits(["play", "play-next", "add-queue", "toggle-favorite"]);
+defineEmits(["play", "add-queue", "play-next", "toggle-favorite"]);
 
-const app = inject("appState");
+const appState = inject("appState");
 function t(key) {
-  return app?.t?.(key) ?? key;
+  return appState?.t?.(key) ?? key;
 }
 
-const filteredTracks = computed(() => {
-  if (!offlineSettings.offlineMode) return props.tracks;
-  return props.tracks.filter((track) => track?.videoId && offlineIndex.has(track.videoId));
-});
+const filteredTracks = computed(() =>
+  (props.tracks || []).filter((t) => t && (t.title || t.name)),
+);
 
 function itemKey(track, index) {
-  return trackKey(track) || index;
+  return track.videoId ? `${track.videoId}-${index}` : `idx-${index}`;
 }
 
 function isCurrent(track) {
-  return props.nowPlaying?.videoId && track?.videoId === props.nowPlaying.videoId;
+  return !!(track.videoId && props.nowPlaying?.videoId === track.videoId);
 }
 
 function isFavorite(track) {
-  return props.favoriteKeys?.has?.(trackKey(track));
+  return props.favoriteKeys.has(trackKey(track));
 }
 
 function hasOffline(track) {
-  // dependency on offlineIndex.size triggers reactivity
   void offlineIndex.size;
-  return Boolean(track?.videoId && isDownloaded(track.videoId));
+  return track.videoId ? offlineIndex.has(track.videoId) : false;
 }
 
-function onDownloadClick(track) {
-  if (!track?.videoId) return;
+async function onDownloadClick(track) {
   if (hasOffline(track)) {
-    if (window.confirm(t("confirmClear"))) {
-      removeDownload(track.videoId);
-      app?.showToast?.(t("downloadRemoved"), "info");
-    }
-    return;
+    const { removeDownload } = await import("../lib/offlineStore");
+    await removeDownload(track.videoId);
+    appState?.showToast?.(t("downloadRemoved"), "info");
+  } else {
+    enqueueDownload(track);
+    appState?.showToast?.(t("downloadStarted"), "info");
   }
-  if (!offlineSettings.legalAccepted) {
-    app?.requestDownloadConsent?.(track);
-    return;
-  }
-  if (enqueueDownload(track)) {
-    app?.showToast?.(t("downloadStarted"), "success");
-  }
-}
-
-async function onSaveToDevice(track) {
-  if (!track?.videoId) return;
-  await saveToDevice(track.videoId, track.title || track.name, track.artist || track.author || '');
-  app?.showToast?.(t("saveToDevice"), "success");
 }
 </script>
 
@@ -192,127 +163,94 @@ async function onSaveToDevice(track) {
 .track-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .track-row {
   display: grid;
-  grid-template-columns: 32px 44px minmax(0, 1fr) 60px auto;
+  grid-template-columns: 36px 44px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
-  padding: 7px 10px;
-  border-radius: var(--radius-md);
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md, 10px);
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-  border: 1px solid transparent;
+  transition: background 0.15s ease;
+  outline: none;
 }
 
-.track-row:hover {
+.track-row:hover,
+.track-row:focus-visible {
   background: var(--bg-hover);
-  border-color: var(--line);
-}
-
-.track-row:active {
-  transform: scale(0.995);
 }
 
 .track-row.is-current {
-  background: rgba(var(--primary-rgb), 0.07);
-  border-color: rgba(var(--primary-rgb), 0.15);
-}
-
-.track-row.is-current .title {
-  color: var(--primary);
-}
-
-.track-row:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
   background: rgba(var(--primary-rgb), 0.06);
 }
 
 .num {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
+  width: 36px;
+  height: 36px;
+  position: relative;
 }
 
 .num-text {
-  transition: opacity var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  transition: opacity 0.15s;
 }
+
+.is-playing-num {
+  color: var(--primary);
+}
+
+.num-play {
+  position: absolute;
+  opacity: 0;
+  color: var(--text-primary);
+  transition: opacity 0.15s;
+}
+
+.track-row:hover .num-text { opacity: 0; }
+.track-row:hover .num-play { opacity: 1; }
 
 .eq-bars {
   display: inline-flex;
   align-items: flex-end;
   gap: 2px;
   height: 14px;
+  width: 14px;
 }
 
 .eq-bar {
-  display: block;
-  width: 3px;
-  border-radius: 2px;
+  flex: 1;
   background: var(--primary);
-  animation: eq-bounce 0.9s ease-in-out infinite alternate;
+  border-radius: 1px;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+  transform-origin: bottom;
 }
-
-.eq-bar:nth-child(1) {
-  height: 6px;
-  animation-delay: 0s;
-}
-.eq-bar:nth-child(2) {
-  height: 12px;
-  animation-delay: 0.2s;
-}
-.eq-bar:nth-child(3) {
-  height: 8px;
-  animation-delay: 0.1s;
-}
+.eq-bar:nth-child(1) { animation-delay: -0.9s; }
+.eq-bar:nth-child(2) { animation-delay: -0.6s; }
+.eq-bar:nth-child(3) { animation-delay: -0.3s; }
 
 @keyframes eq-bounce {
-  from { transform: scaleY(0.35); }
-  to   { transform: scaleY(1); }
-}
-
-.num-play {
-  position: absolute;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-}
-
-.track-row:hover .num-text {
-  opacity: 0;
-}
-
-.track-row:hover .num-play {
-  display: flex;
-}
-
-.track-row.is-current .num-text {
-  color: var(--primary);
+  0%, 100% { height: 18%; }
+  50% { height: 100%; }
 }
 
 .cover {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  background: var(--bg-elevated);
   overflow: hidden;
+  background: var(--bg-elevated);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
 }
 
@@ -320,49 +258,39 @@ async function onSaveToDevice(track) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--transition-base);
-}
-
-.track-row:hover .cover img {
-  transform: scale(1.04);
-}
-
-.cover {
-  position: relative;
 }
 
 .offline-badge {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--bg-base);
+  bottom: 2px;
+  right: 2px;
   color: var(--success);
-  padding: 2px;
-  box-shadow: 0 0 0 2px var(--bg-base);
+  background: var(--bg-base);
+  border-radius: 50%;
 }
 
 .text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
 .title {
-  display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+.track-row.is-current .title {
+  color: var(--primary);
 }
 
 .artist {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -373,7 +301,7 @@ async function onSaveToDevice(track) {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
-  text-align: right;
+  white-space: nowrap;
 }
 
 .actions {
@@ -381,55 +309,47 @@ async function onSaveToDevice(track) {
   align-items: center;
   gap: 0;
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity 0.15s;
 }
 
 .track-row:hover .actions,
-.track-row:focus-within .actions {
+.track-row:focus-within .actions,
+.track-row.is-current .actions {
   opacity: 1;
 }
 
-.actions .icon-btn {
+.icon-btn {
   width: 30px;
   height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .empty {
-  padding: 48px 32px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-tertiary);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .empty-icon {
-  opacity: 0.3;
   color: var(--text-tertiary);
-}
-
-@media (max-width: 720px) {
-  .track-row {
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 7px 8px;
-  }
-  .num,
-  .duration {
-    display: none;
-  }
-  .actions {
-    opacity: 1;
-  }
-  .actions .icon-btn {
-    width: 34px;
-    height: 34px;
-  }
-  .actions .icon-btn:nth-child(n+3):not(:last-child):not(:nth-last-child(-n+2)) {
-    display: none;
-  }
+  opacity: 0.4;
 }
 </style>

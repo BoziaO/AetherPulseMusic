@@ -489,12 +489,161 @@ async def get_page(page_key: str):
                 if "contents" in section:
                     section["contents"] = [normalize_track(c) for c in section["contents"]]
             result = {"sections": data}
+            _cache_set(cache_key, result, 300)
+            return result
+
         elif page_key == "explore":
             result = await asyncio.to_thread(ytmusic.get_explore)
+            _cache_set(cache_key, result, 300)
+            return result
+
+        elif page_key == "chill":
+            async def _search_safe(q, filter_type):
+                try:
+                    return await asyncio.to_thread(ytmusic.search, q, filter=filter_type)
+                except Exception:
+                    return []
+
+            results = await asyncio.gather(
+                _search_safe("chill lofi beats", "songs"),
+                _search_safe("ambient relax music", "songs"),
+                _search_safe("acoustic chill indie", "songs"),
+                _search_safe("chill acoustic artist", "artists"),
+            )
+            all_tracks = []
+            for r in results[:3]:
+                all_tracks.extend([normalize_track(t) for t in r[:8]])
+            artists = [normalize_track(a) for a in results[3][:6]]
+            result = {
+                "eyebrow": "Tryb relaksu",
+                "title": "Chillout",
+                "description": "Spokojne dźwięki na każdą chwilę",
+                "stats": [{"label": "Nastrój", "value": "🌊 Chill"}],
+                "primarySection": {"title": "Polecane utwory", "items": all_tracks[:16]},
+                "secondarySection": {"title": "Artyści", "items": artists},
+                "tertiarySection": {"title": "", "items": []},
+                "queue": all_tracks[:20],
+            }
+            _cache_set(cache_key, result, 600)
+            return result
+
+        elif page_key == "energy":
+            async def _search_safe_e(q, filter_type):
+                try:
+                    return await asyncio.to_thread(ytmusic.search, q, filter=filter_type)
+                except Exception:
+                    return []
+
+            results = await asyncio.gather(
+                _search_safe_e("workout pump up energy", "songs"),
+                _search_safe_e("edm dance hits", "songs"),
+                _search_safe_e("phonk gym motivation", "songs"),
+                _search_safe_e("edm electronic artist", "artists"),
+            )
+            all_tracks = []
+            for r in results[:3]:
+                all_tracks.extend([normalize_track(t) for t in r[:8]])
+            artists = [normalize_track(a) for a in results[3][:6]]
+            result = {
+                "eyebrow": "Tryb energii",
+                "title": "Energia",
+                "description": "Muzyka, która pobudza i napędza",
+                "stats": [{"label": "Nastrój", "value": "⚡ Energy"}],
+                "primarySection": {"title": "Top energetyczne", "items": all_tracks[:16]},
+                "secondarySection": {"title": "Artyści", "items": artists},
+                "tertiarySection": {"title": "", "items": []},
+                "queue": all_tracks[:20],
+            }
+            _cache_set(cache_key, result, 600)
+            return result
+
+        elif page_key == "playlists":
+            async def _search_pl(q):
+                try:
+                    return await asyncio.to_thread(ytmusic.search, q, filter="playlists")
+                except Exception:
+                    return []
+
+            results = await asyncio.gather(
+                _search_pl("top hits playlist"),
+                _search_pl("workout playlist"),
+                _search_pl("chill vibes playlist"),
+            )
+            all_playlists = []
+            for r in results:
+                all_playlists.extend([normalize_track(p) for p in r[:6]])
+            result = {
+                "eyebrow": "Twoja biblioteka",
+                "title": "Playlisty",
+                "description": "Kolekcje muzyczne dla każdego nastroju",
+                "stats": [{"label": "Dostępne", "value": str(len(all_playlists))}],
+                "primarySection": {"title": "Polecane playlisty", "items": all_playlists[:20]},
+                "secondarySection": {"title": "", "items": []},
+                "tertiarySection": {"title": "", "items": []},
+                "queue": [],
+            }
+            _cache_set(cache_key, result, 600)
+            return result
+
+        elif page_key == "albums":
+            async def _search_al(q):
+                try:
+                    return await asyncio.to_thread(ytmusic.search, q, filter="albums")
+                except Exception:
+                    return []
+
+            results = await asyncio.gather(
+                _search_al("new album 2024"),
+                _search_al("best pop album"),
+                _search_al("popular album music"),
+            )
+            all_albums = []
+            for r in results:
+                all_albums.extend([normalize_track(a) for a in r[:6]])
+            result = {
+                "eyebrow": "Muzyka",
+                "title": "Albumy",
+                "description": "Najnowsze i najpopularniejsze albumy",
+                "stats": [{"label": "Albumy", "value": str(len(all_albums))}],
+                "primarySection": {"title": "Polecane albumy", "items": all_albums[:18]},
+                "secondarySection": {"title": "", "items": []},
+                "tertiarySection": {"title": "", "items": []},
+                "queue": [],
+            }
+            _cache_set(cache_key, result, 600)
+            return result
+
+        elif page_key == "artists":
+            async def _search_ar(q):
+                try:
+                    return await asyncio.to_thread(ytmusic.search, q, filter="artists")
+                except Exception:
+                    return []
+
+            results = await asyncio.gather(
+                _search_ar("top pop artist"),
+                _search_ar("trending music artist"),
+                _search_ar("popular singer"),
+            )
+            all_artists = []
+            for r in results:
+                all_artists.extend([normalize_track(a) for a in r[:6]])
+            result = {
+                "eyebrow": "Muzyka",
+                "title": "Wykonawcy",
+                "description": "Odkrywaj artystów i ich twórczość",
+                "stats": [{"label": "Artyści", "value": str(len(all_artists))}],
+                "primarySection": {"title": "Popularni wykonawcy", "items": all_artists[:18]},
+                "secondarySection": {"title": "", "items": []},
+                "tertiarySection": {"title": "", "items": []},
+                "queue": [],
+            }
+            _cache_set(cache_key, result, 600)
+            return result
+
         else:
             return {"sections": [], "message": f"Page '{page_key}' not yet implemented"}
-        _cache_set(cache_key, result, 300)
-        return result
+
     except HTTPException:
         raise
     except Exception as exc:
@@ -768,7 +917,95 @@ async def get_smart_radio(video_id: str):
 
 @app.post("/api/flows/revolution")
 async def get_flows_revolution(data: Optional[Dict[str, Any]] = None):
-    return {"sections": [], "tracks": []}
+    import random
+
+    preset = (data or {}).get("preset", "focus")
+    session_minutes = int((data or {}).get("sessionMinutes", 35))
+    novelty = int((data or {}).get("novelty", 55))
+    pool = (data or {}).get("pool", [])
+
+    # Estimate how many tracks we need (avg ~3.5 min each)
+    target_count = max(5, min(30, session_minutes // 3))
+
+    # Preset-based search queries
+    preset_queries = {
+        "focus": ["focus instrumental", "study music lo-fi", "concentration ambient", "deep work music"],
+        "energy": ["workout pump up", "gym energy edm", "high energy dance", "phonk workout"],
+        "chill": ["chill lofi beats", "relax ambient music", "peaceful acoustic", "calm indie"],
+        "discover": ["indie new music", "underground hits", "viral songs 2024", "trending music"],
+    }
+
+    queries = preset_queries.get(preset, preset_queries["focus"])
+
+    # Collect tracks from search
+    search_tracks = []
+    for q in queries[:3]:
+        try:
+            results = await asyncio.to_thread(ytmusic.search, q, filter="songs")
+            search_tracks.extend([normalize_track(t) for t in results[:8]])
+        except Exception:
+            pass
+
+    # Filter valid tracks (must have videoId and title)
+    search_tracks = [t for t in search_tracks if t.get("videoId") and t.get("title")]
+
+    # Also try watch playlist from pool if we have recent tracks
+    pool_tracks = []
+    if pool and len(pool) > 0:
+        seed_id = pool[0].get("videoId") if isinstance(pool[0], dict) else None
+        if seed_id and is_valid_video_id(seed_id):
+            try:
+                watch = await asyncio.to_thread(ytmusic.get_watch_playlist, seed_id)
+                pool_tracks = [normalize_track(t) for t in watch.get("tracks", [])[:10]]
+                pool_tracks = [t for t in pool_tracks if t.get("videoId") and t.get("title")]
+            except Exception:
+                pass
+
+    # Blend pool (familiar) vs search (new) based on novelty
+    # novelty=0 → all pool, novelty=100 → all search
+    familiar_ratio = max(0.0, min(1.0, (100 - novelty) / 100))
+    familiar_count = int(target_count * familiar_ratio)
+    new_count = target_count - familiar_count
+
+    familiar_pool = []
+    if pool:
+        familiar_pool = [normalize_track(t) if isinstance(t, dict) else t for t in pool[:20]]
+        familiar_pool = [t for t in familiar_pool if t.get("videoId") and t.get("title")]
+
+    # Combine
+    selected_familiar = random.sample(familiar_pool, min(familiar_count, len(familiar_pool))) if familiar_pool else []
+    selected_new = random.sample(search_tracks + pool_tracks, min(new_count, len(search_tracks + pool_tracks))) if (search_tracks + pool_tracks) else []
+
+    # Interleave familiar and new tracks for natural flow
+    combined = []
+    fi, ni = 0, 0
+    while fi < len(selected_familiar) or ni < len(selected_new):
+        if fi < len(selected_familiar):
+            combined.append(selected_familiar[fi]); fi += 1
+        if ni < len(selected_new):
+            combined.append(selected_new[ni]); ni += 1
+
+    # Deduplicate by videoId
+    seen = set()
+    final_tracks = []
+    for t in combined:
+        vid = t.get("videoId")
+        if vid and vid not in seen:
+            seen.add(vid)
+            final_tracks.append(t)
+
+    # Fallback: if we have nothing, return pool tracks
+    if not final_tracks and pool:
+        final_tracks = [normalize_track(t) if isinstance(t, dict) else t for t in pool[:target_count]]
+        final_tracks = [t for t in final_tracks if t.get("videoId")]
+
+    return {
+        "tracks": final_tracks[:target_count],
+        "preset": preset,
+        "sessionMinutes": session_minutes,
+        "novelty": novelty,
+        "totalTracks": len(final_tracks[:target_count]),
+    }
 
 
 @app.get("/api/local/playlists")

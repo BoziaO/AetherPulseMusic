@@ -43,6 +43,13 @@ function createThemeStore() {
       root.style.setProperty(key, value);
     }
 
+    // Auto-derive --bg-base-rgb from --bg-base so glassmorphism works in all themes
+    const bgBase = t.vars["--bg-base"];
+    if (bgBase) {
+      const bgRgb = hexToRgb(bgBase);
+      if (bgRgb) root.style.setProperty("--bg-base-rgb", bgRgb.join(", "));
+    }
+
     root.style.setProperty("--accent-color", t.vars["--primary"]);
 
     if (accent.value) {

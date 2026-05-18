@@ -5,26 +5,44 @@
       <p class="page-sub">{{ t('settingsSubtitle') }}</p>
     </header>
 
+    <!-- ── Appearance ─────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Palette :size="18" />
+        <span class="card-icon" style="--icon-bg: var(--primary)"><Palette :size="16" /></span>
         <h2 class="card-title">{{ t('appearance') }}</h2>
       </header>
 
+      <!-- Theme picker -->
       <div class="row row-column">
         <div>
           <p class="row-title">{{ t('theme') }}</p>
           <p class="row-sub">{{ t('themeDesc') }}</p>
         </div>
+
+        <!-- Filter tabs: dark / light / all -->
+        <div class="theme-filter">
+          <button
+            v-for="tab in ['all', 'dark', 'light']"
+            :key="tab"
+            class="theme-filter-btn"
+            :class="themeFilter === tab ? 'theme-filter-active' : ''"
+            type="button"
+            @click="themeFilter = tab"
+          >
+            {{ tab === 'all' ? 'All' : tab === 'dark' ? '🌙 Dark' : '☀️ Light' }}
+          </button>
+        </div>
+
         <div class="theme-grid">
           <button
-            v-for="theme in THEMES"
+            v-for="theme in filteredThemes"
             :key="theme.id"
             class="theme-card"
             :class="appState.themeId.value === theme.id ? 'theme-card-active' : ''"
             type="button"
             @click="appState.setTheme(theme.id)"
           >
+            <!-- Swatch banner -->
             <div class="theme-swatch">
               <span
                 v-for="(color, idx) in theme.swatch"
@@ -33,17 +51,62 @@
                 :style="{ background: color }"
               />
             </div>
+
+            <!-- Info -->
             <div class="theme-info">
+              <span class="theme-mode-badge" :class="`theme-mode-${theme.mode}`">
+                {{ theme.mode === 'dark' ? '🌙' : '☀️' }}
+              </span>
               <p class="theme-name">{{ t(theme.name) }}</p>
               <p class="theme-vibe">{{ theme.vibe }}</p>
             </div>
+
+            <!-- Active check -->
             <div v-if="appState.themeId.value === theme.id" class="theme-check">
-              <Check :size="16" />
+              <Check :size="14" />
             </div>
           </button>
         </div>
       </div>
 
+      <!-- Accent colour -->
+      <div class="row row-column">
+        <div>
+          <p class="row-title">{{ t('accentColor') }}</p>
+          <p class="row-sub">{{ t('accentColorDesc') }}</p>
+        </div>
+        <div class="accent-row">
+          <button
+            v-for="color in accentColors"
+            :key="color"
+            class="accent-dot"
+            :class="appState.accent?.value === color ? 'accent-active' : ''"
+            :style="{ background: color }"
+            type="button"
+            :title="color"
+            @click="appState.setAccent?.(appState.accent?.value === color ? '' : color)"
+          />
+          <label class="accent-custom" title="Custom colour">
+            <input
+              type="color"
+              :value="appState.accent?.value || '#fa243c'"
+              @input="(e) => appState.setAccent?.(e.target.value)"
+            />
+            <Pipette :size="14" />
+          </label>
+          <button
+            v-if="appState.accent?.value"
+            class="accent-reset"
+            type="button"
+            title="Reset accent"
+            @click="appState.setAccent?.('')"
+          >
+            <X :size="14" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Language -->
       <div class="row">
         <div>
           <p class="row-title">{{ t('language') }}</p>
@@ -55,7 +118,7 @@
             type="button"
             @click="appState.setLanguage('pl')"
           >
-            Polski
+            🇵🇱 Polski
           </button>
           <button
             class="seg"
@@ -63,15 +126,16 @@
             type="button"
             @click="appState.setLanguage('en')"
           >
-            English
+            🇬🇧 English
           </button>
         </div>
       </div>
     </section>
 
+    <!-- ── Playback ─────────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Sliders :size="18" />
+        <span class="card-icon" style="--icon-bg: #30d158"><Sliders :size="16" /></span>
         <h2 class="card-title">{{ t('playback') }}</h2>
       </header>
 
@@ -108,9 +172,10 @@
       </div>
     </section>
 
+    <!-- ── Display ─────────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Monitor :size="18" />
+        <span class="card-icon" style="--icon-bg: #0a84ff"><Monitor :size="16" /></span>
         <h2 class="card-title">{{ t('display') }}</h2>
       </header>
 
@@ -119,12 +184,7 @@
           <p class="row-title">{{ t('showAnimations') }}</p>
           <p class="row-sub">{{ t('showAnimationsDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="showAnimations ? 'toggle-on' : ''"
-          type="button"
-          @click="showAnimations = !showAnimations"
-        >
+        <button class="toggle" :class="showAnimations ? 'toggle-on' : ''" type="button" @click="showAnimations = !showAnimations">
           <span class="toggle-thumb" />
         </button>
       </div>
@@ -134,12 +194,7 @@
           <p class="row-title">{{ t('themeEffects') }}</p>
           <p class="row-sub">{{ t('themeEffectsDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="themeEffects ? 'toggle-on' : ''"
-          type="button"
-          @click="themeEffects = !themeEffects"
-        >
+        <button class="toggle" :class="themeEffects ? 'toggle-on' : ''" type="button" @click="themeEffects = !themeEffects">
           <span class="toggle-thumb" />
         </button>
       </div>
@@ -149,20 +204,16 @@
           <p class="row-title">{{ t('reduceMotion') }}</p>
           <p class="row-sub">{{ t('reduceMotionDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="reduceMotion ? 'toggle-on' : ''"
-          type="button"
-          @click="reduceMotion = !reduceMotion"
-        >
+        <button class="toggle" :class="reduceMotion ? 'toggle-on' : ''" type="button" @click="reduceMotion = !reduceMotion">
           <span class="toggle-thumb" />
         </button>
       </div>
     </section>
 
+    <!-- ── Advanced Playback ──────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Speaker :size="18" />
+        <span class="card-icon" style="--icon-bg: #ff9f0a"><Speaker :size="16" /></span>
         <h2 class="card-title">{{ t('playback') }} — {{ t('advanced') }}</h2>
       </header>
 
@@ -171,12 +222,7 @@
           <p class="row-title">{{ t('crossfade') }}</p>
           <p class="row-sub">{{ t('crossfadeDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="crossfade ? 'toggle-on' : ''"
-          type="button"
-          @click="crossfade = !crossfade"
-        >
+        <button class="toggle" :class="crossfade ? 'toggle-on' : ''" type="button" @click="crossfade = !crossfade">
           <span class="toggle-thumb" />
         </button>
       </div>
@@ -187,10 +233,7 @@
           <p class="row-sub">{{ crossfadeDuration }}ms</p>
         </div>
         <input
-          type="range"
-          min="1000"
-          max="8000"
-          step="500"
+          type="range" min="1000" max="8000" step="500"
           :value="crossfadeDuration"
           class="am-slider am-slider-pink volume-slider"
           :style="{ '--progress': `${((crossfadeDuration - 1000) / 7000) * 100}%` }"
@@ -203,12 +246,7 @@
           <p class="row-title">{{ t('normalizer') }}</p>
           <p class="row-sub">{{ t('normalizerDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="normalizer ? 'toggle-on' : ''"
-          type="button"
-          @click="normalizer = !normalizer"
-        >
+        <button class="toggle" :class="normalizer ? 'toggle-on' : ''" type="button" @click="normalizer = !normalizer">
           <span class="toggle-thumb" />
         </button>
       </div>
@@ -218,20 +256,16 @@
           <p class="row-title">{{ t('highQuality') }}</p>
           <p class="row-sub">{{ t('highQualityDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="highQuality ? 'toggle-on' : ''"
-          type="button"
-          @click="highQuality = !highQuality"
-        >
+        <button class="toggle" :class="highQuality ? 'toggle-on' : ''" type="button" @click="highQuality = !highQuality">
           <span class="toggle-thumb" />
         </button>
       </div>
     </section>
 
+    <!-- ── Player Engine ──────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Speaker :size="18" />
+        <span class="card-icon" style="--icon-bg: #bf5af2"><Cpu :size="16" /></span>
         <h2 class="card-title">{{ t('playerMode') }}</h2>
       </header>
 
@@ -261,10 +295,10 @@
       </div>
     </section>
 
-    <!-- SponsorBlock -->
+    <!-- ── SponsorBlock ──────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Shield :size="18" />
+        <span class="card-icon" style="--icon-bg: #ff6b35"><Shield :size="16" /></span>
         <h2 class="card-title">{{ t('sponsorBlock') }}</h2>
       </header>
       <div class="row">
@@ -272,21 +306,12 @@
           <p class="row-title">{{ t('sponsorEnable') }}</p>
           <p class="row-sub">{{ t('sponsorBlockDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="sponsorBlockSettings.enabled ? 'toggle-on' : ''"
-          type="button"
-          @click="toggleSponsorBlock"
-        >
+        <button class="toggle" :class="sponsorBlockSettings.enabled ? 'toggle-on' : ''" type="button" @click="toggleSponsorBlock">
           <span class="toggle-thumb" />
         </button>
       </div>
       <div v-if="sponsorBlockSettings.enabled" class="sponsor-grid">
-        <div
-          v-for="cat in sponsorCategoryList"
-          :key="cat.id"
-          class="sponsor-row"
-        >
+        <div v-for="cat in sponsorCategoryList" :key="cat.id" class="sponsor-row">
           <span class="sponsor-cat">
             <span class="sponsor-dot" :style="{ background: cat.color }" />
             {{ t(cat.labelKey) }}
@@ -307,10 +332,10 @@
       </div>
     </section>
 
-    <!-- Silence Skipper -->
+    <!-- ── Silence Skipper ──────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Music2 :size="18" />
+        <span class="card-icon" style="--icon-bg: #5e5ce6"><Music2 :size="16" /></span>
         <h2 class="card-title">{{ t('silenceSkipper') }}</h2>
       </header>
       <div class="row">
@@ -318,12 +343,7 @@
           <p class="row-title">{{ t('silenceEnable') }}</p>
           <p class="row-sub">{{ t('silenceSkipperDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="silenceSkipperSettings.enabled ? 'toggle-on' : ''"
-          type="button"
-          @click="toggleSilenceSkipper"
-        >
+        <button class="toggle" :class="silenceSkipperSettings.enabled ? 'toggle-on' : ''" type="button" @click="toggleSilenceSkipper">
           <span class="toggle-thumb" />
         </button>
       </div>
@@ -332,36 +352,21 @@
           <p class="row-title">{{ t('silenceThreshold') }}: {{ silenceSkipperSettings.thresholdDb }} dB</p>
           <p class="row-sub">{{ t('silenceThresholdDesc') }}</p>
         </div>
-        <input
-          type="range"
-          min="-60"
-          max="-30"
-          step="1"
-          :value="silenceSkipperSettings.thresholdDb"
-          class="am-slider"
-          @input="setSilenceThreshold(Number($event.target.value))"
-        />
+        <input type="range" min="-60" max="-30" step="1" :value="silenceSkipperSettings.thresholdDb" class="am-slider" @input="setSilenceThreshold(Number($event.target.value))" />
       </div>
       <div v-if="silenceSkipperSettings.enabled" class="row row-column">
         <div class="row-text">
           <p class="row-title">{{ t('silenceMinDuration') }}: {{ (silenceSkipperSettings.minSilenceMs / 1000).toFixed(1) }}s</p>
           <p class="row-sub">{{ t('silenceMinDurationDesc') }}</p>
         </div>
-        <input
-          type="range"
-          min="500"
-          max="5000"
-          step="100"
-          :value="silenceSkipperSettings.minSilenceMs"
-          class="am-slider"
-          @input="setSilenceMinDuration(Number($event.target.value))"
-        />
+        <input type="range" min="500" max="5000" step="100" :value="silenceSkipperSettings.minSilenceMs" class="am-slider" @input="setSilenceMinDuration(Number($event.target.value))" />
       </div>
     </section>
 
+    <!-- ── Audio Mixer ──────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <SlidersHorizontal :size="18" />
+        <span class="card-icon" style="--icon-bg: #00d4ff"><SlidersHorizontal :size="16" /></span>
         <h2 class="card-title">{{ t('audioMixer') }}</h2>
       </header>
 
@@ -430,9 +435,10 @@
 
     <EqualizerModal :open="showEqualizer" @close="showEqualizer = false" />
 
+    <!-- ── Account ────────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <UserCircle :size="18" />
+        <span class="card-icon" style="--icon-bg: #ff375f"><UserCircle :size="16" /></span>
         <h2 class="card-title">{{ t('account') }}</h2>
       </header>
 
@@ -464,21 +470,10 @@
               </p>
             </div>
             <div class="row-head-actions">
-              <button
-                class="icon-btn"
-                type="button"
-                :title="t('ytLibraryReload')"
-                :disabled="libLoading"
-                @click="loadLibrary(true)"
-              >
+              <button class="icon-btn" type="button" :title="t('ytLibraryReload')" :disabled="libLoading" @click="loadLibrary(true)">
                 <RefreshCw :size="15" />
               </button>
-              <button
-                class="btn-primary"
-                type="button"
-                :disabled="!library.length || importing"
-                @click="importAll"
-              >
+              <button class="btn-primary" type="button" :disabled="!library.length || importing" @click="importAll">
                 <Download :size="14" />
                 {{ importing ? t('ytLibraryImporting') : t('ytLibraryImportAll') }}
               </button>
@@ -513,32 +508,43 @@
       </template>
     </section>
 
+    <!-- ── Local Data ─────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Database :size="18" />
+        <span class="card-icon" style="--icon-bg: #34c759"><Database :size="16" /></span>
         <h2 class="card-title">{{ t('localData') }}</h2>
       </header>
 
       <div class="data-stats">
         <div class="data-stat">
+          <Heart :size="18" class="ds-icon" style="color: var(--primary)" />
           <span class="ds-value">{{ appState.favoriteItems.value.length }}</span>
           <span class="ds-label">{{ t('favoritesStat') }}</span>
         </div>
+        <div class="ds-divider" />
         <div class="data-stat">
+          <Clock :size="18" class="ds-icon" style="color: #0a84ff" />
           <span class="ds-value">{{ appState.recentPlays.value.length }}</span>
           <span class="ds-label">{{ t('historyStat') }}</span>
         </div>
       </div>
 
-      <button class="btn-secondary" type="button" @click="clearLocalData">
-        <Trash2 :size="14" />
-        {{ t('clearLocalData') }}
-      </button>
+      <div class="row row-actions-row">
+        <button class="btn-secondary" type="button" @click="clearLocalData">
+          <Trash2 :size="14" />
+          {{ t('clearLocalData') }}
+        </button>
+        <button class="btn-secondary" type="button" @click="clearCache">
+          <RotateCcw :size="14" />
+          {{ t('clearCache') }}
+        </button>
+      </div>
     </section>
 
+    <!-- ── Advanced ──────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Settings2 :size="18" />
+        <span class="card-icon" style="--icon-bg: #636366"><Settings2 :size="16" /></span>
         <h2 class="card-title">{{ t('advanced') }}</h2>
       </header>
 
@@ -547,24 +553,8 @@
           <p class="row-title">{{ t('debugMode') }}</p>
           <p class="row-sub">{{ t('debugModeDesc') }}</p>
         </div>
-        <button
-          class="toggle"
-          :class="debugMode ? 'toggle-on' : ''"
-          type="button"
-          @click="debugMode = !debugMode"
-        >
+        <button class="toggle" :class="debugMode ? 'toggle-on' : ''" type="button" @click="debugMode = !debugMode">
           <span class="toggle-thumb" />
-        </button>
-      </div>
-
-      <div class="row">
-        <div class="row-text">
-          <p class="row-title">{{ t('clearCache') }}</p>
-          <p class="row-sub">{{ t('cacheSizeDesc') }}</p>
-        </div>
-        <button class="btn-secondary" type="button" @click="clearCache">
-          <Trash2 :size="14" />
-          {{ t('clearCache') }}
         </button>
       </div>
 
@@ -580,9 +570,10 @@
       </div>
     </section>
 
+    <!-- ── Keyboard Shortcuts ─────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Keyboard :size="18" />
+        <span class="card-icon" style="--icon-bg: #48484a"><Keyboard :size="16" /></span>
         <h2 class="card-title">{{ t('keyboardShortcuts') }}</h2>
       </header>
 
@@ -594,9 +585,10 @@
       </ul>
     </section>
 
+    <!-- ── Privacy ─────────────────────────────────────────────────── -->
     <section class="card-block">
       <header class="card-head">
-        <Shield :size="18" />
+        <span class="card-icon" style="--icon-bg: #30b0c7"><Shield :size="16" /></span>
         <h2 class="card-title">Prywatność</h2>
       </header>
 
@@ -611,18 +603,16 @@
       <div class="row">
         <div class="row-text">
           <p class="row-title">{{ t('cookieSettings') }}</p>
-          <p class="row-sub">
-            {{ cookieConsentLabel }}
-          </p>
+          <p class="row-sub">{{ cookieConsentLabel }}</p>
         </div>
         <div class="row-actions">
           <button class="btn-secondary" type="button" @click="reopenCookieBanner">
             <Cookie :size="14" /> {{ t('cookieReconfigure') }}
           </button>
           <button
+            v-if="hasCookieConsent"
             class="btn-secondary danger"
             type="button"
-            v-if="hasCookieConsent"
             @click="revokeCookieConsent"
           >
             <Trash2 :size="14" /> {{ t('cookieRevoke') }}
@@ -633,34 +623,40 @@
 
     <CookieBanner v-if="showCookieBanner" @close="showCookieBanner = false" />
 
-    <p class="footer">{{ t('about') }} • {{ t('aboutTagline') }}</p>
+    <p class="footer">AetherPulse Music • Made with ♥ for music lovers</p>
   </div>
 </template>
 
 <script setup>
 import { computed, inject, reactive, ref, watch } from "vue";
 import {
+  BadgeCheck,
+  Check,
+  Clock,
+  Cookie,
+  Cpu,
   Database,
   Download,
   Globe,
+  Heart,
   Keyboard,
   ListMusic,
+  Monitor,
+  Music2,
   Palette,
+  Pipette,
   RefreshCw,
+  RotateCcw,
+  Settings2,
   Shield,
   Sliders,
   SlidersHorizontal,
   Smartphone,
+  Speaker,
   Trash2,
   UserCircle,
-  Monitor,
-  Settings2,
-  Speaker,
-  Check,
   Wifi,
-  BadgeCheck,
-  Cookie,
-  Music2,
+  X,
 } from "lucide-vue-next";
 
 import { fetchJson } from "../lib/api";
@@ -800,7 +796,18 @@ function networkLabel(type) {
   return t("networkUnknown");
 }
 
-const accentColors = ["#fa243c", "#ff375f", "#ff9f0a", "#30d158", "#0a84ff", "#bf5af2"];
+const accentColors = [
+  "#fa243c", "#ff375f", "#ff9f0a", "#ffd60a",
+  "#30d158", "#0a84ff", "#bf5af2", "#ff6b35",
+  "#00d4ff", "#ff2e63", "#00ff87", "#e8a857",
+];
+
+const themeFilter = ref("all");
+const filteredThemes = computed(() =>
+  themeFilter.value === "all"
+    ? THEMES
+    : THEMES.filter((t) => t.mode === themeFilter.value),
+);
 
 const DISPLAY_SETTINGS_KEY = "ap:display-settings";
 
@@ -1002,54 +1009,85 @@ watch(
 </script>
 
 <style scoped>
+/* ── Page layout ─────────────────────────────────────────── */
 .settings-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 760px;
+  gap: 20px;
+  max-width: 800px;
   margin: 0 auto;
+  padding-bottom: 48px;
 }
 
 .page-head {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 8px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .page-sub {
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
 }
 
+/* ── Card blocks ─────────────────────────────────────────── */
 .card-block {
   background: var(--bg-elevated);
-  border-radius: var(--radius-lg);
+  border-radius: 18px;
   overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 2px 12px rgba(0,0,0,0.12);
+  transition: box-shadow 0.2s;
+}
+
+.card-block:hover {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 20px rgba(0,0,0,0.18);
 }
 
 .card-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 100%);
+}
+
+.card-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--icon-bg, var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
 .card-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
+/* ── Rows ────────────────────────────────────────────────── */
 .row {
   display: flex;
   align-items: center;
@@ -1065,7 +1103,7 @@ watch(
 .row-column {
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: 14px;
 }
 
 .row-head {
@@ -1082,10 +1120,447 @@ watch(
   gap: 8px;
 }
 
-.error {
-  color: var(--danger);
+.row-actions-row {
+  padding-top: 0;
 }
 
+.error { color: var(--danger); }
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.row-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Theme filter ────────────────────────────────────────── */
+.theme-filter {
+  display: inline-flex;
+  gap: 6px;
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.theme-filter-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 7px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.theme-filter-active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+
+/* ── Theme grid ──────────────────────────────────────────── */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+  overflow: hidden;
+  text-align: left;
+}
+
+.theme-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+}
+
+.theme-card-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary), 0 6px 20px rgba(var(--primary-rgb), 0.25);
+}
+
+/* Swatch banner — full-width colour strip */
+.theme-swatch {
+  display: flex;
+  height: 52px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.swatch-color {
+  flex: 1;
+  transition: transform 0.18s;
+}
+
+.theme-card:hover .swatch-color {
+  transform: scaleY(1.06);
+}
+
+.theme-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 11px 11px;
+}
+
+.theme-mode-badge {
+  font-size: 12px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.theme-name {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.theme-vibe {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.theme-check {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.5);
+}
+
+/* ── Accent colours ──────────────────────────────────────── */
+.accent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accent-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  transition: transform 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+
+.accent-dot:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.accent-dot.accent-active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--text-primary), 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.accent-custom {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #fa243c, #ff9f0a, #30d158, #0a84ff, #bf5af2, #fa243c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  border: 2px solid rgba(255,255,255,0.3);
+  transition: transform 0.15s;
+  overflow: hidden;
+  position: relative;
+}
+
+.accent-custom:hover { transform: scale(1.12); }
+
+.accent-custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+}
+
+.accent-reset {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.accent-reset:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Segment control ─────────────────────────────────────── */
+.seg-control {
+  display: inline-flex;
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 7px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.seg-active {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.16);
+}
+
+.seg.seg-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* ── Toggle switch ───────────────────────────────────────── */
+.toggle {
+  width: 50px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--bg-input);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.22s;
+  border: 1.5px solid var(--line-strong);
+}
+
+.toggle-on {
+  background: var(--success, #30d158);
+  border-color: transparent;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+.toggle-on .toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* ── Volume slider ───────────────────────────────────────── */
+.volume-slider { width: 180px; }
+
+/* ── Quality pill ────────────────────────────────────────── */
+.quality-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 100px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+/* ── Player mode grid ────────────────────────────────────── */
+.player-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.player-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 15px;
+  background: var(--bg-input);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.player-mode-card:hover { background: var(--bg-hover); }
+
+.player-mode-active {
+  background: rgba(var(--primary-rgb), 0.07);
+  border-color: var(--primary);
+}
+
+.pm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pm-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--success, #30d158);
+  background: rgba(48, 209, 88, 0.14);
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+
+.pm-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ── SponsorBlock ────────────────────────────────────────── */
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-secondary.danger { color: var(--danger); }
+
+.sponsor-grid {
+  padding: 0 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sponsor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--line);
+}
+
+.sponsor-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sponsor-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ── Data stats ──────────────────────────────────────────── */
+.data-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.06) 0%, rgba(var(--primary-rgb), 0.02) 100%);
+  border-bottom: 1px solid var(--line);
+}
+
+.data-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  flex: 1;
+}
+
+.ds-icon {
+  margin-bottom: 4px;
+}
+
+.ds-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--line-strong);
+  margin: 0 24px;
+}
+
+.ds-value {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.ds-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── YouTube library ─────────────────────────────────────── */
 .yt-list {
   margin: 0;
   padding: 0;
@@ -1103,15 +1578,19 @@ watch(
   grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
   background: var(--bg-hover);
+  border: 1px solid var(--line);
+  transition: background 0.15s;
 }
+
+.yt-item:hover { background: var(--bg-active); }
 
 .yt-thumb {
   width: 40px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--bg-input);
   display: flex;
@@ -1119,17 +1598,9 @@ watch(
   justify-content: center;
 }
 
-.yt-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.yt-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-.yt-meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
+.yt-meta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .yt-title {
   font-size: 13px;
@@ -1154,344 +1625,14 @@ watch(
   font-size: 12px !important;
 }
 
-.row-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.row-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.row-sub {
-  margin: 2px 0 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.seg-control {
-  display: inline-flex;
-  background: var(--bg-input);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.seg {
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  border-radius: 6px;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.seg-active {
-  background: var(--bg-base);
-  color: var(--text-primary);
-}
-
-.accent-row {
-  display: flex;
-  gap: 8px;
-}
-
-.accent-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  transition: transform var(--transition-fast);
-}
-
-.accent-dot:hover {
-  transform: scale(1.1);
-}
-
-.accent-dot.accent-active {
-  border-color: var(--text-primary);
-}
-
-/* Theme Grid */
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
-  width: 100%;
-  margin-top: 8px;
-}
-
-.theme-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  background: var(--bg-card);
-  border: 2px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  overflow: hidden;
-}
-
-.theme-card:hover {
-  border-color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.theme-card-active {
-  border-color: var(--primary);
-  background: var(--bg-active);
-  box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.2);
-}
-
-.theme-swatch {
-  display: flex;
-  gap: 4px;
-  height: 32px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.swatch-color {
-  flex: 1;
-  transition: transform var(--transition-fast);
-}
-
-.theme-card:hover .swatch-color {
-  transform: scaleY(1.1);
-}
-
-.theme-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
-}
-
-.theme-name {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.theme-vibe {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-tertiary);
-  letter-spacing: 0.02em;
-}
-
-.theme-check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.4);
-}
-
-.toggle {
-  width: 44px;
-  height: 26px;
-  border-radius: 13px;
-  background: var(--bg-input);
-  position: relative;
-  flex-shrink: 0;
-  transition: background var(--transition-fast);
-  border: 1.5px solid var(--line-strong);
-}
-
-.toggle-on {
-  background: var(--success);
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform var(--transition-fast);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-on .toggle-thumb {
-  transform: translateX(18px);
-}
-
-.volume-slider {
-  width: 200px;
-}
-
-.quality-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 100px;
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.player-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
-  width: 100%;
-}
-
-.player-mode-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  background: var(--bg-input);
-  border: 1.5px solid transparent;
-  border-radius: var(--radius-md);
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.player-mode-card:hover {
-  background: var(--bg-hover);
-}
-
-.player-mode-active {
-  background: var(--bg-hover);
-  border-color: var(--primary);
-}
-
-.pm-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.pm-active-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--success);
-  background: rgba(48, 209, 88, 0.12);
-  padding: 1px 6px;
-  border-radius: 100px;
-}
-
-.pm-desc {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.row-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.btn-secondary.danger {
-  color: var(--danger);
-}
-
-.sponsor-grid {
-  padding: 0 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sponsor-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-input);
-}
-
-.sponsor-cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.sponsor-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.seg.seg-sm {
-  padding: 4px 10px;
-  font-size: 11px;
-}
-
-.data-stats {
-  display: flex;
-  gap: 32px;
-  padding: 14px 20px;
-}
-
-.data-stat {
-  display: flex;
-  flex-direction: column;
-}
-
-.ds-value {
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.ds-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.card-block > .btn-secondary {
-  margin: 0 20px 20px;
-  align-self: flex-start;
-}
-
+/* ── Shortcuts ───────────────────────────────────────────── */
 .shortcut-list {
   margin: 0;
   padding: 16px 20px;
   list-style: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 24px;
+  gap: 12px 28px;
 }
 
 .shortcut-list li {
@@ -1506,21 +1647,25 @@ kbd {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  padding: 4px 8px;
+  min-width: 40px;
+  padding: 4px 9px;
   font-family: -apple-system, "SF Mono", Menlo, monospace;
   font-size: 11px;
   font-weight: 700;
   background: var(--bg-input);
-  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
   color: var(--text-primary);
+  box-shadow: 0 1px 0 var(--line-strong);
 }
 
+/* ── Footer ──────────────────────────────────────────────── */
 .footer {
-  margin: 0;
+  margin: 4px 0 0;
   padding: 12px;
   text-align: center;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-quaternary);
+  letter-spacing: 0.01em;
 }
 </style>

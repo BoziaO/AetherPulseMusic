@@ -197,6 +197,7 @@ const messages = {
 
      // Theme names
      themeAppleDark: "Apple Dark",
+     themeAmoled: "AMOLED Black",
      themeAppleLight: "Apple Light",
      themeEdgerunners: "Cyberpunk Edgerunners",
      themeGoth: "Gothic",
@@ -209,6 +210,18 @@ const messages = {
      themeY2K: "Y2K",
      themeEmo: "Emo Revival",
      themeIndustrial: "Industrial",
+     themeMidnightOcean: "Midnight Ocean",
+     themeForest: "Forest",
+     themeAurora: "Aurora",
+     themeLofi: "Lo-Fi Café",
+     themeNeonCity: "Neon City",
+     themeAmberDusk: "Amber Dusk",
+     themeNord: "Nord",
+     themeCatppuccin: "Catppuccin",
+     themeRosePine: "Rosé Pine",
+     themeDiscord: "Discord",
+     themeRoseLight: "Rose Light",
+     accentColorDesc: "Zmień kolor elementów interaktywnych.",
 
      // Privacy & Features
      privacyBanner: "Żadne dane nie opuszczają Twojego komputera",
@@ -734,6 +747,7 @@ const messages = {
 
      // Theme names
      themeAppleDark: "Apple Dark",
+     themeAmoled: "AMOLED Black",
      themeAppleLight: "Apple Light",
      themeEdgerunners: "Cyberpunk Edgerunners",
      themeGoth: "Gothic",
@@ -746,6 +760,18 @@ const messages = {
      themeY2K: "Y2K",
      themeEmo: "Emo Revival",
      themeIndustrial: "Industrial",
+     themeMidnightOcean: "Midnight Ocean",
+     themeForest: "Forest",
+     themeAurora: "Aurora",
+     themeLofi: "Lo-Fi Café",
+     themeNeonCity: "Neon City",
+     themeAmberDusk: "Amber Dusk",
+     themeNord: "Nord",
+     themeCatppuccin: "Catppuccin",
+     themeRosePine: "Rosé Pine",
+     themeDiscord: "Discord",
+     themeRoseLight: "Rose Light",
+     accentColorDesc: "Override the interactive highlight colour.",
 
      // Privacy & Features
      privacyBanner: "No data leaves your computer",

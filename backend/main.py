@@ -341,50 +341,6 @@ def normalize_track(track: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _download_audio_sync(video_id: str, requested_format: str) -> Optional[str]:
-    if not is_valid_video_id(video_id):
-        return None
-
-    target_format = requested_format.lower().strip()
-    if target_format not in {"mp3", "webm", "m4a"}:
-        target_format = "m4a"
-
-    output_template = os.path.join(DOWNLOAD_DIR, f"{video_id}.%(ext)s")
-    ydl_opts: Dict[str, Any] = {
-        **_YDL_BASE_OPTS,
-        "outtmpl": output_template,
-    }
-
-    if target_format == "mp3":
-        ydl_opts["format"] = "bestaudio/best"
-        ydl_opts["postprocessors"] = [
-            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
-        ]
-    elif target_format == "webm":
-        ydl_opts["format"] = "bestaudio[ext=webm]/bestaudio"
-    else:
-        ydl_opts["format"] = "bestaudio[ext=m4a]/bestaudio/best"
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(
-                f"https://www.youtube.com/watch?v={video_id}", download=True
-            )
-            if not info:
-                return None
-    except Exception as exc:
-        print(f"[yt_dlp] download error for {video_id}: {exc}")
-        return None
-
-    for extension in (target_format, "mp3", "webm", "m4a", "opus"):
-        candidate = os.path.join(DOWNLOAD_DIR, f"{video_id}.{extension}")
-        if os.path.exists(candidate):
-            return candidate
-    return None
-
-
-async def download_audio_file(video_id: str, requested_format: str = "mp3") -> Optional[str]:
-    return await asyncio.to_thread(_download_audio_sync, video_id, requested_format)
 
 
 # ---------------------------------------------------------------------------
@@ -673,21 +629,6 @@ async def get_download_info(video_id: str, format: Optional[str] = "mp3"):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=_safe_error(exc))
 
-
-@app.post("/api/downloads/save/{video_id}")
-async def save_download(video_id: str, format: Optional[str] = "mp3"):
-    if not is_valid_video_id(video_id):
-        raise HTTPException(status_code=400, detail="Invalid video ID")
-
-    downloaded = await download_audio_file(video_id, format)
-    if not downloaded:
-        raise HTTPException(status_code=500, detail="Unable to download audio file")
-
-    return {
-        "status": "ok",
-        "videoId": video_id,
-        "path": os.path.relpath(downloaded, os.path.dirname(__file__)),
-    }
 
 
 # ---------------------------------------------------------------------------

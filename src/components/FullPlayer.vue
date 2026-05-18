@@ -116,6 +116,9 @@
               <button class="ctrl-sm" type="button" :title="t('download')" @click="handleDownload">
                 <Download :size="20" :style="isDownloaded(track?.videoId) ? 'color: var(--success)' : ''" />
               </button>
+              <button class="ctrl-sm" type="button" :title="t('saveToDevice')" @click="handleSaveToDevice">
+                <HardDriveDownload :size="20" />
+              </button>
               <button class="ctrl-sm" type="button" :title="t('timestampComments')" @click="showComments = !showComments">
                 <MessageSquare :size="20" />
               </button>
@@ -206,6 +209,7 @@ import {
   Captions,
   ChevronDown,
   Download,
+  HardDriveDownload,
   Heart,
   ListMusic,
   Maximize2,
@@ -229,7 +233,7 @@ import SleepTimer from "./SleepTimer.vue";
 import { formatClock, formatNumber, upgradeThumbUrl } from "../lib/format";
 import { fetchJson } from "../lib/api";
 import { getEffectiveOffset, lyricsOffsetState } from "../lib/lyricsOffset";
-import { isDownloaded, enqueueDownload, removeDownload, settings as offlineSettings } from "../lib/offlineStore";
+import { isDownloaded, enqueueDownload, removeDownload, saveToDevice, settings as offlineSettings } from "../lib/offlineStore";
 
 const props = defineProps({
   track: { type: Object, required: true },
@@ -308,6 +312,13 @@ function handleDownload() {
   if (enqueueDownload(track)) {
     app?.showToast?.(t("downloadStarted"), "success");
   }
+}
+
+async function handleSaveToDevice() {
+  const track = props.track;
+  if (!track?.videoId) return;
+  await saveToDevice(track.videoId, track.title, track.artist || track.author || '');
+  app?.showToast?.(t("saveToDevice"), "success");
 }
 
 // Lyrics state

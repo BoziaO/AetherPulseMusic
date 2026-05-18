@@ -92,6 +92,9 @@
            <button class="icon-btn hidden md:inline-flex" type="button" :title="t('download')" @click="handleDownload">
              <Download :size="18" :style="isDownloaded(track?.videoId) ? 'color: var(--success)' : ''" />
            </button>
+           <button class="icon-btn hidden md:inline-flex" type="button" :title="t('saveToDevice')" @click="handleSaveToDevice">
+             <HardDriveDownload :size="18" />
+           </button>
            <button class="icon-btn hidden md:inline-flex" type="button" :title="t('lyrics')" @click="$emit('lyrics')">
              <Captions :size="18" />
            </button>
@@ -183,6 +186,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  HardDriveDownload,
   Heart,
   ListMusic,
   Music2,
@@ -196,7 +200,7 @@ import {
   VolumeX,
 } from "lucide-vue-next";
 import { formatClock } from "../lib/format";
-import { isDownloaded, enqueueDownload, removeDownload, settings as offlineSettings } from "../lib/offlineStore";
+import { isDownloaded, enqueueDownload, removeDownload, saveToDevice, settings as offlineSettings } from "../lib/offlineStore";
 
 const titleInnerRef = ref(null);
 const titleNeedsMarquee = ref(false);
@@ -291,6 +295,13 @@ function handleDownload() {
   if (enqueueDownload(track)) {
     app?.showToast?.(t("downloadStarted"), "success");
   }
+}
+
+async function handleSaveToDevice() {
+  const track = props.track;
+  if (!track?.videoId) return;
+  await saveToDevice(track.videoId, track.title, track.artist || track.author || '');
+  app?.showToast?.(t("saveToDevice"), "success");
 }
 
 function togglePlay() {

@@ -142,6 +142,14 @@
             </span>
           </button>
           <button
+            class="icon-btn save-btn"
+            type="button"
+            :title="t('saveToDevice')"
+            @click="onSaveToDevice(track)"
+          >
+            <HardDriveDownload :size="14" />
+          </button>
+          <button
             class="icon-btn danger-btn"
             type="button"
             :title="t('removeDownload')"
@@ -169,6 +177,7 @@ import {
   CloudOff,
   DownloadCloud,
   HardDrive,
+  HardDriveDownload,
   Music2,
   Trash2,
   X,
@@ -181,6 +190,7 @@ import {
   listDownloads,
   offlineIndex,
   removeDownload,
+  saveToDevice,
   setOfflineMode,
   settings,
   storage,
@@ -268,6 +278,11 @@ async function clearAll() {
 async function onRemove(videoId) {
   await removeDownload(videoId);
   appState?.showToast?.(t("downloadRemoved"), "info");
+}
+
+async function onSaveToDevice(track) {
+  await saveToDevice(track.videoId, track.title, track.artist, track.format);
+  appState?.showToast?.(t("saveToDevice"), "success");
 }
 </script>
 
@@ -655,6 +670,7 @@ async function onRemove(videoId) {
   margin-top: 2px;
 }
 
+.save-btn,
 .danger-btn {
   color: var(--text-tertiary);
   flex-shrink: 0;
@@ -662,8 +678,13 @@ async function onRemove(videoId) {
   transition: opacity var(--transition-fast), color var(--transition-fast);
 }
 
+.dl-item:hover .save-btn,
 .dl-item:hover .danger-btn {
   opacity: 1;
+}
+
+.save-btn:hover {
+  color: var(--primary);
 }
 
 .danger-btn:hover {

@@ -85,6 +85,15 @@
           <BadgeCheck v-if="hasOffline(track)" :size="15" :style="{ color: 'var(--success)' }" />
           <DownloadIcon v-else :size="15" />
         </button>
+        <button
+          v-if="track.videoId"
+          class="icon-btn"
+          type="button"
+          :title="t('saveToDevice')"
+          @click.stop="onSaveToDevice(track)"
+        >
+          <HardDriveDownload :size="15" />
+        </button>
       </span>
     </div>
   </div>
@@ -97,6 +106,7 @@ import { computed, inject } from "vue";
 import {
   BadgeCheck,
   Download as DownloadIcon,
+  HardDriveDownload,
   Heart,
   ListPlus,
   Music2,
@@ -109,6 +119,7 @@ import {
   isDownloaded,
   offlineIndex,
   removeDownload,
+  saveToDevice,
   settings as offlineSettings,
 } from "../lib/offlineStore";
 
@@ -165,6 +176,12 @@ function onDownloadClick(track) {
   if (enqueueDownload(track)) {
     app?.showToast?.(t("downloadStarted"), "success");
   }
+}
+
+async function onSaveToDevice(track) {
+  if (!track?.videoId) return;
+  await saveToDevice(track.videoId, track.title || track.name, track.artist || track.author || '');
+  app?.showToast?.(t("saveToDevice"), "success");
 }
 </script>
 

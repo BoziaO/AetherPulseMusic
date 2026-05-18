@@ -450,6 +450,48 @@ async function persistDownloaded(item, blob, info) {
 
 
 // ----------------------------------------------------------------------
+// Save to device (browser file download)
+// ----------------------------------------------------------------------
+
+export async function saveToDevice(videoId, title = 'track', artist = '', format = null) {
+  if (!videoId) return false;
+  const downloadFormat = normalizeDownloadFormat(format || settings.format);
+  const rawName = `${artist ? artist + ' - ' : ''}${title}.${downloadFormat}`;
+  const filename = rawName.replace(/[/\\?%*:|"<>]/g, '-');
+
+  // If blob is already in IndexedDB — use it directly (instant)
+  if (offlineIndex.has(videoId)) {
+    try {
+      const store = await tx(STORE_BLOBS);
+      const record = await asPromise(store.get(videoId));
+      if (record?.blob) {
+        const url = URL.createObjectURL(record.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        return true;
+      }
+    } catch (err) {
+      console.warn('saveToDevice: IndexedDB fallback failed', err);
+    }
+  }
+
+  // Fallback: stream directly from backend API
+  const proxyUrl = `/api/downloads/playback/${encodeURIComponent(videoId)}?format=${encodeURIComponent(downloadFormat)}`;
+  const a = document.createElement('a');
+  a.href = proxyUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  return true;
+}
+
+// ----------------------------------------------------------------------
 // Bulk operations
 // ----------------------------------------------------------------------
 

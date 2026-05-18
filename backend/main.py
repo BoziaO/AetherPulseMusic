@@ -4,6 +4,7 @@ import os
 import re
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
 import httpx
@@ -18,7 +19,14 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response
 from ytmusicapi import YTMusic
 
-app = FastAPI(title="AetherPulse Music Backend")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    initialize_database()
+    yield
+
+
+app = FastAPI(title="AetherPulse Music Backend", lifespan=lifespan)
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -41,12 +49,19 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ] or _DEV_ORIGINS
 
+# Detect Replit dev/prod domains automatically and allow them
+_replit_dev = os.environ.get("REPLIT_DEV_DOMAIN", "")
+_replit_slug = os.environ.get("REPLIT_DEPLOYMENT_ID", "")
+if _replit_dev and f"https://{_replit_dev}" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(f"https://{_replit_dev}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    allow_origin_regex=r"https://.*\.(replit\.dev|replit\.app|repl\.co)$",
 )
 
 # ---------------------------------------------------------------------------
@@ -151,10 +166,6 @@ def _save_user_state_sync(state: Dict[str, Any]) -> None:
         conn.close()
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
-    initialize_database()
-
 # ---------------------------------------------------------------------------
 # Stream URL cache + async yt_dlp
 # ---------------------------------------------------------------------------
@@ -166,9 +177,11 @@ _stream_locks: Dict[str, asyncio.Lock] = {}
 
 def _get_lock(video_id: str) -> asyncio.Lock:
     if video_id not in _stream_locks:
-        # Evict stale locks when dict grows too large
+        # Evict only UNLOCKED stale locks to avoid disrupting active requests
         if len(_stream_locks) > STREAM_CACHE_MAX:
-            _stream_locks.clear()
+            stale = [k for k, lock in list(_stream_locks.items()) if not lock.locked()]
+            for k in stale:
+                _stream_locks.pop(k, None)
         _stream_locks[video_id] = asyncio.Lock()
     return _stream_locks[video_id]
 
@@ -404,6 +417,15 @@ def _cache_set(key: str, value: Any, ttl: int) -> None:
 # Routes — YTMusic
 # ---------------------------------------------------------------------------
 
+def _safe_error(exc: Exception) -> str:
+    """Return a safe, non-leaking error string for HTTP responses."""
+    msg = str(exc)
+    # Strip long Python tracebacks or internal paths
+    if len(msg) > 200:
+        msg = msg[:200] + "…"
+    return msg
+
+
 @app.get("/api/ytmusic/search")
 async def search(q: str = Query(...), filter: Optional[str] = None, limit: int = 20):
     cache_key = f"search:{q}:{filter}:{limit}"
@@ -416,7 +438,7 @@ async def search(q: str = Query(...), filter: Optional[str] = None, limit: int =
         _cache_set(cache_key, data, 600)
         return data
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/ytmusic/song/{video_id}")
@@ -431,7 +453,7 @@ async def get_song(video_id: str):
         _cache_set(cache_key, data, 3600)
         return data
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/ytmusic/album/{album_id}")
@@ -447,7 +469,7 @@ async def get_album(album_id: str):
         _cache_set(cache_key, album, 3600)
         return album
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/ytmusic/artist/{artist_id}")
@@ -461,7 +483,7 @@ async def get_artist(artist_id: str):
         _cache_set(cache_key, data, 3600)
         return data
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/ytmusic/playlist/{playlist_id}")
@@ -477,7 +499,7 @@ async def get_playlist(playlist_id: str, limit: int = 100):
         _cache_set(cache_key, playlist, 600)
         return playlist
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/lyrics")
@@ -495,7 +517,7 @@ async def get_lyrics(videoId: str):
         _cache_set(cache_key, data, 86400)
         return data
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/page/{page_key}")
@@ -520,7 +542,7 @@ async def get_page(page_key: str):
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -649,7 +671,7 @@ async def get_download_info(video_id: str, format: Optional[str] = "mp3"):
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.post("/api/downloads/save/{video_id}")
@@ -780,7 +802,7 @@ async def get_recommendations_pool(
         _cache_set(cache_key, result, 300)
         return result
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @app.get("/api/recommendations/smart-radio/{video_id}")
@@ -796,7 +818,7 @@ async def get_smart_radio(video_id: str):
         _cache_set(cache_key, result, 600)
         return result
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 # ---------------------------------------------------------------------------

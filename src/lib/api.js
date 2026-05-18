@@ -29,12 +29,14 @@ function sleep(ms) {
 
 function shouldRetry(error, response, retryConfig) {
   if (response && retryConfig.retryStatuses.includes(response.status)) return true;
-  if (!response && error?.name !== "AbortError" && error?.name !== "TypeError") {
-    // Network/connection errors are retry-able
-    return true;
+  if (!response && error?.name === "AbortError") return false;
+  if (!response && error?.name === "TypeError") {
+    // Only retry on genuine network failures ("Failed to fetch"), not on logic errors
+    // e.g. invalid URLs, header violations — those have consistent messages
+    const msg = error?.message || "";
+    return msg.includes("fetch") || msg.includes("network") || msg.includes("Failed");
   }
-  // TypeError ("Failed to fetch") = network-level — retry
-  if (error?.name === "TypeError") return true;
+  if (!response && error) return true;
   return false;
 }
 

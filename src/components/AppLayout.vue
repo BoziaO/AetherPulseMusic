@@ -3,7 +3,7 @@
     <Sidebar :open="sidebarOpen" :current-path="route.path" @close="sidebarOpen = false" />
 
     <main class="main" :class="nowPlaying ? 'has-player' : ''">
-      <header class="topbar">
+      <header class="topbar" :class="{ 'topbar-scrolled': topbarScrolled }">
         <div class="topbar-inner" :class="{ 'search-active': searchOpen }">
           <button class="icon-btn hamburger-btn lg:hidden" type="button" :title="t('navHome')" @click="sidebarOpen = true">
             <Menu :size="20" />
@@ -292,6 +292,7 @@ const searchFilters = [
 const USER_STATE_SAVE_DELAY_MS = 600;
 
 const sidebarOpen = ref(false);
+const topbarScrolled = ref(false);
 const searchRef = ref(null);
 const searchInputRef = ref(null);
 const query = ref("");
@@ -1469,6 +1470,10 @@ provide("appState", {
   setPlayerPreference: persistPlayerPreference,
 });
 
+function handlePageScroll() {
+  topbarScrolled.value = window.scrollY > 8;
+}
+
 onMounted(() => {
   applyTheme();
   loadAuthSession();
@@ -1476,12 +1481,14 @@ onMounted(() => {
   loadYouTubeApi();
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleKeyboard);
+  window.addEventListener("scroll", handlePageScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
   // 1) Globalne event listenery
   document.removeEventListener("click", handleDocumentClick);
   document.removeEventListener("keydown", handleKeyboard);
+  window.removeEventListener("scroll", handlePageScroll);
 
   // 2) Timery
   window.clearTimeout(searchTimer);
@@ -1608,10 +1615,17 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 180;
-  background: var(--bg-base);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: var(--glass);
-  -webkit-backdrop-filter: var(--glass);
+  background: rgba(var(--bg-base-rgb), 0.82);
+  border-bottom: 1px solid transparent;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+}
+
+.topbar-scrolled {
+  border-bottom-color: var(--line);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.18);
+  background: rgba(var(--bg-base-rgb), 0.96);
 }
 
 .topbar-inner {
@@ -2007,6 +2021,18 @@ onBeforeUnmount(() => {
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .truncate {

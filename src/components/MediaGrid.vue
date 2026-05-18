@@ -38,7 +38,10 @@
     </button>
   </div>
 
-  <div v-else class="empty">{{ emptyLabel }}</div>
+  <div v-else class="empty">
+    <Music2 :size="40" class="empty-icon" aria-hidden="true" />
+    <span>{{ emptyLabel }}</span>
+  </div>
 </template>
 
 <script setup>
@@ -270,7 +273,16 @@ function itemKey(item, index) {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-tertiary);
-  padding: 20px;
+  padding: 48px 20px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  opacity: 0.25;
+  color: var(--text-tertiary);
 }
 </style>

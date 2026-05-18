@@ -10,6 +10,7 @@
     "Segoe UI", system-ui, sans-serif;
 
   --bg-base: #000000;
+  --bg-base-rgb: 0, 0, 0;
   --bg-elevated: #1c1c1e;
   --bg-card: rgba(28, 28, 30, 0.6);
   --bg-card-strong: #1c1c1e;
@@ -53,6 +54,7 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --bg-base: #ffffff;
+  --bg-base-rgb: 255, 255, 255;
   --bg-elevated: #f5f5f7;
   --bg-card: rgba(245, 245, 247, 0.7);
   --bg-card-strong: #f5f5f7;

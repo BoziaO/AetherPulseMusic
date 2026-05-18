@@ -98,7 +98,10 @@
     </div>
   </div>
 
-  <div v-else class="empty">{{ emptyLabel || t('emptyData') }}</div>
+  <div v-else class="empty">
+    <Music2 :size="36" class="empty-icon" aria-hidden="true" />
+    <span>{{ emptyLabel || t('emptyData') }}</span>
+  </div>
 </template>
 
 <script setup>
@@ -220,6 +223,12 @@ async function onSaveToDevice(track) {
 
 .track-row.is-current .title {
   color: var(--primary);
+}
+
+.track-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: rgba(var(--primary-rgb), 0.06);
 }
 
 .num {
@@ -386,10 +395,19 @@ async function onSaveToDevice(track) {
 }
 
 .empty {
-  padding: 32px;
+  padding: 48px 32px;
   text-align: center;
   font-size: 13px;
   font-weight: 500;
+  color: var(--text-tertiary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  opacity: 0.3;
   color: var(--text-tertiary);
 }
 
@@ -406,7 +424,11 @@ async function onSaveToDevice(track) {
   .actions {
     opacity: 1;
   }
-  .actions .icon-btn:not(:last-child) {
+  .actions .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .actions .icon-btn:nth-child(n+3):not(:last-child):not(:nth-last-child(-n+2)) {
     display: none;
   }
 }

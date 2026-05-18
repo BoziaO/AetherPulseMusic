@@ -123,6 +123,11 @@
 
        <!-- Minimized mini-player: compact pill with cover, title and essentials -->
        <div v-show="minimized" class="player-mini">
+         <!-- Thin progress bar at the top of mini-player -->
+         <div class="mini-progress-track" aria-hidden="true">
+           <div class="mini-progress-fill" :style="{ width: progressPercent + '%' }" />
+         </div>
+
          <button
            class="mini-trigger"
            type="button"
@@ -638,7 +643,29 @@ function seekTo(position) {
   border-top: 1px solid var(--line);
 }
 
+/* Mini-player progress track */
+.mini-progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--line-strong);
+  z-index: 1;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-hover), var(--primary));
+  border-radius: 0 2px 2px 0;
+  transition: width 0.8s linear;
+  box-shadow: 0 0 6px rgba(var(--primary-rgb), 0.5);
+}
+
 .player-mini {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;

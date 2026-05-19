@@ -1,83 +1,42 @@
-# ── Dependencies ────────────────────────────────────────────
-node_modules/
-.pnp/
-.pnp.js
-.npm/
-.pnpm-store/
-
-# ── Build artifacts ─────────────────────────────────────────
-dist/
-dist-ssr/
-build/
-.vite/
-*.local
-
-# Lockfiles
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# ── Environment & secrets ───────────────────────────────────
-.env
-.env.local
-.env.*.local
-.env.development
-.env.production
-headers.json
-
-# Persisted server data
-localPlaylists.json
-userState.json
-
-# ── Logs ────────────────────────────────────────────────────
-logs/
+# Logs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-.tmp-logs/
+lerna-debug.log*
 
-# ── Coverage / test output ──────────────────────────────────
-coverage/
-.nyc_output/
-*.lcov
+# Diagnostic reports (https://nodejs.org/api/report.html)
+*.diagnostic.zip
 
-# ── Editor & OS ─────────────────────────────────────────────
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-*.swp
-.DS_Store
-Thumbs.db
-desktop.ini
+# Runtime data
+*.rs
+*.mjs
 
-# ── Misc ────────────────────────────────────────────────────
-.cache/
-.history/
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
 .eslintcache
-.stylelintcache
-*.tsbuildinfo
 
-# ── Python ──────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
+# Vite
+.vite/
+dist/
+
+# Prisma
+prisma/dev.db
+prisma/migrations/
+
+# Backend Python
 backend/__pycache__/
-.venv/
-venv/
-ENV/
+backend/*.pyc
+backend/covers/
 
-# ── App specific ────────────────────────────────────────────
-downloads/
-**/downloads/
-backend/aetherpulse.db
-*.db
-*.db-journal
-*.sqlite
+# Environment variables
+.env
+.env.local
+.env.*.local

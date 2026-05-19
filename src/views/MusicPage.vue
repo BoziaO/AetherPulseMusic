@@ -23,7 +23,7 @@
             v-if="pageKey === 'playlists'"
             class="btn-secondary"
             type="button"
-            @click="showPlaylistComposer = true"
+            @click="openCreateModal"
           >
             <Plus :size="14" />
             {{ t('newPlaylist') }}
@@ -43,20 +43,53 @@
       <!-- Detail view: when a local playlist is selected, show its tracks instead of grid -->
       <section v-if="selectedPlaylist" class="section">
         <header class="section-head">
-          <button class="link-btn" type="button" @click="closePlaylist">
-            <ChevronLeft :size="14" />
-            {{ t('backToPlaylists') }}
+          <div class="flex items-center gap-4">
+            <button class="link-btn" type="button" @click="closePlaylist">
+              <ChevronLeft :size="14" />
+              {{ t('backToPlaylists') }}
+            </button>
+            <span v-if="isSavingOrder" class="text-[10px] font-bold text-primary animate-pulse uppercase tracking-widest">
+              {{ t('saving') }}
+            </span>
+          </div>
+          <button
+            class="icon-btn !w-9 !h-9"
+            type="button"
+            :title="t('editPlaylist')"
+            @click="startEditPlaylist"
+          >
+            <Pencil :size="16" />
           </button>
         </header>
-        <TrackList
-          :tracks="selectedPlaylist.tracks"
-          :now-playing="appState.nowPlaying.value"
-          :favorite-keys="appState.favoriteKeys.value"
-          @play="(track) => playFromList(track, selectedPlaylist.tracks)"
-          @add-queue="appState.addToQueue"
-          @play-next="appState.playNext"
-          @toggle-favorite="appState.toggleFavoriteTrack"
-        />
+        <div v-if="selectedPlaylist.description" class="px-1 mb-4 text-sm text-secondary italic opacity-80">
+          {{ selectedPlaylist.description }}
+        </div>
+        <draggable
+          v-model="selectedPlaylist.tracks"
+          item-key="videoId"
+          handle=".drag-handle"
+          ghost-class="drag-ghost"
+          @end="saveNewOrder"
+        >
+          <template #item="{ element, index }">
+            <div class="flex items-center group">
+              <div class="drag-handle p-2 cursor-move opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical :size="16" class="text-tertiary" />
+              </div>
+              <div class="flex-1">
+                <TrackList
+                  :tracks="[element]"
+                  :now-playing="appState.nowPlaying.value"
+                  :favorite-keys="appState.favoriteKeys.value"
+                  @play="(track) => playFromList(track, selectedPlaylist.tracks)"
+                  @add-queue="appState.addToQueue"
+                  @play-next="appState.playNext"
+                  @toggle-favorite="appState.toggleFavoriteTrack"
+                />
+              </div>
+            </div>
+          </template>
+        </draggable>
       </section>
 
       <template v-else>
@@ -197,46 +230,154 @@
     <div v-if="showPlaylistComposer" class="modal-overlay animate-fade" @click.self="showPlaylistComposer = false" @keydown.esc.window="showPlaylistComposer = false">
       <section class="modal animate-slide-up">
         <header class="modal-header">
-          <h2 class="modal-title">{{ t('newPlaylist') }}</h2>
+          <h2 class="modal-title">{{ editingPlaylistId ? t('editPlaylist') : t('newPlaylist') }}</h2>
           <button class="icon-btn" type="button" :title="t('close')" @click="showPlaylistComposer = false">
             <X :size="18" />
           </button>
         </header>
         <div class="modal-body">
-          <label class="form-row">
-            <span class="form-label">{{ t('playlistName') }}</span>
-            <input v-model="newPlaylistName" type="text" />
-          </label>
-          <button class="btn-primary" type="button" :disabled="!newPlaylistName.trim()" @click="createPlaylist">
-            {{ t('create') }}
-          </button>
+          <div class="composer-section">
+            <h3 class="section-subtitle">{{ editingPlaylistId ? t('editPlaylist') : t('create') }}</h3>
+            <label class="form-row">
+              <span class="form-label">{{ t('playlistName') }}</span>
+              <input v-model="newPlaylistName" type="text" :placeholder="t('playlistName')" />
+            </label>
+          <div class="form-row">
+            <span class="form-label">{{ t('playlistCover') }}</span>
+            <div class="flex gap-3 items-center">
+              <div class="w-16 h-16 rounded-md bg-white/5 border border-white/10 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                <img v-if="newPlaylistCover" :src="newPlaylistCover" class="w-full h-full object-cover" />
+                <Music v-else :size="24" class="opacity-20" />
+              </div>
+              <div class="flex-1 flex flex-col gap-2">
+                <input
+                  v-model="newPlaylistCover"
+                  type="text"
+                  class="text-xs p-2 bg-black/20 rounded border border-white/5 outline-none focus:border-primary/50"
+                  :placeholder="t('coverUrl')"
+                />
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleFileUpload"
+                />
+                <div class="flex gap-2">
+                  <button class="btn-secondary !py-1 !px-3 !text-[11px] w-fit" type="button" @click="triggerFileUpload">
+                    <Download :size="12" />
+                    {{ t('uploadCover') }}
+                  </button>
+                  <button
+                    v-if="editingPlaylistId && !newPlaylistCover && selectedPlaylist?.tracks?.length"
+                    class="btn-secondary !py-1 !px-3 !text-[11px] w-fit"
+                    type="button"
+                    :disabled="generatingCover"
+                    @click="generateCover"
+                  >
+                    <Plus :size="12" />
+                    {{ t('generateCover') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+            <label class="form-row">
+              <span class="form-label">{{ t('playlistDescription') }}</span>
+              <textarea v-model="editDescription" :placeholder="t('playlistDescription')" class="form-input min-h-[80px] p-2 bg-black/20 rounded border border-white/5 outline-none focus:border-primary/50 text-sm" />
+            </label>
+            <button class="btn-primary" type="button" :disabled="!newPlaylistName.trim()" @click="savePlaylist">
+              <component :is="editingPlaylistId ? Save : Plus" :size="16" />
+              {{ editingPlaylistId ? t('save') : t('create') }}
+            </button>
+          </div>
 
-          <div class="form-divider" />
+          <template v-if="!editingPlaylistId">
+            <div class="composer-divider">
+              <span>{{ t('or') || 'Lub' }}</span>
+            </div>
 
-          <label class="form-row">
-            <span class="form-label">{{ t('youtubePlaylistId') }}</span>
-            <input v-model="importPlaylistId" type="text" placeholder="VLPL..." />
-          </label>
-          <button class="btn-secondary" type="button" :disabled="!importPlaylistId.trim() || importing" @click="importPlaylist">
-            <Download :size="14" />
-            {{ importing ? t('searching') : t('importPlaylist') }}
-          </button>
+            <div class="composer-section">
+            <h3 class="section-subtitle">{{ t('importYouTube') }}</h3>
+            <label class="form-row">
+              <span class="form-label">{{ t('youtubePlaylistOrAlbumUrl') }}</span>
+              <input v-model="importPlaylistId" type="text" :placeholder="t('importPlaceholder')" />
+            </label>
+            <button class="btn-secondary" type="button" :disabled="!importPlaylistId.trim() || importing" @click="importPlaylist">
+              <Download :size="16" />
+              {{ importing ? t('searching') : t('importPlaylist') }}
+            </button>
+          </div>
+          </template>
         </div>
       </section>
+    </div>
+  </div>
+
+  <!-- Modal Przycinania Zdjęcia -->
+  <div v-if="cropImageSrc" class="modal-overlay z-[300]" @click.self="cancelCrop">
+    <div class="modal max-w-lg">
+      <header class="modal-header">
+        <h2 class="modal-title">Przytnij okładkę</h2>
+      </header>
+      <div class="modal-body">
+        <div class="aspect-square bg-black overflow-hidden rounded-md">
+          <img ref="cropImgRef" :src="cropImageSrc" class="max-w-full block" />
+        </div>
+        <div class="flex justify-center gap-4 mt-4">
+          <button class="icon-btn" @click="rotate(-90)" :title="t('rotateLeft')"><RotateCcw :size="18" /></button>
+          <button class="icon-btn" @click="rotate(90)" :title="t('rotateRight')"><RotateCw :size="18" /></button>
+          <button class="icon-btn" @click="flipX" :title="t('flipHorizontal')">
+            <FlipHorizontal :size="18" />
+          </button>
+          <button class="icon-btn" @click="flipY" :title="t('flipVertical')">
+            <FlipVertical :size="18" />
+          </button>
+        </div>
+        <div class="mt-4 flex flex-col gap-3">
+          <label class="form-row">
+            <span class="form-label">{{ t('brightness') }}</span>
+            <input type="range" v-model="imageBrightness" min="50" max="200" step="5" class="w-full" />
+          </label>
+          <label class="form-row">
+            <span class="form-label">{{ t('contrast') }}</span>
+            <input type="range" v-model="imageContrast" min="50" max="200" step="5" class="w-full" />
+          </label>
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button class="btn-primary flex-1" @click="applyCrop">Zastosuj</button>
+          <button class="btn-secondary" @click="cancelCrop">Anuluj</button>
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button class="btn-primary flex-1" @click="applyCrop">Zastosuj</button>
+          <button class="btn-secondary" @click="cancelCrop">Anuluj</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import draggable from "vuedraggable";
+import Cropper from "cropperjs";
+import "cropperjs/dist/cropper.css";
 import {
   ChevronLeft,
   ChevronRight,
+  GripVertical,
   Download,
+  FlipHorizontal,
+  FlipVertical,
+  Music,
+  Pencil,
   Play,
   Plus,
   RefreshCw,
+  RotateCcw,
+  RotateCw,
+  Save,
   X,
 } from "lucide-vue-next";
 import MediaGrid from "../components/MediaGrid.vue";
@@ -267,8 +408,13 @@ const errorMessage = ref("");
 const selectedPlaylist = ref(null);
 const showPlaylistComposer = ref(false);
 const newPlaylistName = ref("");
+const editDescription = ref("");
+const newPlaylistCover = ref("");
+const editingPlaylistId = ref(null);
 const importPlaylistId = ref("");
+const generatingCover = ref(false);
 const importing = ref(false);
+const fileInput = ref(null);
 
 const heroTitle = computed(() => {
   if (props.pageKey === "favorites") return t("navFavorites");
@@ -428,11 +574,38 @@ async function openLocalPlaylist(id) {
     selectedPlaylist.value = {
       id: data.id,
       title: data.title,
+      description: data.description || "",
       tracks: (data.tracks || []).map(normalizeTrack),
     };
   } catch (error) {
     appState?.showToast(error.message, "error");
   }
+}
+
+function saveNewOrder() {
+  if (!selectedPlaylist.value) return;
+  isSavingOrder.value = true;
+
+  if (reorderTimer) clearTimeout(reorderTimer);
+
+  reorderTimer = setTimeout(async () => {
+    if (!selectedPlaylist.value) {
+      isSavingOrder.value = false;
+      return;
+    }
+    const videoIds = selectedPlaylist.value.tracks.map((t) => t.videoId);
+    try {
+      await fetchJson(`/api/local/playlists/${selectedPlaylist.value.id}/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoIds }),
+      });
+    } catch (error) {
+      appState?.showToast(error.message, "error");
+    } finally {
+      isSavingOrder.value = false;
+    }
+  }, 1500);
 }
 
 async function openYtPlaylist(id) {
@@ -510,9 +683,11 @@ async function importPlaylist() {
   if (!id) return;
   importing.value = true;
   try {
-    await fetchJson(`/api/local/playlists/import-yt/${encodeURIComponent(id)}`, {
+    await fetchJson(`/api/import/playlist`, {
       method: "POST",
-      timeout: 60000,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: id }),
+      timeout: 30000,
     });
     appState?.showToast(t("playlistImported"), "success");
     showPlaylistComposer.value = false;
@@ -556,6 +731,7 @@ watch(
 
 onBeforeUnmount(() => {
   selectedPlaylist.value = null;
+  if (reorderTimer) clearTimeout(reorderTimer);
 });
 </script>
 
@@ -695,6 +871,46 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.composer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+}
+
+.section-subtitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.composer-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 4px 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.composer-divider::before, .composer-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--line);
+}
+
+.composer-divider span {
+  padding: 0 12px;
 }
 
 .form-row {

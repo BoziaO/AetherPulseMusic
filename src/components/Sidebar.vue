@@ -1,9 +1,13 @@
+<!--
+Sidebar: Główny panel nawigacyjny aplikacji.
+Zawiera linki do sekcji muzycznych, statystyk oraz ustawień. Zastosowano efekty szklanego interfejsu (glassmorphism).
+-->
 <template>
   <aside
-    class="sidebar fixed inset-y-0 left-0 z-[220] w-[260px] flex flex-col transition-transform"
+    class="sidebar fixed inset-y-0 left-0 z-[220] w-[260px] flex flex-col transition-all duration-300 ease-in-out"
     :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
   >
-    <div class="flex items-center justify-between px-6 pt-6 pb-4">
+    <div class="flex items-center justify-between px-7 pt-7 pb-5">
       <RouterLink to="/" class="brand" @click="emit('close')">
         <img src="/icon.svg" alt="" class="brand-logo" />
         <span class="brand-text">{{ t('appName') }}</span>
@@ -14,11 +18,11 @@
       </button>
     </div>
 
-    <nav class="flex-1 overflow-y-auto scrollbar-hide px-3 pb-6">
-      <section v-for="group in navigationGroups" :key="group.titleKey || group.items[0].key" class="mb-5">
+    <nav class="flex-1 overflow-y-auto scrollbar-hide px-4 pb-8">
+      <section v-for="group in navigationGroups" :key="group.titleKey || group.items[0].key" class="mb-6">
         <p
           v-if="group.titleKey"
-          class="mb-1 px-3 text-[11px] font-bold uppercase tracking-[0.06em]"
+          class="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]"
           :style="{ color: 'var(--text-tertiary)' }"
         >
           {{ t(group.titleKey) }}
@@ -35,20 +39,23 @@
             <span class="nav-icon-wrap" :class="isActive(item) ? 'nav-icon-active' : ''">
               <component :is="iconFor(item.key)" :size="15" />
             </span>
-            <span class="truncate">{{ t(item.labelKey) }}</span>
+            <span class="nav-label truncate">{{ t(item.labelKey) }}</span>
           </RouterLink>
-          <button
-            class="nav-link w-full text-left"
-            type="button"
-            @click="app?.openImportModal?.()"
-          >
-            <span class="nav-icon-wrap">
-              <DownloadCloud :size="15" />
-            </span>
-            <span class="truncate">{{ t('importPlaylist') }}</span>
-          </button>
         </div>
       </section>
+
+      <div class="mt-auto pt-4 border-t border-white/[0.05]">
+        <button
+          class="nav-link w-full text-left group"
+          type="button"
+          @click="app?.openImportModal?.()"
+        >
+          <span class="nav-icon-wrap group-hover:bg-primary/20 group-hover:text-primary">
+            <DownloadCloud :size="15" />
+          </span>
+          <span class="nav-label truncate">{{ t('importPlaylist') }}</span>
+        </button>
+      </div>
     </nav>
   </aside>
 
@@ -124,75 +131,72 @@ function isActive(item) {
 
 <style scoped>
 .sidebar {
-  background: var(--bg-sidebar);
-  backdrop-filter: var(--glass);
-  -webkit-backdrop-filter: var(--glass);
-  border-right: 1px solid var(--line);
-  box-shadow: 1px 0 0 var(--line), 8px 0 32px rgba(0, 0, 0, 0.3);
+  background: rgba(18, 18, 22, 0.85);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   text-decoration: none;
-  position: relative;
-  padding: 4px 0;
 }
 
 .brand-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   object-fit: cover;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.08);
-  filter: drop-shadow(0 0 8px rgba(var(--primary-rgb), 0.3));
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   transition: filter var(--transition-base), transform var(--transition-base);
 }
 
 .brand:hover .brand-logo {
-  filter: drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.5));
-  transform: scale(1.04);
+  transform: scale(1.05) rotate(-3deg);
 }
 
 .brand-text {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  background: linear-gradient(135deg, var(--text-primary) 40%, rgba(var(--primary-rgb), 0.75) 100%);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  font-weight: 500;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
 }
 
 .nav-link:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  transform: translateX(2px);
+  transform: translateX(4px);
 }
 
-.nav-link:active {
-  transform: scale(0.97) translateX(0);
+.nav-label {
+  letter-spacing: -0.01em;
+  opacity: 0.85;
+  transition: opacity 0.2s;
 }
+
+.nav-link:hover .nav-label { opacity: 1; }
 
 .nav-link.is-active {
-  background: rgba(var(--primary-rgb), 0.1);
+  background: rgba(var(--primary-rgb), 0.12);
   color: var(--primary);
-  font-weight: 600;
 }
 
 .nav-icon-wrap {
@@ -203,45 +207,26 @@ function isActive(item) {
   justify-content: center;
   border-radius: 8px;
   flex-shrink: 0;
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-tertiary);
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-}
-
-.nav-link:hover .nav-icon-wrap {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  transform: scale(1.05);
+  transition: all 0.2s;
 }
 
 .nav-icon-active {
-  background: rgba(var(--primary-rgb), 0.18) !important;
+  background: rgba(var(--primary-rgb), 0.2) !important;
   color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
 }
 
 .nav-link.is-active::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 18%;
-  height: 64%;
+  left: -4px;
+  top: 20%;
+  height: 60%;
   width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, var(--primary-hover), var(--primary));
-  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
-}
-
-.nav-link.is-active::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at left center, rgba(var(--primary-rgb), 0.08) 0%, transparent 70%);
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-.nav-link.is-active:hover {
-  background: rgba(var(--primary-rgb), 0.15);
-  transform: translateX(2px);
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
+  box-shadow: 4px 0 10px var(--primary);
 }
 </style>

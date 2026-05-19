@@ -28,6 +28,8 @@ import sqlite3
 import time
 import uuid
 from contextlib import asynccontextmanager
+from io import BytesIO
+from PIL import Image
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -36,6 +38,7 @@ import yt_dlp
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
@@ -116,6 +119,7 @@ app.add_middleware(
     allow_origin_regex=r"https://.*\.(replit\.dev|replit\.app|repl\.co)$",
 )
 
+app.mount("/api/covers", StaticFiles(directory=COVER_DIR), name="covers")
 # ---------------------------------------------------------------------------
 # Middleware: body-size limit, GZip, request timing
 # ---------------------------------------------------------------------------
@@ -155,8 +159,10 @@ ytmusic = YTMusic()
 # ---------------------------------------------------------------------------
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BACKEND_DIR, "downloads")
+COVER_DIR = os.path.join(BACKEND_DIR, "covers")
 DATABASE_PATH = os.path.join(BACKEND_DIR, "aetherpulse.db")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(COVER_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Validation
@@ -1382,17 +1388,17 @@ def _get_playlist_sync(playlist_id: str) -> Optional[Dict]:
         conn.close()
 
 
-def _create_playlist_sync(title: str, description: str = "") -> Dict:
+def _create_playlist_sync(title: str, description: str = "", cover: str = "") -> Dict:
     conn = _db_conn()
     now = time.time()
     pl_id = str(uuid.uuid4())
     try:
         conn.execute(
-            "INSERT INTO local_playlists (id, title, description, created_at, updated_at) VALUES (?,?,?,?,?)",
-            (pl_id, title, description, now, now),
+            "INSERT INTO local_playlists (id, title, description, cover, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            (pl_id, title, description, cover, now, now),
         )
         conn.commit()
-        return {"id": pl_id, "title": title, "description": description, "tracks": [], "trackCount": 0,
+        return {"id": pl_id, "title": title, "description": description, "cover": cover, "tracks": [], "trackCount": 0,
                 "created_at": now, "updated_at": now}
     finally:
         conn.close()
@@ -1511,6 +1517,24 @@ async def delete_local_playlist(playlist_id: str):
     return {"status": "ok", "id": playlist_id}
 
 
+def _reorder_playlist_tracks_sync(playlist_id: str, video_ids: List[str]) -> bool:
+    conn = _db_conn()
+    try:
+        for idx, vid in enumerate(video_ids):
+            conn.execute(
+                "UPDATE playlist_tracks SET position = ? WHERE playlist_id = ? AND video_id = ?",
+                (idx, playlist_id, vid)
+            )
+        conn.execute("UPDATE local_playlists SET updated_at=? WHERE id=?", (time.time(), playlist_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        log.error("Reorder failed: %s", e)
+        return False
+    finally:
+        conn.close()
+
+
 @app.post("/api/local/playlists/{playlist_id}/tracks")
 async def add_track_to_playlist(playlist_id: str, data: Dict[str, Any]):
     track = normalize_track(data)
@@ -1530,10 +1554,28 @@ async def remove_track_from_playlist(playlist_id: str, video_id: str):
     return {"status": "ok"}
 
 
+@app.post("/api/local/playlists/{playlist_id}/reorder")
+async def reorder_playlist(playlist_id: str, data: Dict[str, Any]):
+    video_ids = data.get("videoIds", [])
+    ok = await _db_exec(_reorder_playlist_tracks_sync, playlist_id, video_ids)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to reorder playlist")
+    return {"status": "ok"}
+
+
 async def import_yt_playlist(playlist_id: str):
     """Internal helper to import a YouTube Music playlist."""
+    cache_key = f"playlist:{playlist_id}:200"
+    yt_pl = _cache_get(cache_key)
+
+    if yt_pl is None:
+        try:
+            yt_pl = await asyncio.to_thread(ytmusic.get_playlist, playlist_id, 200)
+            _cache_set(cache_key, yt_pl, 600)  # Cache for 10 minutes
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=_safe_error(exc))
+
     try:
-        yt_pl = await asyncio.to_thread(ytmusic.get_playlist, playlist_id, 200)
         title = yt_pl.get("title") or "Imported Playlist"
         pl = await _db_exec(_create_playlist_sync, title, "")
         pl_id = pl["id"]
@@ -1546,7 +1588,7 @@ async def import_yt_playlist(playlist_id: str):
         raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
-@app.post("/api/import/playlist")
+@app.post("/api/import/playlist") # Renamed to be more generic, but keeping the path for compatibility
 async def import_playlist_by_url(data: Dict[str, Any]):
     url = data.get("url")
     if not url:

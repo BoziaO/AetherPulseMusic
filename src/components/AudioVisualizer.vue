@@ -1,10 +1,12 @@
+<!-- 
+AudioVisualizer: Zaawansowana wizualizacja 3D przy użyciu Three.js.
+Renderuje interaktywne spektrum audio w formie pulsującego pierścienia w przestrzeni 3D.
+-->
 <template>
-  <div class="audio-visualizer-container">
-    <canvas
-      ref="canvas"
-      :width="width"
-      :height="height"
-      class="audio-visualizer"
+  <div class="audio-visualizer-container" ref="container">
+    <div
+      ref="canvasContainer"
+      class="three-container"
       :class="{ active: isAnalyzing }"
     />
     <button
@@ -19,24 +21,25 @@
 </template>
 
 <script setup>
-import { inject, onMounted, onBeforeUnmount, ref } from 'vue';
+import { inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import * as THREE from 'three';
 import { getChainForElement } from '../lib/audioEngine';
 
 const appState = inject('appState');
-
-const canvas = ref(null);
-const width = ref(300);
-const height = ref(80);
+const container = ref(null);
+const canvasContainer = ref(null);
 const isAnalyzing = ref(false);
 
-// AnalyserNode jest podpinany RÓWNOLEGLE do istniejącego chain'a audioEngine
-// (nie tworzymy własnego MediaElementSource — to wywoływałoby InvalidStateError,
-// bo HTML5 audio jest już podłączony do globalnego AudioContext przez audioEngine).
 let analyser = null;
 let analyserCtx = null;
 let animationId = null;
 let retryInterval = null;
 let lastTapNode = null;
+
+// Three.js objects
+let scene, camera, renderer, bars = [];
+const BAR_COUNT = 64;
+const RADIUS = 5;
 
 function toggle() {
   isAnalyzing.value = !isAnalyzing.value;
@@ -53,11 +56,8 @@ function stopVisualization() {
     cancelAnimationFrame(animationId);
     animationId = null;
   }
-  if (retryInterval) {
     clearInterval(retryInterval);
     retryInterval = null;
-  }
-  // Disconnect analyser z chain'a audioEngine (chain żyje dalej, my odpinamy się od niego).
   if (analyser) {
     try { analyser.disconnect(); } catch { /* ignore */ }
   }
@@ -68,17 +68,19 @@ function stopVisualization() {
   analyserCtx = null;
   lastTapNode = null;
 
-  const ctx = canvas.value?.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, width.value, height.value);
+  if (renderer) {
+    renderer.domElement.style.opacity = '0';
+    setTimeout(() => {
+      if (!isAnalyzing.value && renderer) {
+        renderer.clear();
+      }
+    }, 2000);
   }
 }
 
 function initializeAudio() {
   if (analyser) return;
-  // Próbuje natychmiast podłączyć się do globalnego chain HTML5 audio.
   if (!connectToAudioEngine()) {
-    // Jeśli HTML5 audio jeszcze nie istnieje (iframe mode), retry co 2s.
     retryInterval = setInterval(() => {
       if (!analyser && isAnalyzing.value) {
         connectToAudioEngine();
@@ -94,14 +96,11 @@ function connectToAudioEngine() {
     const handle = getChainForElement(audioEl);
     if (!handle?.context || !handle?.tap) return false;
 
-    // Tworzymy AnalyserNode w TYM SAMYM AudioContext co audioEngine.
     analyserCtx = handle.context;
     analyser = analyserCtx.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.8;
 
-    // Równoległe podpięcie — chain audio jest dalej kierowany do destination
-    // (przez `tap` → destination), my dodajemy gałąź `tap → analyser`.
     handle.tap.connect(analyser);
     lastTapNode = handle.tap;
 
@@ -116,67 +115,92 @@ function connectToAudioEngine() {
   }
 }
 
+function initThree() {
+  if (!canvasContainer.value) return;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, canvasContainer.value.clientWidth / 150, 0.1, 1000);
+  camera.position.z = 12;
+  camera.position.y = 4;
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(canvasContainer.value.clientWidth, 150);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  canvasContainer.value.appendChild(renderer.domElement);
+
+  const group = new THREE.Group();
+  const geometry = new THREE.BoxGeometry(0.4, 1, 0.4);
+  
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const material = new THREE.MeshPhongMaterial({
+      color: new THREE.Color(`hsl(${(i / BAR_COUNT) * 360}, 100%, 50%)`),
+      emissive: new THREE.Color(`hsl(${(i / BAR_COUNT) * 360}, 100%, 20%)`),
+    });
+    const bar = new THREE.Mesh(geometry, material);
+    
+    const angle = (i / BAR_COUNT) * Math.PI * 2;
+    bar.position.x = Math.cos(angle) * RADIUS;
+    bar.position.z = Math.sin(angle) * RADIUS;
+    bar.rotation.y = -angle;
+    
+    bars.push(bar);
+    group.add(bar);
+  }
+  scene.add(group);
+  
+  const light = new THREE.PointLight(0xffffff, 1, 100);
+  light.position.set(0, 10, 0);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x404040));
+}
+
 function animate() {
   if (!isAnalyzing.value) return;
-
   animationId = requestAnimationFrame(animate);
 
-  if (!analyser || !canvas.value) return;
+  if (!analyser || !renderer) return;
 
-  const ctx = canvas.value.getContext('2d');
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(dataArray);
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-  ctx.fillRect(0, 0, width.value, height.value);
-
-  const barWidth = (width.value / bufferLength) * 2.5;
-  
-  let x = 0;
-  for (let i = 0; i < bufferLength; i++) {
-    const barHeight = (dataArray[i] / 255) * height.value * 0.9;
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const bar = bars[i];
+    // Mapujemy dane audio na skalę słupków (wykorzystujemy niższe częstotliwości dla lepszego efektu)
+    const audioIndex = Math.floor((i / BAR_COUNT) * (bufferLength / 2));
+    const scale = (dataArray[audioIndex] / 255) * 8 + 0.1;
     
-    const gradient = ctx.createLinearGradient(0, height.value - barHeight, 0, height.value);
-    const hue = (Date.now() / 80 + i * 2) % 360;
+    bar.scale.y = THREE.MathUtils.lerp(bar.scale.y, scale, 0.2);
+    bar.position.y = bar.scale.y / 2;
     
-    gradient.addColorStop(0, `hsla(${hue}, 100%, 65%, 0.95)`);
-    gradient.addColorStop(0.5, `hsla(${hue + 20}, 100%, 55%, 0.85)`);
-    gradient.addColorStop(1, `hsla(${hue + 40}, 100%, 45%, 0.6)`);
-    
-    ctx.fillStyle = gradient;
-    
-    const radius = Math.min(barWidth / 2, 3);
-    if (barHeight > radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, height.value - barHeight);
-      ctx.lineTo(x + barWidth - radius, height.value - barHeight);
-      ctx.quadraticCurveTo(x + barWidth, height.value - barHeight, x + barWidth, height.value - barHeight + radius);
-      ctx.lineTo(x + barWidth, height.value);
-      ctx.lineTo(x, height.value);
-      ctx.lineTo(x, height.value - barHeight + radius);
-      ctx.quadraticCurveTo(x, height.value - barHeight, x + radius, height.value - barHeight);
-      ctx.closePath();
-      ctx.fill();
-    } else {
-      ctx.fillRect(x, height.value - barHeight, barWidth, barHeight);
-    }
-
-    x += barWidth + 2;
+    // Dynamiczna zmiana koloru w zależności od intensywności
+    bar.material.emissiveIntensity = bar.scale.y / 4;
   }
+
+  scene.rotation.y += 0.005;
+  renderer.render(scene, camera);
 }
 
 onMounted(() => {
-  if (canvas.value) {
-    width.value = canvas.value.parentElement?.clientWidth || 300;
-    height.value = 80;
-  }
+  initThree();
+  window.addEventListener('resize', handleResize);
 });
 
+function handleResize() {
+  if (!renderer || !canvasContainer.value) return;
+  const width = canvasContainer.value.clientWidth;
+  camera.aspect = width / 150;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, 150);
+}
+
 onBeforeUnmount(() => {
-  // stopVisualization() obsługuje cancel rAF, clearInterval i disconnect analyser
-  // — NIE zamykamy AudioContext, bo jest współdzielony z audioEngine.
+  window.removeEventListener('resize', handleResize);
   stopVisualization();
+  if (renderer) {
+    renderer.dispose();
+  }
 });
 </script>
 
@@ -191,17 +215,18 @@ onBeforeUnmount(() => {
   border: 1px solid var(--line);
 }
 
-.audio-visualizer {
+.three-container {
   width: 100%;
-  height: 80px;
+  height: 150px;
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.3);
   display: block;
-  opacity: 0.5;
+  opacity: 0;
   transition: opacity 0.2s;
+  overflow: hidden;
 }
 
-.audio-visualizer.active {
+.three-container.active {
   opacity: 1;
 }
 
@@ -228,4 +253,3 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 8px rgba(250, 36, 60, 0.3);
 }
 </style>
-

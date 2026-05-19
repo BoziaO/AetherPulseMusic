@@ -1,12 +1,10 @@
-// AetherPulse Audio Engine
-// Centralna obsługa Web Audio API dla equalizera, Bass Boost, balansu i wizualizera.
-// Hookuje się do dowolnego HTMLMediaElement (audio/video) — głównie w celu obsługi
-// pobranych utworów odtwarzanych przez <audio>. Dla iframe YouTube efekty są
-// stosowane "best-effort" (cross-origin może uniemożliwić routowanie audio przez
-// AudioContext, w takim wypadku zachowywany jest oryginalny strumień).
+/**
+ * AudioEngine: Rdzeń obsługi Web Audio API. 
+ * Zarządza węzłami procesora dźwięku (EQ, Bass Boost, Balans) i ich połączeniem z elementami HTML5 Audio.
+ */
 
 const STORAGE_KEY = "ap:audio-engine";
-const EQ_BANDS = [60, 230, 910, 3600, 14000]; // Hz, klasyczny 5-band EQ
+const EQ_BANDS = [60, 230, 910, 3600, 14000];
 
 const PRESETS = {
   flat: [0, 0, 0, 0, 0],
@@ -27,8 +25,8 @@ const DEFAULT_STATE = {
 };
 
 let audioCtx = null;
-let mediaSources = new WeakMap(); // Map<HTMLMediaElement, MediaElementAudioSourceNode>
-let chains = new WeakMap(); // Map<HTMLMediaElement, ChainNodes>
+let mediaSources = new WeakMap();
+let chains = new WeakMap();
 
 const subscribers = new Set();
 let state = loadState();
@@ -54,7 +52,6 @@ function persistState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    /* quota exceeded — silently skip */
   }
 }
 
@@ -86,13 +83,11 @@ function ensureContext() {
 }
 
 function buildChain(ctx, source) {
-  // bass boost (lowshelf @ 200Hz)
   const bass = ctx.createBiquadFilter();
   bass.type = "lowshelf";
   bass.frequency.value = 200;
   bass.gain.value = 0;
 
-  // 5-band peaking EQ
   const filters = EQ_BANDS.map((freq, idx) => {
     const filter = ctx.createBiquadFilter();
     filter.type = idx === 0 ? "lowshelf" : idx === EQ_BANDS.length - 1 ? "highshelf" : "peaking";
@@ -102,18 +97,15 @@ function buildChain(ctx, source) {
     return filter;
   });
 
-  // stereo balance via StereoPannerNode (fallback do GainNode jeśli niedostępny)
   let panner = null;
   if (typeof ctx.createStereoPanner === "function") {
     panner = ctx.createStereoPanner();
     panner.pan.value = 0;
   }
 
-  // bypass gain — pozwala szybko wyciszyć łańcuch bez przerywania routingu
   const bypass = ctx.createGain();
   bypass.gain.value = 1;
 
-  // Połączenie: source → bass → eq[0..n] → (panner) → bypass → destination
   source.connect(bass);
   let prev = bass;
   filters.forEach((filter) => {
@@ -132,26 +124,19 @@ function buildChain(ctx, source) {
 
 function applyState(chain) {
   if (!chain) return;
-  // EQ pasma
   state.bands.forEach((gain, idx) => {
     const filter = chain.filters[idx];
     if (filter) filter.gain.value = state.enabled ? clamp(gain, -12, 12) : 0;
   });
-  // Bass boost
   if (chain.bass) {
     chain.bass.gain.value = state.enabled ? clamp(state.bassBoost, 0, 12) : 0;
   }
-  // Balans
   if (chain.panner) {
     chain.panner.pan.value = state.enabled ? clamp(state.balance, -1, 1) : 0;
   }
 }
 
 function applyAll() {
-  // WeakMap nie iterowalna — tylko aktywne mediaSources
-  // Polegamy na tym, że attach utrzymuje chains aż element zostanie GC.
-  // Nie da się iterować po wszystkich, ale przy każdej zmianie stanu wystarczy
-  // przejść przez listę aktywnych elementów (zarządzaną oddzielnie).
   attachedElements.forEach((el) => {
     const chain = chains.get(el);
     applyState(chain);
@@ -165,7 +150,6 @@ export function attachMediaElement(element) {
   const ctx = ensureContext();
   if (!ctx) return false;
 
-  // Always resume context — it may have been suspended after backgrounding
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
   if (mediaSources.has(element)) {
@@ -186,20 +170,17 @@ export function attachMediaElement(element) {
   }
 }
 
-// Zwraca AudioContext + ostatni node łańcucha dla danego elementu (do silence detection).
 export function getChainForElement(element) {
   const chain = chains.get(element);
   if (!chain) return null;
   return {
     context: audioCtx,
-    // bypass to ostatni node przed destination — bezpieczne miejsce na analyser
     tap: chain.bypass,
   };
 }
 
 export function detachMediaElement(element) {
   if (!element) return;
-  // Remove from set FIRST so applyAll() won't touch a partially-disconnected chain
   attachedElements.delete(element);
   const chain = chains.get(element);
   if (chain) {

@@ -1,0 +1,10 @@
+services:
+  aetherpulse:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - SESSION_SECRET=your_secret_here
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    restart: always

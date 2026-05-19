@@ -1,3 +1,7 @@
+<!--
+InsightsPage: Widok analityczny aplikacji.
+Prezentuje statystyki słuchania, mapy cieplne aktywności oraz nastroje dnia na podstawie historii użytkownika.
+-->
 <template>
   <div class="insights-page animate-fade">
     <header class="page-head">
@@ -12,7 +16,6 @@
     <template v-else>
       <MyWrapped />
 
-      <!-- Mood of the Day — wybierany na podstawie pory dnia + ostatnich preferencji -->
       <section class="block mood-card" :style="moodGradientStyle">
         <span class="mood-eyebrow">{{ t('moodOfTheDay') }}</span>
         <h2 class="mood-title">{{ t(`mood_${currentMood.id}`) }}</h2>
@@ -46,17 +49,14 @@
         </div>
       </section>
 
-      <!-- Daily listening trend (last 14 days) -->
       <section class="block">
         <h2 class="block-title">{{ t('insightsTrend14') }}</h2>
         <div v-if="trendPoints.some((p) => p.count > 0)" class="trend-chart">
           <svg :viewBox="`0 0 ${trendWidth} ${trendHeight}`" preserveAspectRatio="none">
-            <!-- Polygon area -->
             <path
               :d="trendAreaPath"
               fill="rgba(var(--primary-rgb), 0.18)"
             />
-            <!-- Line -->
             <path
               :d="trendLinePath"
               fill="none"
@@ -65,7 +65,6 @@
               stroke-linejoin="round"
               stroke-linecap="round"
             />
-            <!-- Dots -->
             <circle
               v-for="(pt, i) in trendCoords"
               :key="i"
@@ -82,7 +81,6 @@
         <p v-else class="muted">{{ t('emptyData') }}</p>
       </section>
 
-      <!-- Listening heatmap: godziny dnia × dzień tygodnia -->
       <section class="block">
         <h2 class="block-title">{{ t('insightsHeatmap') }}</h2>
         <div class="heatmap-wrap">
@@ -223,9 +221,6 @@ const topArtists = computed(() => {
     .slice(0, 6);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mood of the Day
-// ─────────────────────────────────────────────────────────────────────────────
 const currentMood = computed(() => {
   const mood = getCurrentMood({
     avgEnergy: avgEnergy.value,
@@ -241,16 +236,12 @@ const moodGradientStyle = computed(() => {
   };
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Daily listening trend — ostatnie 14 dni, liczba odtworzeń
-// ─────────────────────────────────────────────────────────────────────────────
 const trendWidth = 600;
 const trendHeight = 120;
 
 const trendPoints = computed(() => {
   const buckets = new Map();
   const now = new Date();
-  // Inicjalizuj 14 dni wstecz pustymi koszami
   for (let i = 13; i >= 0; i -= 1) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
@@ -258,7 +249,6 @@ const trendPoints = computed(() => {
     const key = d.toISOString().slice(0, 10);
     buckets.set(key, { date: d, count: 0, label: `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}` });
   }
-  // Zlicz odtworzenia
   recentPlays.value.forEach((track) => {
     const ts = track?.playedAt ? new Date(track.playedAt) : null;
     if (!ts || Number.isNaN(ts.getTime())) return;
@@ -303,11 +293,7 @@ const trendAreaPath = computed(() => {
   ].join(" ");
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Listening heatmap — 7 dni tygodnia × 24 godziny
-// ─────────────────────────────────────────────────────────────────────────────
 const heatmapData = computed(() => {
-  // 7 wierszy (Pon..Niedz) × 24 kolumny (godziny)
   const grid = Array.from({ length: 7 }, () =>
     Array.from({ length: 24 }, () => ({ count: 0, intensity: 0 })),
   );
@@ -316,14 +302,12 @@ const heatmapData = computed(() => {
   recentPlays.value.forEach((track) => {
     const ts = track?.playedAt ? new Date(track.playedAt) : null;
     if (!ts || Number.isNaN(ts.getTime())) return;
-    // JS getDay(): 0=Niedz, 1=Pon..6=Sob. Konwertujemy do 0=Pon..6=Niedz.
     const day = (ts.getDay() + 6) % 7;
     const hour = ts.getHours();
     grid[day][hour].count += 1;
     if (grid[day][hour].count > max) max = grid[day][hour].count;
   });
 
-  // Normalizacja intensywności do [0..1]
   if (max > 0) {
     for (let d = 0; d < 7; d += 1) {
       for (let h = 0; h < 24; h += 1) {

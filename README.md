@@ -45,11 +45,14 @@
 | Frontend | Vue 3, Vue Router, Vite |
 | Stylowanie | Tailwind CSS |
 | Ikony | Lucide Vue Next |
-| Backend | Node.js ≥ 20, Express 5 |
+| Backend | Node.js ≥ 20, Express 5, Python (FastAPI, Pillow) |
 | Sesje | express-session |
 | Auth | Google OAuth 2.0 (opcjonalne) |
 | Dane muzyczne | YouTube Music via Innertube (`server/ytmusic.js`) |
-| Storage | `localPlaylists.json` + `localStorage` |
+| Storage | SQLite (via Prisma), `localStorage` |
+| Wizualizacja | Three.js |
+| Edycja obrazów | Cropper.js |
+| Drag & Drop | VueDraggable |
 
 ---
 
@@ -58,6 +61,9 @@
 ```bash
 git clone https://github.com/BoziaO/AetherPulseMusic.git
 cd AetherPulseMusic
+
+# Zainstaluj zależności Node.js i Python
+npm install
 
 npm install
 cp .env.example .env

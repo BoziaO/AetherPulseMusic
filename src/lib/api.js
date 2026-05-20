@@ -1,4 +1,26 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+/**
+ * Wykrywa czy aplikacja działa w środowisku mobilnym (Capacitor/Native).
+ */
+export const isCapacitor = () => {
+  return typeof window !== 'undefined' && 
+         ((window.Capacitor && window.Capacitor.isNativePlatform) || 
+          /Android|iPhone|iPad/i.test(navigator.userAgent));
+};
+
+/**
+ * Dynamicznie pobiera bazowy adres API. 
+ * W Electronie używamy adresu wykrytego przez proces główny.
+ */
+export const getApiBaseUrl = () => {
+  const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('_manual_api_url') : null;
+  if (savedUrl) return savedUrl;
+
+  if (isCapacitor()) {
+    return import.meta.env.VITE_API_BASE_URL || "";
+  }
+  const electronBackend = typeof window !== 'undefined' ? localStorage.getItem('_electron_backend_url') : null;
+  return electronBackend || import.meta.env.VITE_API_BASE_URL || "";
+};
 
 // Domyślne opcje retry — exponential backoff z jitter.
 const DEFAULT_RETRY = {
@@ -17,10 +39,25 @@ if (typeof window !== "undefined") {
   window.addEventListener("offline", () => { networkStatus.online = false; });
 }
 
+/**
+ * Sprawdza czy aplikacja działa w trybie Standalone (bez backendu).
+ */
+export function isStandalone() {
+  if (typeof window === 'undefined') return false;
+  
+  const hasApiUrl = !!getApiBaseUrl();
+  
+  // Jeśli jesteśmy na mobile, ale mamy skonfigurowany adres serwera, NIE jesteśmy w trybie standalone
+  if (isCapacitor()) {
+    return !hasApiUrl;
+  }
+  return localStorage.getItem('_electron_is_standalone') === 'true';
+}
+
 export function buildApiUrl(path) {
   if (path.startsWith("http")) return path;
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
+  return `${getApiBaseUrl()}${cleanPath}`;
 }
 
 function sleep(ms) {
@@ -41,10 +78,28 @@ function shouldRetry(error, response, retryConfig) {
 }
 
 export async function fetchJson(path, options = {}) {
-  const url = buildApiUrl(path);
+  const isStandaloneMode = isStandalone();
   const timeoutMs = options.timeout || 10000;
   const retryConfig = { ...DEFAULT_RETRY, ...(options.retry || {}) };
   const externalSignal = options.signal || null;
+
+  // W trybie Standalone przechwytujemy zapytania wymagające serwera (YTMusic, rekomendacje, strony)
+  if (isStandaloneMode) {
+    const isRemoteRequest = 
+      path.includes('/api/ytmusic/') || 
+      path.includes('/api/recommendations/') || 
+      path.includes('/api/page/') ||
+      path.includes('/api/flows/');
+
+    if (isRemoteRequest) {
+      console.warn(`[API] Standalone Mode: Przechwycono zapytanie do ${path}. Zwracanie danych lokalnych.`);
+      // Zwracamy puste tablice dla list, aby UI nie "wisiał" na ładowaniu i pokazał puste stany
+      if (path.includes('search') || path.includes('charts') || path.includes('related')) return [];
+      return null;
+    }
+  }
+
+  const url = buildApiUrl(path);
 
   // Mutacje (POST/PUT/DELETE) nie powinny być automatycznie retry'owane,
   // chyba że użytkownik świadomie ustawi `retry`.

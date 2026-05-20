@@ -1240,8 +1240,24 @@ function parseTimedLyrics(text) {
 }
 
 @media (max-width: 480px) {
+  .full-player {
+    /* Safe area support for notched devices */
+    padding-top: var(--safe-area-inset-top, 0);
+    padding-bottom: var(--safe-area-inset-bottom, 0);
+  }
+
+  .full-header {
+    padding-top: max(12px, calc(12px + var(--safe-area-inset-top, 0)));
+    padding-bottom: 4px;
+    padding-left: max(16px, var(--safe-area-inset-left, 0));
+    padding-right: max(16px, var(--safe-area-inset-right, 0));
+  }
+
   .full-body {
     padding: 12px 16px 20px;
+    padding-left: max(16px, var(--safe-area-inset-left, 0));
+    padding-right: max(16px, var(--safe-area-inset-right, 0));
+    padding-bottom: max(20px, calc(20px + var(--safe-area-inset-bottom, 0)));
     gap: 16px;
   }
 
@@ -1257,7 +1273,6 @@ function parseTimedLyrics(text) {
   .volume { max-width: 100%; }
   .row-actions { justify-content: center; flex-wrap: wrap; }
   .ctrl-sm { width: 36px; height: 36px; }
-  .full-header { padding: 12px 16px 4px; }
 
   .lyrics-panel {
     min-height: 280px;
@@ -1265,6 +1280,36 @@ function parseTimedLyrics(text) {
   }
 
   .lyric-line { font-size: 16px; }
+}
+
+/* Landscape mobile optimizations */
+@media (max-height: 600px) and (orientation: landscape) {
+  .full-body {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  .album-cover {
+    max-width: 180px;
+  }
+
+  .track-title {
+    font-size: 16px;
+  }
+
+  .controls {
+    gap: 12px;
+  }
+
+  .ctrl {
+    width: 36px;
+    height: 36px;
+  }
+
+  .big-play {
+    width: 48px;
+    height: 48px;
+  }
 }
 
 .sponsor-segments {

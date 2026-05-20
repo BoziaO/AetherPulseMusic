@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const isElectron = process.env.VITE_ELECTRON === 'true'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -15,6 +17,9 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['vue', 'vue-router', 'pinia', 'lucide-vue-next'],
+  },
+  define: {
+    'process.env.VITE_ELECTRON': JSON.stringify(isElectron),
   },
   server: {
     host: '0.0.0.0',

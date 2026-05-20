@@ -13,13 +13,54 @@
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "theme_color": "#000000",
   "background_color": "#000000",
-  "description": "Responsywny odtwarzacz muzyki z YouTube Music, lokalnymi playlistami, ulubionymi i historia odtwarzania."
+  "categories": ["music", "multimedia"],
+  "description": "Responsywny odtwarzacz muzyki z YouTube Music, lokalnymi playlistami, ulubionymi i historia odtwarzania.",
+  "screenshots": [
+    {
+      "src": "/screenshot-192x280.png",
+      "sizes": "192x280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "purpose": "screenshots"
+    },
+    {
+      "src": "/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "purpose": "screenshots"
+    }
+  ]
 }

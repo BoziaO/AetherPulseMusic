@@ -191,6 +191,11 @@ textarea:focus-visible {
 
 html {
   scroll-behavior: smooth;
+  /* Safe area insets for notched devices */
+  --safe-area-inset-top: env(safe-area-inset-top, 0);
+  --safe-area-inset-right: env(safe-area-inset-right, 0);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+  --safe-area-inset-left: env(safe-area-inset-left, 0);
 }
 
 .custom-scroll::-webkit-scrollbar {
@@ -648,6 +653,192 @@ textarea::placeholder {
 }
 
 .animate-scale-in {
+  animation: scale-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================================================
+   Mobile Optimizations & Safe Area Insets
+   ============================================================ */
+
+/* Support for notched displays and safe area insets */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, var(--safe-area-inset-left));
+    padding-right: max(0px, var(--safe-area-inset-right));
+  }
+  
+  .app-shell {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .player-bar {
+    padding-bottom: max(8px, var(--safe-area-inset-bottom));
+  }
+
+  .sidebar {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .main {
+    padding-top: var(--safe-area-inset-top);
+    padding-right: var(--safe-area-inset-right);
+  }
+}
+
+/* Mobile-first responsive optimizations */
+@media (max-width: 640px) {
+  /* Ensure proper viewport height on mobile */
+  html, body, #app {
+    height: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Improve touch target sizes on mobile */
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn-primary, .btn-secondary {
+    min-height: 44px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+
+  /* Better mobile input sizing */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 12px 14px;
+  }
+
+  /* Prevent zoom on input focus (iOS) */
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="number"]:focus,
+  input[type="search"]:focus,
+  textarea:focus {
+    font-size: 16px;
+  }
+
+  /* Mobile modal optimizations */
+  .modal-overlay {
+    padding: 16px;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  /* Improve spacing in mobile lists */
+  .row {
+    padding: 12px 8px;
+  }
+
+  /* Better card sizing on mobile */
+  .card {
+    border-radius: var(--radius-md);
+  }
+
+  /* Mobile text sizing */
+  body {
+    font-size: 15px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  /* Prevent horizontal scroll */
+  body, html {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Landscape mode considerations */
+  @media (orientation: landscape) {
+    .sidebar {
+      display: none;
+    }
+
+    .main {
+      margin-left: 0;
+    }
+
+    .app-shell {
+      max-height: 100dvh;
+    }
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  .main {
+    margin-left: 240px;
+  }
+
+  .icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1024px) {
+  .hamburger-btn {
+    display: none;
+  }
+
+  .sidebar {
+    display: flex;
+  }
+
+  .main {
+    margin-left: 260px;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode specific optimizations for OLED screens */
+@media (prefers-color-scheme: dark) {
+  /* OLED-friendly colors */
+  :root[data-theme="dark"] {
+    --bg-base: #000000;
+  }
+}
   animation: scale-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 

@@ -960,11 +960,21 @@ onBeforeUnmount(() => {
 
 @media (max-width: 600px) {
   .main.has-player {
-    padding-bottom: 130px;
+    padding-bottom: max(130px, calc(130px + var(--safe-area-inset-bottom)));
   }
 
   .page {
     padding: 16px;
+    padding-top: 12px;
+  }
+
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding-top: var(--safe-area-inset-top);
+    z-index: 180;
   }
 
   .topbar-inner {

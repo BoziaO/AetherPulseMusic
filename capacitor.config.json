@@ -6,5 +6,28 @@
   "npmClient": "npm",
   "server": {
     "cleartext": true
+  },
+  "ios": {
+    "contentInsetAdjustmentBehavior": "always",
+    "preferredContentMode": "mobile",
+    "statusBarBackgroundColor": "#000000",
+    "statusBarStyle": "default"
+  },
+  "android": {
+    "backgroundColor": "#000000",
+    "uiMode": "dark",
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#000000",
+      "overlaysWebView": true
+    }
   }
 }

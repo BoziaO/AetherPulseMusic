@@ -128,16 +128,6 @@ AetherPulseMusic/
 
 ---
 
-## Roadmap
-
-- [ ] Synchronizowane teksty piosenek (lrclib.net)
-- [ ] React Error Boundaries → Vue `onErrorCaptured`
-- [ ] Zaawansowane wyszukiwanie z filtrami
-- [ ] Eksport playlist do pliku
-- [ ] Wersja desktopowa (Electron / Tauri)
-
----
-
 ## Wkład
 
 Pull requesty są mile widziane. Sprawdź [CONTRIBUTING.md](CONTRIBUTING.md) przed wysłaniem zmian. Przed PR upewnij się że `npm run dev` startuje bez błędów.

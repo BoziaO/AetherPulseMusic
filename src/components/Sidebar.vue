@@ -7,27 +7,29 @@ Zawiera linki do sekcji muzycznych, statystyk oraz ustawień. Zastosowano efekty
     class="sidebar fixed inset-y-0 left-0 z-[220] w-[260px] flex flex-col transition-all duration-300 ease-in-out"
     :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
   >
-    <div class="flex items-center justify-between px-7 pt-7 pb-5">
+    <div class="flex items-center gap-3 px-6 pt-8 pb-8">
       <RouterLink to="/" class="brand" @click="emit('close')">
-        <img src="/icon.svg" alt="" class="brand-logo" />
+        <div class="brand-logo-container">
+          <img src="/icon.svg" alt="" class="brand-logo" />
+        </div>
         <span class="brand-text">{{ t('appName') }}</span>
       </RouterLink>
 
-      <button class="icon-btn lg:hidden" type="button" :title="t('close')" @click="emit('close')">
+      <button class="icon-btn lg:hidden ml-auto" type="button" :title="t('close')" @click="emit('close')">
         <X :size="18" />
       </button>
     </div>
 
     <nav class="flex-1 overflow-y-auto scrollbar-hide px-4 pb-8">
-      <section v-for="group in navigationGroups" :key="group.titleKey || group.items[0].key" class="mb-6">
+      <section v-for="group in navigationGroups" :key="group.titleKey || group.items[0].key" class="mb-8">
         <p
           v-if="group.titleKey"
-          class="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]"
-          :style="{ color: 'var(--text-tertiary)' }"
+          class="mb-3 px-4 text-[11px] font-bold uppercase tracking-[0.15em] opacity-40"
+          :style="{ color: 'var(--text-primary)' }"
         >
           {{ t(group.titleKey) }}
         </p>
-        <div class="space-y-0.5">
+        <div class="space-y-1">
           <RouterLink
             v-for="item in group.items"
             :key="item.key"
@@ -37,23 +39,23 @@ Zawiera linki do sekcji muzycznych, statystyk oraz ustawień. Zastosowano efekty
             @click="emit('close')"
           >
             <span class="nav-icon-wrap" :class="isActive(item) ? 'nav-icon-active' : ''">
-              <component :is="iconFor(item.key)" :size="15" />
+              <component :is="iconFor(item.key)" :size="18" />
             </span>
             <span class="nav-label truncate">{{ t(item.labelKey) }}</span>
           </RouterLink>
         </div>
       </section>
 
-      <div class="mt-auto pt-4 border-t border-white/[0.05]">
+      <div class="mt-auto pt-6 px-2">
         <button
-          class="nav-link w-full text-left group"
+          class="import-btn w-full group"
           type="button"
           @click="app?.openImportModal?.()"
         >
-          <span class="nav-icon-wrap group-hover:bg-primary/20 group-hover:text-primary">
-            <DownloadCloud :size="15" />
-          </span>
-          <span class="nav-label truncate">{{ t('importPlaylist') }}</span>
+          <div class="import-icon">
+            <DownloadCloud :size="16" />
+          </div>
+          <span>{{ t('importPlaylist') }}</span>
         </button>
       </div>
     </nav>
@@ -61,7 +63,7 @@ Zawiera linki do sekcji muzycznych, statystyk oraz ustawień. Zastosowano efekty
 
   <button
     v-if="open"
-    class="fixed inset-0 z-[210] bg-black/50 lg:hidden"
+    class="fixed inset-0 z-[210] bg-black/60 backdrop-blur-sm lg:hidden"
     type="button"
     :title="t('close')"
     @click="emit('close')"
@@ -79,6 +81,7 @@ import {
   Heart,
   Library,
   ListMusic,
+  Moon,
   Music2,
   Radio,
   Settings,
@@ -88,7 +91,6 @@ import {
   X,
   Zap,
 } from "lucide-vue-next";
-// Music2 kept for fallback iconFor()
 import { navigationGroups } from "../data/navigation";
 
 const props = defineProps({
@@ -105,16 +107,14 @@ function t(key) {
 
 const icons = {
   home: Radio,
-  "for-you": Star,
   discover: Compass,
-  chill: Sparkles,
-  energy: Zap,
-  recent: ListMusic,
-  favorites: Heart,
-  downloads: DownloadCloud,
-  artists: UserRound,
-  albums: Album,
   playlists: Library,
+  radio: Radio,
+  favorites: Heart,
+  "late-night": Moon,
+  focus: Zap,
+  weekly: Sparkles,
+  albums: Album,
   insights: BarChart3,
   settings: Settings,
 };
@@ -131,102 +131,102 @@ function isActive(item) {
 
 <style scoped>
 .sidebar {
-  background: rgba(18, 18, 22, 0.85);
-  backdrop-filter: blur(25px) saturate(180%);
-  -webkit-backdrop-filter: blur(25px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  background: #0d0d12;
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   text-decoration: none;
 }
 
-.brand-logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  object-fit: cover;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-  transition: filter var(--transition-base), transform var(--transition-base);
+.brand-logo-container {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
-.brand:hover .brand-logo {
-  transform: scale(1.05) rotate(-3deg);
+.brand-logo {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) invert(1);
 }
 
 .brand-text {
-  font-size: 17px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
-  border-radius: 11px;
+  gap: 16px;
+  padding: 10px 16px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
 }
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  transform: translateX(4px);
+  color: rgba(255, 255, 255, 0.9);
 }
-
-.nav-label {
-  letter-spacing: -0.01em;
-  opacity: 0.85;
-  transition: opacity 0.2s;
-}
-
-.nav-link:hover .nav-label { opacity: 1; }
 
 .nav-link.is-active {
-  background: rgba(var(--primary-rgb), 0.12);
-  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.15);
+  color: #fff;
 }
 
 .nav-icon-wrap {
-  width: 30px;
-  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  flex-shrink: 0;
+  color: inherit;
+  transition: transform 0.2s;
+}
+
+.nav-link.is-active .nav-icon-wrap {
+  color: var(--primary);
+  transform: scale(1.1);
+}
+
+.nav-label {
+  font-weight: 600;
+}
+
+.import-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
   background: rgba(255, 255, 255, 0.03);
-  color: var(--text-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.nav-icon-active {
-  background: rgba(var(--primary-rgb), 0.2) !important;
-  color: var(--primary) !important;
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+.import-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
-.nav-link.is-active::before {
-  content: "";
-  position: absolute;
-  left: -4px;
-  top: 20%;
-  height: 60%;
-  width: 3px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary);
-  box-shadow: 4px 0 10px var(--primary);
+.import-icon {
+  color: var(--primary);
 }
 </style>
+

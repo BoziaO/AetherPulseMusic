@@ -3,21 +3,18 @@ export const navigationGroups = [
     titleKey: null,
     items: [
       { key: "home", labelKey: "navHome", path: "/" },
-      { key: "for-you", labelKey: "navForYou", path: "/for-you" },
-      { key: "discover", labelKey: "navBrowse", path: "/discover" },
-      { key: "chill", labelKey: "navChill", path: "/chill" },
-      { key: "energy", labelKey: "navEnergy", path: "/energy" },
+      { key: "discover", labelKey: "navExplore", path: "/discover" },
+      { key: "playlists", labelKey: "navLibrary", path: "/playlists" },
+      { key: "radio", labelKey: "navRadio", path: "/radio" },
     ],
   },
   {
-    titleKey: "navLibrary",
+    titleKey: "navPlaylists",
     items: [
-      { key: "recent", labelKey: "navRecent", path: "/recent" },
       { key: "favorites", labelKey: "navFavorites", path: "/favorites" },
-      { key: "downloads", labelKey: "navDownloads", path: "/downloads" },
-      { key: "artists", labelKey: "navArtists", path: "/artists" },
-      { key: "albums", labelKey: "navAlbums", path: "/albums" },
-      { key: "playlists", labelKey: "navPlaylists", path: "/playlists" },
+      { key: "late-night", labelKey: "navLateNight", path: "/chill" },
+      { key: "focus", labelKey: "navFocus", path: "/energy" },
+      { key: "weekly", labelKey: "navWeekly", path: "/discover" },
     ],
   },
 ];
